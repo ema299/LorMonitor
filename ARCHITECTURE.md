@@ -1730,6 +1730,33 @@ apscheduler>=3.10           # Scheduler workers
 - [x] HTTP → HTTPS redirect automatico (301)
 - [x] Password protection HTTP Basic (nginx) — rimuovere quando si apre al pubblico
 
+### Stabilizzazione infrastruttura ✅ completata 27/03/2026
+- [x] Git repo `ema299/LorMonitor` su GitHub (privato), primo commit 49 file
+- [x] Symlink `frontend/dashboard.html` → analisidef (dashboard sempre aggiornata con le modifiche in analisidef)
+- [x] Backup automatico DB: cron 03:00, `scripts/backup.sh` (pg_dump + gzip, retention 7gg, dir `/backups/lorcana/`)
+- [x] Import match automatico: cron 06:30, `scripts/import_matches.py` (ON CONFLICT DO NOTHING, solo nuovi)
+- [x] Import killer curves: cron Mar+Gio 03:30, `scripts/import_killer_curves.py` (dopo batch generation analisidef)
+- [x] `robots.txt` — blocca tutti i crawler (Disallow: /)
+- [x] Health check: cron ogni 5 min, `scripts/healthcheck.sh` (auto-restart se API non risponde)
+- [ ] Alerting Telegram — da aggiungere
+- [ ] Load testing — da fare prima del lancio pubblico
+
+**Cron schedule completo (App_tool):**
+```
+*/5 * * * *   healthcheck.sh          → auto-restart se down
+0   3 * * *   backup.sh               → pg_dump + gzip + cleanup 7gg
+30  3 * * 2,4 import_killer_curves.py  → importa nuove curve dopo batch
+30  6 * * *   import_matches.py        → importa nuovi match da /matches/
+```
+
+**Cron schedule analisidef (invariato):**
+```
+0   2 * * 2,4 run_all_killer_curves.sh → genera killer curves (Claude API batch)
+0   7 * * *   lorcana_monitor.py report
+1   7 * * *   daily_routine.py         → genera dashboard_data.json
+5   7 * * *   generate_and_send.py
+```
+
 ### Piano di transizione verso autonomia (futuro)
 
 ```
@@ -1778,8 +1805,12 @@ Rischi e mitigazioni:
 - [ ] Face ID login
 - [ ] Build + submit App Store
 
-### Fase 7 — Stabilizzazione (continuo)
-- [ ] Monitoring + alerting Telegram
+### Fase 7 — Stabilizzazione continua
+- [x] Backup automatico (cron 03:00, pg_dump, 7gg retention)
+- [x] Health check (cron 5min, auto-restart)
+- [x] robots.txt (no indexing)
+- [x] Git repo GitHub (privato)
+- [ ] Alerting Telegram (notifica se health check fallisce)
 - [ ] Load testing (100 concurrent)
-- [ ] Backup automatico + test restore mensile
+- [ ] Test restore backup mensile
 - [ ] Aggiornamento dipendenze

@@ -674,12 +674,21 @@ Le analisi avanzate (tech tornado, board state, loss classification, mulligan,
 card synergies, player cards) vivono nel motore di analisidef (lib/, 6.7K LOC)
 che non e' stato ancora portato in App_tool.
 
-### ⏳ Fase 3 — Frontend Ponte (prossima)
-Strategia "ponte": App_tool serve la stessa dashboard di analisidef leggendo il
-`dashboard_data.json` gia' prodotto dalla daily routine. analisidef continua a
-calcolare tutto, App_tool si occupa solo di servire. Dashboard identica al 100%.
+### ✅ Fase 3 — Frontend Ponte + Infrastruttura (completata)
+Dashboard identica a quella di analisidef, servita da App_tool.
+- Dominio `metamonitor.app` registrato su Cloudflare
+- HTTPS con certificato Let's Encrypt (auto-renewal)
+- Password di protezione HTTP Basic (nessuno puo' accedere senza credenziali)
+- Symlink al template dashboard.html di analisidef (modifiche propagate automaticamente)
+- systemd service: uvicorn si riavvia da solo se crasha, parte al boot
 
-Poi: nginx + SSL + dominio per accesso sicuro dall'esterno.
+### ✅ Stabilizzazione (completata)
+- Git repo privato su GitHub (`ema299/LorMonitor`)
+- Backup automatico DB ogni notte alle 03:00 (retention 7 giorni)
+- Import automatico nuovi match ogni giorno alle 06:30
+- Import killer curves Mar+Gio alle 03:30
+- Health check ogni 5 minuti con auto-restart
+- robots.txt blocca indicizzazione Google
 
 ### Piano di transizione verso autonomia (futuro, 3 fasi)
 - **Fase A (ponte, attuale)**: App_tool serve, analisidef calcola. Zero rischi.
@@ -687,7 +696,7 @@ Poi: nginx + SSL + dominio per accesso sicuro dall'esterno.
 - **Fase C (autonomia)**: si attivano i worker, si spegne analisidef.
 Ogni fase e' reversibile. Si procede solo quando la precedente e' validata.
 
-### ⏳ Fase 4 — Auth + Pagamento (dopo stabilizzazione)
+### ⏳ Fase 4 — Auth + Pagamento
 Login, registrazione, JWT, Stripe. Paywall per tier free/pro/team.
 
 ### ⏳ Fase 5 — Frontend PWA

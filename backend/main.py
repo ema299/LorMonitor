@@ -54,5 +54,17 @@ def serve_dashboard_alias():
     return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
 
 
+# Serve dashboard_data.json at paths the original template expects
+from backend.config import ANALISIDEF_DAILY_DIR
+
+@app.get("/output/dashboard_data.json")
+@app.get("/dashboard_data.json")
+def serve_dashboard_json():
+    json_path = ANALISIDEF_DAILY_DIR / "dashboard_data.json"
+    if json_path.exists():
+        return FileResponse(str(json_path), media_type="application/json")
+    return {"error": "dashboard_data.json not found"}
+
+
 # Serve all frontend static files (icons, manifest, chart.js, assets/)
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
