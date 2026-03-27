@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lorcana Monitor</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1>Lorcana Monitor</h1>
+    <div id="kpi-bar" class="kpi-bar"></div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="monitor">Monitor</button>
+  <button class="tab" data-tab="coach">Coach</button>
+  <button class="tab" data-tab="lab">Lab</button>
+</nav>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Format</label>
+    <select id="format-select">
+      <option value="core">Core Constructed</option>
+      <option value="infinity">Infinity</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Days</label>
+    <select id="days-select">
+      <option value="2">2 giorni</option>
+      <option value="7" selected>7 giorni</option>
+      <option value="14">14 giorni</option>
+      <option value="30">30 giorni</option>
+    </select>
+  </div>
+</div>
+
+<main>
+  <section id="tab-monitor" class="tab-content active"></section>
+  <section id="tab-coach" class="tab-content"></section>
+  <section id="tab-lab" class="tab-content"></section>
+</main>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

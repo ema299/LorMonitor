@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Environment
+.env
+.env.dev
+.env.prod
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Output
+output/
+
+# Alembic
+*.pyc
+
+# Frontend symlink (points to analisidef on server, not portable)
+frontend/dashboard.html
+
+# Claude
+.claude/
