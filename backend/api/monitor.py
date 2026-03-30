@@ -1,8 +1,11 @@
-"""Monitor tab — meta game overview, matchup matrix, leaderboard."""
+"""Monitor tab — meta game overview, matchup matrix, leaderboard.
+Requires: logged in (any tier). Free users see all monitor data.
+"""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db
+from backend.deps import get_current_user, get_db
+from backend.models.user import User
 from backend.services import stats_service, players_service
 
 router = APIRouter()
@@ -12,6 +15,7 @@ router = APIRouter()
 def meta_share(
     game_format: str = Query("core"),
     days: int = Query(2, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Meta game share: deck popularity and win rates."""
@@ -23,6 +27,7 @@ def deck_breakdown(
     deck_code: str,
     game_format: str = Query("core"),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Single deck breakdown: WR vs each opponent."""
@@ -35,6 +40,7 @@ def matchup_matrix(
     game_format: str = Query("core"),
     perimeter: str | None = Query(None),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Full matchup matrix (all deck pairs)."""
@@ -46,6 +52,7 @@ def otp_otd(
     game_format: str = Query("core"),
     perimeter: str | None = Query(None),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """OTP vs OTD win rates per matchup."""
@@ -56,6 +63,7 @@ def otp_otd(
 def trend(
     game_format: str = Query("core"),
     days: int = Query(5, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Daily win rate trend per deck."""
@@ -67,6 +75,7 @@ def leaderboard(
     game_format: str = Query("core"),
     days: int = Query(7, ge=1, le=30),
     limit: int = Query(100, ge=1, le=500),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Player leaderboard ranked by MMR."""
@@ -78,6 +87,7 @@ def top_players_by_deck(
     deck_code: str,
     game_format: str = Query("core"),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Top players for a specific deck."""
@@ -90,6 +100,7 @@ def winrates(
     game_format: str = Query("core"),
     perimeter: str | None = Query(None),
     days: int = Query(2, ge=1, le=30),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Win rates per deck."""

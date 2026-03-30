@@ -386,13 +386,19 @@ CREATE TABLE killer_curves (
 CREATE INDEX idx_kc_lookup ON killer_curves(game_format, our_deck, opp_deck, is_current)
     WHERE is_current = true;
 
+-- NOTA ARCHITETTURALE: la tabella archives contiene SOLO gli aggregati
+-- statistici (~15 KB/matchup), NON i log turno-per-turno delle partite.
+-- I file archive_*.json originali (3.6 GB) includevano anche games[].turns,
+-- ma quei dati sono gia' nella tabella matches.turns (JSONB).
+-- Scelta fatta il 2026-03-30 per evitare ~3.6 GB di duplicazione.
 CREATE TABLE archives (
     id              BIGSERIAL PRIMARY KEY,
     generated_at    DATE NOT NULL,
     game_format     VARCHAR(20) NOT NULL,
     our_deck        VARCHAR(10) NOT NULL,
     opp_deck        VARCHAR(10) NOT NULL,
-    aggregates      JSONB NOT NULL,
+    aggregates      JSONB NOT NULL,          -- solo aggregati: cause_frequency,
+                                             -- critical_turn_distribution, loss_profiles, etc.
     match_count     INTEGER,
     UNIQUE(game_format, our_deck, opp_deck, generated_at)
 );
@@ -547,38 +553,47 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 ```
 /api/v1/
 │
-├── auth/
-│   ├── POST /register              # Email + password -> JWT
-│   ├── POST /login                  # Email + password -> access + refresh token
-│   ├── POST /logout                 # Revoca refresh_token
-│   ├── POST /refresh                # refresh_token -> nuovo access_token
-│   ├── POST /forgot-password        # Invia email reset
-│   ├── POST /reset-password         # Token + nuova password
-│   ├── GET  /me                     # Profilo utente corrente
-│   └── DELETE /me                   # GDPR: richiesta cancellazione account
+├── auth/                            # ✅ IMPLEMENTATO 30/03/2026
+│   ├── POST /register              # Email + password -> JWT + refresh    ✅
+│   ├── POST /login                  # Email + password -> access + refresh ✅
+│   ├── POST /logout                 # Revoca refresh_token                ✅
+│   ├── POST /refresh                # refresh_token -> nuovi token        ✅
+│   ├── GET  /me                     # Profilo utente corrente             ✅
+│   ├── DELETE /me                   # GDPR: cancellazione account         ✅
+│   ├── POST /forgot-password        # Invia email reset                   ⏳
+│   └── POST /reset-password         # Token + nuova password              ⏳
 │
-├── monitor/                         # [FREE: community only] [PRO: tutti i perimetri]
-│   ├── GET /meta?perimeter=set11&format=core
-│   ├── GET /deck/{code}?perimeter=set11
-│   ├── GET /players/{deck}?perimeter=set11&limit=20
-│   ├── GET /tech-tornado?perimeter=set11
-│   ├── GET /matchup-matrix?format=core&perimeter=set11
-│   └── GET /leaderboard?queue=S11-BO1&limit=70
+├── promo/                           # ✅ IMPLEMENTATO 30/03/2026
+│   ├── POST /create                 # [admin] Crea codice promo           ✅
+│   ├── GET  /list                   # [admin] Lista codici attivi         ✅
+│   ├── POST /deactivate/{code}      # [admin] Disattiva codice            ✅
+│   └── POST /redeem                 # [auth] Utente riscatta codice       ✅
 │
-├── coach/                           # [PRO only]
-│   ├── GET /matchup/{our}/{opp}?format=core
-│   ├── GET /killer-curves/{our}/{opp}?format=core
-│   ├── GET /threats/{our}/{opp}?format=core
-│   ├── GET /playbook/{our}/{opp}?format=core
-│   └── GET /history/{our}/{opp}?days=30
+├── monitor/                         # ✅ IMPLEMENTATO — [auth: qualsiasi tier]
+│   ├── GET /meta?game_format=core&days=2                                  ✅
+│   ├── GET /deck/{code}?game_format=core&days=7                           ✅
+│   ├── GET /matchup-matrix?game_format=core&days=7                        ✅
+│   ├── GET /winrates?game_format=core&days=2                              ✅
+│   ├── GET /otp-otd?game_format=core&days=7                               ✅
+│   ├── GET /trend?game_format=core&days=5                                 ✅
+│   ├── GET /leaderboard?game_format=core&days=7&limit=100                 ✅
+│   ├── GET /players/{deck}?game_format=core&days=7                        ✅
+│   └── GET /tech-tornado?perimeter=set11                                  ⏳
 │
-├── lab/                             # [PRO only]
-│   ├── GET /optimizer/{our}/{opp}?format=core
-│   ├── GET /mulligans/{our}/{opp}?format=core&mode=blind
-│   ├── GET /card-scores/{our}/{opp}?format=core
-│   └── GET /card-impact/{our}/{opp}?format=core
+├── coach/                           # ✅ IMPLEMENTATO — [auth: tier pro+]
+│   ├── GET /matchup/{our}/{opp}?format=core&days=7                        ✅
+│   ├── GET /killer-curves/{our}/{opp}?format=core                         ✅
+│   ├── GET /threats/{our}/{opp}?format=core                               ✅
+│   ├── GET /history/{our}/{opp}?format=core&days=30                       ✅
+│   └── GET /playbook/{our}/{opp}?format=core                              ⏳
 │
-├── user/
+├── lab/                             # ✅ IMPLEMENTATO — [auth: tier pro+]
+│   ├── GET /card-scores/{our}/{opp}?format=core&days=7                    ✅
+│   ├── GET /history?perimeter=full&days=30                                ✅
+│   ├── GET /optimizer/{our}/{opp}?format=core                             ⏳
+│   └── GET /mulligans/{our}/{opp}?format=core                             ⏳
+│
+├── user/                                                                  ⏳
 │   ├── GET    /decks
 │   ├── POST   /decks               # Salva deck nel profilo
 │   ├── PUT    /decks/{id}           # Aggiorna deck
@@ -587,40 +602,96 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── PUT    /preferences          # Lingua, notifiche, deck preferito
 │   └── GET    /export               # GDPR: esporta tutti i dati utente
 │
-├── team/                            # [TEAM tier only]
+├── team/                            # [TEAM tier only]                    ⏳
 │   ├── GET /roster
 │   ├── GET /player/{name}/stats
 │   ├── GET /overview
 │   └── GET /weaknesses
 │
-├── admin/                           # [Admin only]
-│   ├── POST /refresh-daily
-│   ├── POST /refresh-curves/{deck}
-│   ├── GET  /health
-│   ├── GET  /metrics
-│   └── GET  /logs?level=error&limit=100
+├── admin/                           # ✅ IMPLEMENTATO — [admin only, health pubblico]
+│   ├── GET  /health                 # Pubblico (uptime monitors)          ✅
+│   ├── GET  /metrics                # [admin]                             ✅
+│   ├── POST /refresh-views          # [admin]                             ✅
+│   └── GET  /logs?level=error&limit=100                                   ⏳
 │
-└── webhooks/
+└── webhooks/                                                              ⏳
     └── POST /stripe                 # Webhook Stripe (signature verificata)
 ```
 
-### 7.2 Paywall (Tier Enforcement)
+### 7.2 Stato Implementazione (aggiornato 30 Mar 2026)
+
+```
+IMPLEMENTATO:
+  backend/services/auth_service.py    — bcrypt (cost 12), JWT HS256, refresh token rotation
+  backend/api/auth.py                 — register, login, logout, refresh, me, delete me
+  backend/deps.py                     — get_current_user, require_tier(), require_admin
+  scripts/create_admin.py             — seed account admin + test
+
+  Testato: login → JWT → /me → profilo OK
+  Token: access 15min, refresh 30gg con rotazione (old revocato, new emesso)
+  Sessioni: hash SHA-256 in DB, revocabili, legate a IP/device
+
+ACCOUNT TEST (tutti tier=team, accesso completo):
+  admin@metamonitor.app  (admin=true)   password: admin123!
+  free@metamonitor.app                  password: test1234
+  pro@metamonitor.app                   password: test1234
+  team@metamonitor.app                  password: test1234
+  nuovo@metamonitor.app                 password: testtest1234
+
+  NOTA: in fase di test tutti gli account sono team per vedere tutto.
+  I tier verranno differenziati quando il paywall sara' attivo.
+
+DA IMPLEMENTARE:
+  - POST /forgot-password, /reset-password (richiede email service)
+  - Webhook Stripe per upgrade/downgrade tier automatico
+  - Password blacklist (top 10K comuni)
+```
+
+### 7.3 Paywall (Tier Enforcement)
 
 ```python
 # backend/deps.py
-TIER_LEVEL = {"free": 0, "pro": 1, "team": 2}
+TIER_LEVEL = {"free": 0, "pro": 1, "team": 2, "admin": 3}
 
 def require_tier(min_tier: str):
-    async def check(current_user = Depends(get_current_user)):
-        if TIER_LEVEL.get(current_user.tier, 0) < TIER_LEVEL[min_tier]:
+    def checker(user: User = Depends(get_current_user)):
+        if TIER_LEVEL.get(user.tier, 0) < TIER_LEVEL[min_tier]:
             raise HTTPException(403, {"error": "upgrade_required", "required_tier": min_tier})
-        return current_user
-    return check
+        return user
+    return checker
 
 # Uso:
 @router.get("/killer-curves/{our}/{opp}")
-async def get_killer_curves(our: str, opp: str, user = Depends(require_tier("pro"))):
+def get_killer_curves(our: str, opp: str, user = Depends(require_tier("pro"))):
     ...
+```
+
+### 7.4 Promo Codes (implementato 30 Mar 2026)
+
+```
+Due tipi di codice promozionale:
+
+1. TIER UPGRADE — accesso completo per X giorni
+   Esempio: BETATEST2026 → tier team per 30 giorni, max 10 usi
+   Dopo scadenza: l'utente torna al tier originale (via cron expire_upgrades)
+
+2. DISCOUNT — sconto % sul pagamento Stripe
+   Esempio: AMICO20 → 20% sconto per 3 mesi, max 50 usi
+   Si applica al checkout Stripe (da implementare con coupon Stripe)
+
+Tabelle: promo_codes, promo_redemptions
+Endpoint:
+  POST /api/v1/promo/create     [admin]  — crea codice
+  GET  /api/v1/promo/list        [admin]  — lista codici attivi
+  POST /api/v1/promo/deactivate/{code} [admin] — disattiva codice
+  POST /api/v1/promo/redeem      [auth]   — utente riscatta codice
+
+Protezioni:
+  - Solo admin puo' creare/gestire codici
+  - Ogni utente puo' riscattare un codice solo una volta
+  - Max usi configurabile per codice
+  - Scadenza codice configurabile
+  - Scadenza upgrade con revert automatico al tier originale
 ```
 
 ---
@@ -719,6 +790,191 @@ AUTORIZZAZIONE (cosa puoi fare):
 | Privilege escalation | user_id dal JWT server-side, mai dal client |
 | DDoS | nginx rate limit + Cloudflare free tier (futuro) |
 | Stripe webhook spoofing | Verifica HMAC-SHA256 signature + IP whitelist |
+
+### 8.7 Sicurezza Operativa (Server Hardening)
+
+I livelli 1-6 proteggono l'applicazione. Questa sezione protegge il **server stesso** e i **processi operativi**.
+
+#### 8.7.1 Stato attuale vs target
+
+| Area | OGGI (30 Mar 2026) | TARGET |
+|------|-------------------|--------|
+| Utente sistema | **root** per tutto | Utente dedicato `lorcana` (no root) |
+| Firewall UFW | **inattivo** | Attivo: solo 80, 443, 22 |
+| fail2ban | **non installato** | Attivo: ban IP dopo 5 tentativi SSH/login falliti |
+| Aggiornamenti OS | unattended-upgrades attivo | OK — gia' a posto |
+| Processi | uvicorn gira come root | systemd con `User=lorcana`, `NoNewPrivileges=true` |
+| SSH | key auth (da verificare) | Disabilitare password auth + root login |
+
+#### 8.7.2 Secrets Management
+
+```
+OGGI:
+  .env su disco con password in chiaro (DATABASE_URL con password)
+  .env correttamente in .gitignore (mai committato)
+  Nessuna rotazione password
+
+TARGET:
+  Fase 1 (immediata):
+  - Verificare che .env non sia MAI finito in un commit (git log --all -- .env)
+  - Password PostgreSQL: cambiare da "lorcana_dev_2026" a random 32 char
+  - JWT secret: generare con `openssl rand -hex 32`
+  - Permessi file: chmod 600 .env (leggibile solo da owner)
+
+  Fase 2 (quando servono secrets in piu'):
+  - Stripe keys, webhook secrets
+  - Separare .env.prod da .env.dev
+  - Rotazione password ogni 6 mesi
+
+  Regola: MAI password in codice, commit, log, o output. Solo in .env e in variabili ambiente.
+```
+
+#### 8.7.3 Monitoring & Alerting
+
+```
+OGGI:
+  Nessun sistema di alerting
+  Log sparsi in /var/log/lorcana-*.log
+  Nessuno viene avvisato se il server va giu'
+
+TARGET:
+  Livello 1 — Health check (costo zero):
+  - healthcheck.sh gia' in cron ogni 5min
+  - Aggiungere: se fallisce → notifica (Telegram bot o email)
+  - Monitorare: API up, PostgreSQL up, disco < 90%, RAM < 90%
+
+  Livello 2 — Log strutturato:
+  - Tutti i log in formato JSON (gia' previsto in logging_mw.py)
+  - Log centralizzato in /var/log/lorcana/
+  - Rotazione con logrotate (7gg retain, compressione)
+
+  Livello 3 — Alerting sicurezza:
+  - Login falliti > 10/ora → alert
+  - Accesso SSH non riconosciuto → alert
+  - File .env modificato → alert
+  - Nuovi processi in ascolto su porte → alert
+
+  Strumenti consigliati (gratis):
+  - UptimeRobot free tier (5min check, alert email/Telegram)
+  - Telegram bot per notifiche custom (webhook semplice)
+```
+
+#### 8.7.4 Incident Response
+
+```
+SE SOSPETTI UNA COMPROMISSIONE:
+
+  1. CONTIENI
+     - Blocca accesso SSH da IP sospetti: ufw deny from <IP>
+     - Se grave: spegni nginx (systemctl stop nginx) → sito offline ma dati salvi
+
+  2. ANALIZZA
+     - auth.log: chi si e' collegato? → journalctl -u ssh --since "24h ago"
+     - audit_log in DB: azioni sospette? → SELECT * FROM audit_log ORDER BY created_at DESC
+     - Processi attivi: ps aux | grep -v root
+     - File modificati di recente: find /var/www -mtime -1
+
+  3. RECUPERA
+     - Ruota TUTTE le password: PostgreSQL, JWT secret, Stripe keys
+     - Revoca tutte le sessioni utente: UPDATE user_sessions SET revoked_at = now()
+     - Ripristina da backup se necessario (vedi sezione 12)
+     - Riattiva servizi uno alla volta, verifica log
+
+  4. PREVIENI
+     - Documenta cosa e' successo e come
+     - Chiudi la falla trovata
+     - Aggiungi monitoring per quel vettore
+```
+
+#### 8.7.5 Backup Encryption
+
+```
+OGGI:
+  pg_dump in chiaro su disco locale
+  Nessun backup offsite (Storage Box non ancora attivo)
+
+TARGET:
+  - pg_dump | gzip | gpg --symmetric → backup criptato
+  - Password GPG separata, conservata offline (non su .env del server)
+  - Upload su Hetzner Storage Box via SFTP
+  - Verifica restore mensile (backup non testato = backup inesistente)
+```
+
+#### 8.7.6 Dependency Security
+
+```
+  Controllo vulnerabilita':
+  - pip audit                         # Vulnerabilita' note nelle dipendenze Python
+  - Eseguire prima di ogni deploy e settimanalmente (cron)
+
+  Regole:
+  - requirements.txt con versioni pinned (gia' fatto)
+  - Aggiornare dipendenze mensilmente
+  - Mai installare pacchetti da fonti non verificate
+  - Preferire librerie con manutenzione attiva e auditing
+```
+
+#### 8.7.7 Git & Code Security
+
+```
+OGGI:
+  .env in .gitignore → OK, non committato
+  Repo GitHub privati (LorMonitor, LorAnalisi) → OK
+
+  Verifiche da fare:
+  - git log --all --diff-filter=A -- '*.env' '*.key' '*.pem'  → assicurarsi che
+    nessun secret sia MAI stato committato (anche se poi rimosso, resta nella storia)
+  - GitHub: abilitare Dependabot alerts (gratis, avvisa su vulnerabilita')
+  - GitHub: abilitare branch protection su main (richiede PR per merge)
+
+  Regole:
+  - MAI committare: .env, chiavi private, certificati, token
+  - Se un secret finisce in un commit per errore:
+    1. Ruota il secret IMMEDIATAMENTE (il vecchio e' compromesso)
+    2. Pulisci la storia git con git filter-repo
+    3. Force push (unica volta in cui e' giustificato)
+```
+
+#### 8.7.8 Cloudflare (stato attuale)
+
+```
+OGGI:
+  Cloudflare gestisce DNS per metamonitor.app
+  Proxy: da verificare se attivo o solo DNS
+
+TARGET:
+  - Proxy attivo (arancione in dashboard): nasconde IP reale del server
+  - SSL mode: Full (strict) — Cloudflare verifica il certificato Let's Encrypt
+  - Bot Fight Mode: attivo (gratis, blocca bot malevoli)
+  - Under Attack Mode: disponibile in caso di DDoS
+  - WAF rules base: gratis, blocca pattern noti (SQLi, XSS nelle URL)
+  - Rate limiting Cloudflare: 1 regola gratis, usarla per /api/v1/auth/login
+```
+
+#### 8.7.9 Checklist priorita'
+
+```
+URGENTE (fare subito, prima del lancio):
+  [ ] Attivare UFW (ufw enable, allow 80,443,22)
+  [ ] Installare fail2ban
+  [ ] Cambiare password PostgreSQL da default
+  [ ] chmod 600 .env
+  [ ] Verificare proxy Cloudflare attivo
+
+IMPORTANTE (fare prima di utenti paganti):
+  [ ] Creare utente lorcana, non girare come root
+  [ ] Generare JWT secret sicuro
+  [ ] Attivare backup criptato offsite
+  [ ] Impostare alerting (UptimeRobot + Telegram)
+  [ ] pip audit su dipendenze
+  [ ] Branch protection su main (GitHub)
+
+NICE TO HAVE (fare quando il prodotto funziona):
+  [ ] Dependabot su GitHub
+  [ ] Log strutturato JSON
+  [ ] Audit security trimestrale
+  [ ] Documentare incident response con contatti
+```
 
 ---
 

@@ -607,6 +607,7 @@ Per coprire i costi fissi bastano 2 utenti Pro (2 × 12 EUR = 24 EUR).
 | **Deploy** | Mettere online il codice nuovo. |
 | **DNS** | Il "rubrica telefonica" di internet. Traduce "lorcanamonitor.com" nell'indirizzo IP del server. |
 | **Endpoint** | Un singolo "piatto" del menu API. Es: `/api/v1/monitor/meta` |
+| **fail2ban** | Programma che blocca automaticamente gli IP che tentano troppi accessi sbagliati. |
 | **FastAPI** | Framework Python per creare API web. Come Flask ma piu' veloce e moderno. |
 | **Frontend** | La parte del programma che gira nel browser dell'utente. HTML, CSS, JavaScript. |
 | **GDPR** | Legge europea sulla privacy. Regola come tratti i dati degli utenti. |
@@ -625,6 +626,7 @@ Per coprire i costi fissi bastano 2 utenti Pro (2 × 12 EUR = 24 EUR).
 | **PCI DSS** | Standard di sicurezza per chi gestisce pagamenti. Con Stripe Checkout sei conforme automaticamente. |
 | **pg_dump** | Comando PostgreSQL che esporta tutto il database in un file. Per il backup. |
 | **Pipeline** | Una sequenza di operazioni automatiche. Es: importa match → calcola WR → aggiorna dashboard. |
+| **Promo Code** | Codice che regala accesso o sconto. L'admin li crea, gli utenti li riscattano. |
 | **PWA** | Progressive Web App. Un sito web che si comporta come un'app (offline, installabile, notifiche). |
 | **Rate limit** | Limite al numero di richieste per utente. Protegge da abusi e attacchi. |
 | **Redis** | Database in-memory. Velocissimo, usato come cache. Se si spegne, perde i dati (non grave). |
@@ -637,7 +639,8 @@ Per coprire i costi fissi bastano 2 utenti Pro (2 × 12 EUR = 24 EUR).
 | **SSL/TLS** | Il protocollo di criptazione dietro HTTPS. TLS e' la versione moderna di SSL. |
 | **Stripe** | Servizio di pagamento online. Gestisce carte, Apple Pay, Google Pay, abbonamenti. |
 | **systemd** | Il gestore servizi di Linux. Avvia i programmi, li riavvia se crashano, li ferma ordinatamente. |
-| **Tier** | Livello di abbonamento. Free, Pro, Team. |
+| **Tier** | Livello di abbonamento. Free, Pro, Team. Determina cosa puoi vedere nell'app. |
+| **UFW** | Uncomplicated Firewall. Blocca tutte le porte del server tranne quelle che servono. |
 | **TTL** | Time To Live. Quanto tempo un dato resta in cache prima di essere ricalcolato. |
 | **uvicorn** | Il server che fa girare FastAPI. Gestisce le connessioni HTTP e distribuisce le richieste. |
 | **UUID** | Identificativo unico universale. Es: "550e8400-e29b-41d4-a716-446655440000". Impossibile da indovinare. |
@@ -648,24 +651,81 @@ Per coprire i costi fissi bastano 2 utenti Pro (2 × 12 EUR = 24 EUR).
 
 ---
 
+## Codici Promozionali
+
+### Cosa sono
+Puoi creare dei codici (tipo "BETATEST2026" o "AMICO20") da dare a persone specifiche.
+Due tipi:
+
+**1. Accesso gratuito** — Regala l'accesso completo per un periodo limitato.
+Esempio: dai BETATEST2026 a un amico → lui vede tutto per 30 giorni → poi torna free.
+Utile per: beta tester, influencer Lorcana, amici, collaboratori.
+
+**2. Sconto** — Riduce il prezzo dell'abbonamento.
+Esempio: AMICO20 = 20% di sconto per 3 mesi.
+Utile per: promozioni, lancio, fidelizzazione.
+
+### Come funziona
+Solo l'admin puo' creare codici (dall'API o da un pannello futuro).
+L'utente inserisce il codice nel suo profilo.
+Il sistema controlla: codice valido? non scaduto? non esaurito? non gia' usato?
+Se tutto OK, applica l'effetto (upgrade tier o sconto).
+
+Ogni codice ha:
+- Un numero massimo di usi (es. 10 persone)
+- Una data di scadenza (opzionale)
+- Un tipo (accesso o sconto)
+- Un contatore di quante volte e' stato usato
+
+Quando scade un accesso regalato, l'utente torna automaticamente al suo tier originale.
+
+---
+
+## Sicurezza Operativa (aggiornato 30 Mar 2026)
+
+### Cos'e'
+Oltre a proteggere l'app (password, token, HTTPS), bisogna proteggere il server stesso.
+E' come blindare la porta di casa (HTTPS) ma anche mettere l'antifurto (fail2ban)
+e non lasciare le chiavi sotto lo zerbino (password nel .env, non nel codice).
+
+### Cosa abbiamo fatto il 30 Marzo
+
+**Firewall (UFW)**: attivato. Solo 3 porte aperte al mondo: 22 (SSH), 80 (HTTP), 443 (HTTPS).
+Tutto il resto (database, Redis, porte interne) e' invisibile dall'esterno.
+
+**fail2ban**: installato. Se qualcuno sbaglia la password SSH 5 volte, il suo IP viene
+bloccato per 1 ora. Stessa cosa per tentativi di login falliti sull'app.
+
+**Password database**: cambiata da una password prevedibile a una stringa random di 32 caratteri.
+
+**File .env**: permessi restrittivi (chmod 600). Solo l'utente root puo' leggerlo.
+
+### Cosa resta da fare
+- Aggiungere una chiave SSH (cosi' si entra solo con la chiave, non con la password)
+- Creare un utente dedicato "lorcana" (non usare root per tutto)
+- Attivare il proxy Cloudflare (nasconde l'IP del server)
+- Backup criptati su server remoto
+
+---
+
 ## Stato Avanzamento Sviluppo
 
-> Ultimo aggiornamento: 27/03/2026
+> Ultimo aggiornamento: 30/03/2026
 
 ### ✅ Fase 0 — Infrastruttura (completata)
 PostgreSQL 16 e Redis 7 installati e attivi. Database `lorcana` creato con utente dedicato.
 Python 3.12 virtualenv configurato con tutte le dipendenze. File di progetto pronti (.env, .gitignore, requirements.txt).
 
 ### ✅ Fase 1 — Database + Import (completata)
-11 tabelle create via Alembic migration + 2 materialized views.
+13 tabelle create (11 originali + promo_codes, promo_redemptions) + 2 materialized views.
 Dati copiati (in sola lettura) da analisidef:
-- 88,789 match importati (1 mese: 23 feb — 27 mar) da match_archive.db + JSON
-- 162 killer curves (7 date: 19-27 mar)
+- 89,763 match importati (1 mese: 23 feb — 30 mar) da match_archive.db + JSON
+- 162 killer curves
+- 139 archivi (solo aggregati, ~1 MB — i turni sono gia' nei match)
 - 102 snapshot storici
-- DB size: 63 MB. Query benchmark: 5/6 sotto target.
 
 ### ✅ Fase 2 — Backend API (completata)
-FastAPI funzionante con 16 endpoint su 4 moduli (Monitor, Coach, Lab, Admin).
+FastAPI funzionante con 16+ endpoint su 4 moduli (Monitor, Coach, Lab, Admin).
 4 services implementano la logica di business con query SQL aggregate.
 Swagger UI disponibile su `/api/docs`.
 
@@ -683,27 +743,48 @@ Dashboard identica a quella di analisidef, servita da App_tool.
 - systemd service: uvicorn si riavvia da solo se crasha, parte al boot
 
 ### ✅ Stabilizzazione (completata)
-- Git repo privato su GitHub (`ema299/LorMonitor`)
+- 2 repo Git privati su GitHub:
+  - `ema299/LorMonitor` (App_tool — sviluppo app, branch main + dev)
+  - `ema299/LorAnalisi` (analisidef — motore analisi, backup automatico Mar+Gio)
 - Backup automatico DB ogni notte alle 03:00 (retention 7 giorni)
 - Import automatico nuovi match ogni giorno alle 06:30
 - Import killer curves Mar+Gio alle 03:30
 - Health check ogni 5 minuti con auto-restart
 - robots.txt blocca indicizzazione Google
 
-### Piano di transizione verso autonomia (futuro, 3 fasi)
-- **Fase A (ponte, attuale)**: App_tool serve, analisidef calcola. Zero rischi.
-- **Fase B (motore copiato)**: si porta lib/ in App_tool, si testa in parallelo.
-- **Fase C (autonomia)**: si attivano i worker, si spegne analisidef.
-Ogni fase e' reversibile. Si procede solo quando la precedente e' validata.
+### ✅ Fase 4a — Auth (completata 30 Mar 2026)
+Sistema di autenticazione completo:
+- Registrazione e login con email + password
+- Token JWT (15 min) + refresh token (30 giorni) con rotazione
+- Password criptate con bcrypt (irreversibili)
+- Profilo utente, logout, cancellazione account (GDPR)
+- Tier enforcement: free/pro/team/admin
+- Codici promozionali: accesso gratuito temporaneo + sconti
+- 5 account test creati (tutti con accesso completo per la fase di sviluppo)
 
-### ⏳ Fase 4 — Auth + Pagamento
-Login, registrazione, JWT, Stripe. Paywall per tier free/pro/team.
+Sicurezza server:
+- Firewall UFW attivo (porte 22, 80, 443)
+- fail2ban attivo (SSH + nginx)
+- Password DB cambiata (random 32 char)
+- JWT secret generato (random 64 char)
+
+### ✅ Da completare per Fase 4 — TODO
+- [ ] Snapshot statico dashboard (copia di sicurezza da analisidef)
+- [ ] Collegare endpoint API ai dati PostgreSQL (monitor, coach, lab)
+- [ ] Stripe checkout + webhook per pagamento
+- [ ] Frontend SPA con login/registrazione
 
 ### ⏳ Fase 5 — Frontend PWA
 Service Worker, offline, manifest.json, bottom nav mobile.
 
 ### ⏳ Fase 6 — Mobile iOS
 Wrapper Capacitor per App Store.
+
+### Piano di transizione verso autonomia (futuro, 3 fasi)
+- **Fase A (ponte, attuale)**: App_tool serve, analisidef calcola. Zero rischi.
+- **Fase B (motore copiato)**: si porta lib/ in App_tool, si testa in parallelo.
+- **Fase C (autonomia)**: si attivano i worker, si spegne analisidef.
+Ogni fase e' reversibile. Si procede solo quando la precedente e' validata.
 
 ### ⚠️ Vincoli attivi
 - Nessun piano Anthropic API con credito — LLM worker rimandato

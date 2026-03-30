@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import monitor, coach, lab, admin, dashboard
+from backend.api import auth, promo, monitor, coach, lab, admin, dashboard
 from backend.middleware.error_handler import global_exception_handler
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -31,6 +31,8 @@ app.add_middleware(
 )
 
 # Routes
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(promo.router, prefix="/api/v1/promo", tags=["Promo"])
 app.include_router(monitor.router, prefix="/api/v1/monitor", tags=["Monitor"])
 app.include_router(coach.router, prefix="/api/v1/coach", tags=["Coach"])
 app.include_router(lab.router, prefix="/api/v1/lab", tags=["Lab"])

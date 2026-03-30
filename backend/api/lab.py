@@ -1,8 +1,11 @@
-"""Lab tab — card scores, optimizer, deck analytics."""
+"""Lab tab — card scores, optimizer, deck analytics.
+Requires: pro tier or above.
+"""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db
+from backend.deps import get_db, require_tier
+from backend.models.user import User
 from backend.services import deck_service
 
 router = APIRouter()
@@ -14,6 +17,7 @@ def card_scores(
     opp_deck: str,
     game_format: str = Query("core"),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Card-level win rate contribution for a matchup."""
@@ -24,6 +28,7 @@ def card_scores(
 def history_snapshots(
     perimeter: str = Query("full"),
     days: int = Query(30, ge=1, le=90),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Historical daily snapshots."""

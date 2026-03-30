@@ -1,8 +1,11 @@
-"""Coach tab — matchup analysis, killer curves, threats."""
+"""Coach tab — matchup analysis, killer curves, threats.
+Requires: pro tier or above.
+"""
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db
+from backend.deps import get_db, require_tier
+from backend.models.user import User
 from backend.services import matchup_service
 
 router = APIRouter()
@@ -14,6 +17,7 @@ def matchup_detail(
     opp_deck: str,
     game_format: str = Query("core"),
     days: int = Query(7, ge=1, le=30),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Detailed matchup stats (WR, avg turns, lore, fast wins/losses)."""
@@ -28,6 +32,7 @@ def killer_curves(
     our_deck: str,
     opp_deck: str,
     game_format: str = Query("core"),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Killer curves: turn-by-turn threat analysis (pre-generated LLM data)."""
@@ -42,6 +47,7 @@ def threats(
     our_deck: str,
     opp_deck: str,
     game_format: str = Query("core"),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Threat analysis (pre-generated LLM data)."""
@@ -57,6 +63,7 @@ def matchup_history(
     opp_deck: str,
     game_format: str = Query("core"),
     days: int = Query(30, ge=1, le=90),
+    user: User = Depends(require_tier("pro")),
     db: Session = Depends(get_db),
 ):
     """Daily WR trend for a specific matchup."""

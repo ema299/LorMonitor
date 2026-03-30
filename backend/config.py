@@ -14,3 +14,10 @@ ANALISIDEF_OUTPUT_DIR = Path(os.getenv("ANALISIDEF_OUTPUT_DIR", "/mnt/HC_Volume_
 ANALISIDEF_DAILY_DIR = Path(os.getenv("ANALISIDEF_DAILY_DIR", "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/daily/output"))
 
 ENV = os.getenv("ENV", "development")
+
+# Auth / JWT
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "CHANGE-ME-IN-PRODUCTION")
+JWT_ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 30
+BCRYPT_ROUNDS = 12
