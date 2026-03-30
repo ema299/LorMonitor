@@ -593,7 +593,10 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── GET /optimizer/{our}/{opp}?format=core                             ⏳
 │   └── GET /mulligans/{our}/{opp}?format=core                             ⏳
 │
-├── user/                                                                  ⏳
+├── user/                            # [auth] — Profilo utente             ⏳
+│   ├── GET    /profile              # Profilo completo (nick, link esterni)
+│   ├── PUT    /profile              # Aggiorna profilo
+│   ├── PUT    /nicknames            # Associa nickname duels.ink / lorcanito
 │   ├── GET    /decks
 │   ├── POST   /decks               # Salva deck nel profilo
 │   ├── PUT    /decks/{id}           # Aggiorna deck
@@ -601,6 +604,14 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── GET    /preferences
 │   ├── PUT    /preferences          # Lingua, notifiche, deck preferito
 │   └── GET    /export               # GDPR: esporta tutti i dati utente
+│
+├── community/                       # [auth] — Contenuti community       ⏳
+│   ├── GET /videos                  # Lista video streamer + School of Lorcana
+│   ├── POST /videos                 # [admin] Aggiungi video
+│   ├── DELETE /videos/{id}          # [admin] Rimuovi video
+│   ├── GET /tournaments             # Lista tornei (link a tcg.ravensburgerplay.com)
+│   ├── POST /tournaments            # [admin] Aggiungi torneo
+│   └── DELETE /tournaments/{id}     # [admin] Rimuovi torneo
 │
 ├── team/                            # [TEAM tier only]                    ⏳
 │   ├── GET /roster
@@ -692,6 +703,212 @@ Protezioni:
   - Max usi configurabile per codice
   - Scadenza codice configurabile
   - Scadenza upgrade con revert automatico al tier originale
+```
+
+### 7.5 Profile — Dati Utente e Stats Personali (da implementare)
+
+Il tab Profile permette all'utente di associare il proprio nickname duels.ink, salvare deck personalizzati e visualizzare le proprie statistiche reali calcolate dai match in database.
+
+**Principio architetturale:** zero nuove tabelle. Tutto usa `users.preferences` (JSONB), `user_decks` (tabella esistente) e query su `matches`.
+
+#### 7.5.1 Preferences JSONB — Schema campi
+
+`users.preferences` e' un campo JSONB gia' presente in tabella. Il Profile lo usa per persistere le impostazioni personali senza migrazioni.
+
+```json
+{
+  "duels_nick": "CLOUD",
+  "lorcanito_nick": "cloud_lor",
+  "country": "IT",
+  "deck_pins": ["ESt", "AmySt", "AbSt"],
+  "active_deck": "ESt",
+  "notifications": {
+    "meta_shift": true,
+    "daily_report": false
+  }
+}
+```
+
+| Campo | Tipo | Validazione | Usato da |
+|-------|------|-------------|----------|
+| `duels_nick` | string, max 50 | Sanitizzato, lowercase per lookup | My Stats, Coach sync |
+| `lorcanito_nick` | string, max 50 | Opzionale | Link esterno |
+| `country` | string, 2 char ISO | Enum paesi supportati | Visualizzazione profilo |
+| `deck_pins` | array string, max 3 | Ogni elemento in `VALID_DECK_CODES` | Quick select, Coach/Lab sync |
+| `active_deck` | string | In `VALID_DECK_CODES` | Contesto attivo per Coach/Monitor |
+| `notifications` | object | Chiavi predefinite | Futuro: email digest |
+
+**Endpoint:**
+```
+PATCH /api/v1/user/preferences
+  Body: { "duels_nick": "CLOUD", "country": "IT" }
+  Merge: server fa JSON merge (non sovrascrive tutto), valida ogni campo
+  Auth: JWT required, qualsiasi tier
+  Response: 200 { preferences: {...} }
+```
+
+#### 7.5.2 My Stats — Query per nickname
+
+Quando l'utente imposta `duels_nick`, il backend cerca le sue partite nella tabella `matches`. Il lookup e' server-side (non client-side come in analisidef) per sicurezza e performance.
+
+**Query principale — WR per deck giocato:**
+```sql
+SELECT
+  CASE WHEN lower(player_a_name) = :nick THEN deck_a ELSE deck_b END AS my_deck,
+  COUNT(*) AS games,
+  SUM(CASE
+    WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+    WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+    ELSE 0
+  END) AS wins
+FROM matches
+WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+  AND played_at >= now() - INTERVAL :days || ' days'
+  AND game_format = :format
+GROUP BY my_deck
+ORDER BY games DESC;
+```
+
+**Query matchup breakdown (per deck selezionato):**
+```sql
+SELECT
+  CASE WHEN lower(player_a_name) = :nick THEN deck_b ELSE deck_a END AS vs_deck,
+  COUNT(*) AS games,
+  SUM(CASE
+    WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+    WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+    ELSE 0
+  END) AS wins,
+  -- OTP/OTD split (il primo turno e' deducibile da turns JSONB)
+  COUNT(*) FILTER (WHERE total_turns IS NOT NULL) AS with_turns
+FROM matches
+WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+  AND CASE WHEN lower(player_a_name) = :nick THEN deck_a ELSE deck_b END = :my_deck
+  AND played_at >= now() - INTERVAL :days || ' days'
+  AND game_format = :format
+GROUP BY vs_deck
+ORDER BY games DESC;
+```
+
+**Query trend WR giornaliero (chart 30gg):**
+```sql
+SELECT
+  played_at::date AS day,
+  COUNT(*) AS games,
+  SUM(CASE
+    WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+    WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+    ELSE 0
+  END) AS wins
+FROM matches
+WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+  AND played_at >= now() - INTERVAL '30 days'
+  AND game_format = :format
+GROUP BY day
+ORDER BY day;
+```
+
+**Performance:** con gli indici esistenti su `player_a_name`, `player_b_name`, `played_at` e `game_format`, queste query girano in <100ms anche su 64K+ match.
+
+**Indici consigliati (futuri, se serve):**
+```sql
+-- Solo se le query my-stats diventano lente (improbabile sotto 200K match)
+CREATE INDEX idx_matches_player_a_lower ON matches(lower(player_a_name));
+CREATE INDEX idx_matches_player_b_lower ON matches(lower(player_b_name));
+```
+
+**Endpoint:**
+```
+GET /api/v1/user/my-stats?format=core&days=30
+  Auth: JWT required, tier free (KPI base) / pro (matchup breakdown + trend)
+  Il nick viene da users.preferences.duels_nick (server-side, non dal client)
+  Response: {
+    nick: "CLOUD",
+    data_range: { from: "2026-03-01", to: "2026-03-30" },
+    decks: [
+      { deck: "ESt", games: 47, wins: 28, wr: 59.6, mmr_avg: 1380,
+        best_mu: { vs: "AmAm", wr: 72.0 },
+        worst_mu: { vs: "AbSt", wr: 38.0 } }
+    ],
+    matchups: { ... },     // solo tier pro+
+    daily_trend: [ ... ]   // solo tier pro+
+  }
+```
+
+**Protezione omonimi:** il lookup confronta `lower(player_a_name)` con il nick salvato. Se piu' player hanno lo stesso nick (raro su duels.ink), il backend filtra per MMR range usando la leaderboard (stessa logica del filtro omonimi in `players_service.py`).
+
+#### 7.5.3 Deck Salvati — CRUD su user_decks
+
+La tabella `user_decks` e' gia' creata (migrazione 274c18df8c4a). Mancano solo le API route.
+
+**Schema tabella (esistente):**
+```sql
+user_decks (
+  id          UUID PRIMARY KEY,
+  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  name        VARCHAR(100) NOT NULL,
+  deck_code   VARCHAR(10) NOT NULL,     -- 'ESt', 'AmAm', etc.
+  cards       JSONB NOT NULL,           -- {"Card Name": qty, ...}
+  is_active   BOOLEAN DEFAULT true,
+  created_at  TIMESTAMPTZ,
+  updated_at  TIMESTAMPTZ
+)
+```
+
+**Endpoint:**
+```
+GET    /api/v1/user/decks                    # Lista deck utente
+POST   /api/v1/user/decks                    # Crea deck (name, deck_code, cards)
+PUT    /api/v1/user/decks/{id}               # Aggiorna deck
+DELETE /api/v1/user/decks/{id}               # Elimina deck
+Auth: JWT required, qualsiasi tier
+Limite: max 10 deck per utente (free), 30 (pro), 50 (team)
+```
+
+**Validazione server-side:**
+- `deck_code` deve essere in `VALID_DECK_CODES`
+- `cards` JSONB: ogni chiave deve esistere in cards_db, somma qty = 60, max 4 copie per carta
+- I colori delle carte devono corrispondere al `deck_code` dichiarato
+- `deck_code` viene sempre verificato server-side (non fidarsi del client che potrebbe mandare un codice sbagliato per carte custom)
+
+**Differenza da analisidef:** in analisidef i deck erano salvati in un file JSON flat per "user" (basato sul nick, senza auth). In App_tool sono in PostgreSQL con FK a users.id, protetti da JWT. Il `deck_code` e' salvato nel record (non ricalcolato dai colori delle carte) per evitare errori di auto-detect con deck non standard.
+
+#### 7.5.4 Flusso Profile → Coach/Monitor/Lab
+
+Quando l'utente seleziona un deck nel Profile (dai pin o da "My Deck"), il frontend sincronizza lo stato con gli altri tab:
+
+```
+Profile                          Coach / Monitor / Lab
+───────                          ─────────────────────
+  pfSelectDeck("ESt")
+    │
+    ├─→ selectedDeck = "ESt"     coachOur = "ESt" (Coach matchup selector)
+    ├─→ selectedInks = [E, St]   inkPicker aggiornato
+    └─→ render()                 Se tab Coach attivo, ri-renderizza con nuovo deck
+```
+
+**Server-side:** il deck attivo e' salvato in `preferences.active_deck`. Quando l'utente riapre l'app, il frontend legge `GET /auth/me` → `preferences.active_deck` e ripristina lo stato.
+
+**My Deck → Coach:** se l'utente ha un deck custom (60 carte salvate in `user_decks`), il Coach puo' mostrare il confronto "tua lista vs consensus meta" usando i dati dal record `user_decks.cards` incrociati con i dati di `archives.aggregates`.
+
+#### 7.5.5 Implementazione — File da creare/modificare
+
+```
+NUOVO:
+  backend/api/user.py              # Route handler: preferences, decks, my-stats
+  backend/services/user_service.py # Business logic: CRUD deck, query my-stats, preferences merge
+  frontend/assets/js/profile.js    # Tab Profile (render, deck management, stats display)
+
+MODIFICARE:
+  backend/main.py                  # Aggiungere router user
+  frontend/assets/js/app.js        # Aggiungere tab "profile" nel routing
+  frontend/index.html              # Aggiungere bottone tab Profile nella nav
+
+GIA' PRONTO (non toccare):
+  backend/models/user.py           # User con preferences JSONB
+  backend/models/user_deck.py      # UserDeck model
+  backend/deps.py                  # get_current_user, require_tier
+  db/migrations/                   # Tabelle gia' create, zero migrazioni
 ```
 
 ---
@@ -2070,3 +2287,544 @@ Rischi e mitigazioni:
 - [ ] Load testing (100 concurrent)
 - [ ] Test restore backup mensile
 - [ ] Aggiornamento dipendenze
+
+---
+
+## 23. Migrazione analisidef → App_tool — Piano Completo
+
+> **Data**: 30 Marzo 2026
+> **Obiettivo**: rendere App_tool autonomo — tutto il motore Python, i cron, i batch LLM
+> devono girare dentro App_tool senza dipendere da analisidef.
+> analisidef resta viva in sola lettura come reference e fallback.
+
+### 23.1 Inventario Sorgente (analisidef)
+
+```
+analisidef/                         13,100 LOC Python totali
+├── lib/                            7,565 LOC — 25 moduli
+│   ├── loader.py           1,036   Parse match JSON, cards_db, deck pool, FORMAT_FOLDERS
+│   ├── investigate.py        804   Board state, ink budget, classify_losses (9 dim + alert)
+│   ├── gen_archive.py        631   Archivio JSON completo (~15-55 MB/matchup)
+│   ├── gen_killer_curves.py  560   Sezione playbook T1-T7 per report
+│   ├── i18n.py               457   Traduzioni killer curves (en/it/de/zh/ja)
+│   ├── validate_semantics.py 400   Validazione LLM: claim vs ability reali
+│   ├── gen_decklist.py       334   Sezione decklist ottimizzata
+│   ├── validate_killer_curves.py 315 Validazione meccanica killer curves JSON
+│   ├── gen_deck_actually.py  290   Sezione deck actually (PRO player tech)
+│   ├── cards_dict.py         275   1511 carte normalizzate con keyword/flag
+│   ├── stats.py              208   Calcoli statistici puri
+│   ├── gen_review.py         200   Sezione review (cause sconfitta, play vincenti)
+│   ├── gen_risposte.py       184   Sezione toolkit (removal, rush, ward, ramp)
+│   ├── gen_curve_t1t7.py     164   Curve storiche T1-T7
+│   ├── gen_validate.py       161   Validazione meccanica report
+│   ├── gen_killer_curves_draft.py 154 Bozza threat identification
+│   ├── build_replay_steps.py 701   Step pre-calcolati per replay v2
+│   ├── gen_digest.py         ~100  Digest compatto per LLM (~20KB)
+│   ├── gen_all_turns.py       89   Dump turni (legacy)
+│   ├── gen_mani.py            78   Sezione mani vincenti
+│   ├── formatting.py          78   Display helpers
+│   ├── gen_panoramica.py      60   Sezione panoramica
+│   ├── assembler.py           55   Assemblaggio finale report
+│   ├── validate.py           122   Validazione report
+│   └── __init__.py
+│
+├── daily/                          4,826 LOC
+│   ├── daily_routine.py    3,456   Monolite: meta WR, leaderboard, tech, player_cards
+│   ├── history_db.py         677   SQLite storico (5 tabelle)
+│   ├── team_training.py      317   Stats per-player (modulo isolato)
+│   ├── serve_dashboard.py    199   HTTP server + /api/decks (file JSON)
+│   ├── backfill_history.py   162   Backfill storico per date passate
+│   ├── serve.py               15   Server minimal (legacy)
+│   ├── dashboard.html      7,554   Template dashboard monolitico
+│   ├── team_training_js.js 1,288   JS team training
+│   ├── team_roster.json            Config team (5 player)
+│   └── refresh_dashboard.sh        Rebuild template → output (~2s)
+│
+├── generate_report.py        249   Pipeline 5 fasi orchestratore
+├── build_replay.py           754   Replay HTML v1
+├── build_replay_v2.py        153   Replay HTML v2
+├── audit_replay.py           602   Validazione integrita' replay
+├── run_all_killer_curves.sh        Batch notturno (digest + LLM + validazione + git)
+│
+├── output/                   3.6 GB
+│   ├── archive_*.json        132   Archivi matchup (15-55 MB ciascuno)
+│   ├── digest_*.json         132   Digest LLM (~200-500 KB)
+│   ├── killer_curves_*.json  134   Killer curves LLM (~100-300 KB)
+│   └── replay_*.html         140   Replay interattivi (~1-2 MB)
+│
+└── reports/                  141   Report matchup .md
+```
+
+**Dipendenze esterne:**
+- `/mnt/.../matches/` — 64K+ file JSON (scritti da lorcana_monitor.py)
+- `/mnt/.../cards_db.json` — 1511 carte
+- `/mnt/.../decks_db/` — Decklist tornei
+- `https://duels.ink/api/leaderboard` — 4 queue (TOP/PRO player)
+- `https://duels.ink/api/stats/meta` — Community meta stats
+- Claude CLI (`claude -p --model sonnet`) — killer curves batch (subscription OAuth)
+
+### 23.2 Inventario Destinazione (App_tool) — Stato 30/03
+
+```
+App_tool/
+├── backend/                        IMPLEMENTATO 60%
+│   ├── api/        7 file, 518 LOC   28 endpoint funzionanti ✅
+│   ├── services/   6 file, 777 LOC   6/11 servizi (5 mancanti) ⚠️
+│   ├── models/     7 file, 328 LOC   12 classi ORM ✅
+│   ├── middleware/  1 file,  13 LOC   Solo error_handler ⚠️
+│   ├── workers/    NON ESISTE         0 worker ✗
+│   ├── main.py     72 LOC            FastAPI entrypoint ✅
+│   ├── config.py   23 LOC            Settings ✅
+│   └── deps.py     62 LOC            Auth + tier ✅
+│
+├── db/migrations/  2 file             Schema completo ✅
+├── scripts/        7 file, 962 LOC    Import funzionanti ✅
+├── frontend/       2 JS + symlink     Skeleton + dashboard.html ⚠️
+├── lib/            Solo __init__.py   Vuoto ✗
+├── schemas/        Solo __init__.py   Vuoto ✗
+├── pipelines/      Solo __init__.py   Vuoto ✗
+├── infra/          NON ESISTE         0 config ✗
+└── tests/          NON ESISTE         0 test ✗
+```
+
+**Gia' operativo:**
+- PostgreSQL con 88K+ match, 128 killer curves, 102 snapshot storici
+- Auth JWT + tier enforcement + promo codes
+- 28 API endpoint (monitor, coach, lab, admin, promo, dashboard)
+- Cron: backup 03:00, import match 06:30, import curves Mar+Gio 05:30, healthcheck 5min
+- nginx + SSL + dominio metamonitor.app
+
+### 23.3 Strategia Git — dev / main
+
+```
+main ────────────────────────────────────────────────────────────►
+  │                                                    ▲
+  │ (oggi: 339c6d2)                                    │ merge quando stabile
+  │                                                    │
+  └── dev ──┬── M1 ──┬── M2 ──┬── M3 ──┬── M4 ──┬── M5 ──►
+            │        │        │        │        │
+         lib/     workers/  profile  frontend  cutover
+         migrate  + cron    API+UI   SPA       spegni
+         da       batch              completa  analisidef
+         analisidef
+
+Regole:
+  - main = produzione stabile (metamonitor.app serve da main)
+  - dev = integrazione continua, si rompe, si aggiusta
+  - Ogni milestone (M1-M5) = merge dev → main quando:
+    1. Tutti i test passano
+    2. Output confrontato con analisidef (stessi numeri)
+    3. Cron testato per almeno 2 giorni
+  - Mai push diretto su main
+  - analisidef non cambia (sola lettura + cron invariati fino a cutover)
+```
+
+### 23.4 Le 5 Milestone
+
+---
+
+#### M1 — Lib Migration (lib/ da analisidef → App_tool)
+
+**Obiettivo:** copiare i 25 moduli Python in App_tool/lib/ e adattarli per leggere da PostgreSQL dove possibile, mantenendo compatibilita' con file JSON come fallback.
+
+**File da copiare (as-is, poi adattare):**
+
+| Modulo | LOC | Adattamento |
+|--------|-----|-------------|
+| `loader.py` | 1,036 | **Chiave**: aggiungere `load_matches_from_db()` come alternativa a `load_matches()`. Stessa interfaccia (ritorna lista game dict), ma legge da PostgreSQL `matches` table + JSONB turns. Il vecchio path JSON resta come fallback. |
+| `investigate.py` | 804 | Nessun adattamento — lavora su game dict in memoria |
+| `gen_archive.py` | 631 | Nessun adattamento — scrive JSON in output/ |
+| `gen_digest.py` | ~100 | Nessun adattamento |
+| `stats.py` | 208 | Nessun adattamento — calcoli puri su liste |
+| `cards_dict.py` | 275 | Path `cards_db.json` da config (non hardcoded) |
+| `formatting.py` | 78 | Nessun adattamento |
+| `validate.py` | 122 | Nessun adattamento |
+| `validate_killer_curves.py` | 315 | Nessun adattamento |
+| `validate_semantics.py` | 400 | Nessun adattamento |
+| `i18n.py` | 457 | Nessun adattamento |
+| `assembler.py` | 55 | Nessun adattamento |
+| `build_replay_steps.py` | 701 | Nessun adattamento |
+| `gen_panoramica.py` | 60 | Nessun adattamento |
+| `gen_killer_curves.py` | 560 | Nessun adattamento |
+| `gen_mani.py` | 78 | Nessun adattamento |
+| `gen_risposte.py` | 184 | Nessun adattamento |
+| `gen_review.py` | 200 | Nessun adattamento |
+| `gen_decklist.py` | 334 | Nessun adattamento |
+| `gen_deck_actually.py` | 290 | Path matches da config |
+| `gen_validate.py` | 161 | Nessun adattamento |
+| `gen_curve_t1t7.py` | 164 | Nessun adattamento |
+| `gen_killer_curves_draft.py` | 154 | Nessun adattamento |
+| `gen_all_turns.py` | 89 | Nessun adattamento |
+
+**L'adattamento critico e' UNO SOLO: `loader.py`.**
+
+```python
+# App_tool/lib/loader.py — nuova funzione
+def load_matches_from_db(our_deck, opp_deck, game_format='core', db_url=None):
+    """
+    Stessa interfaccia di load_matches() ma legge da PostgreSQL.
+    Ritorna: (games, cards_db, deck_pool) — stesso formato.
+    """
+    # SELECT * FROM matches WHERE deck_a/deck_b match, game_format match
+    # Deserializza JSONB turns → stessa struttura game dict
+    # cards_db: caricato da file (non cambia)
+    # deck_pool: caricato da file (non cambia)
+    ...
+```
+
+**Validazione M1:**
+```bash
+# Confronto output: analisidef vs App_tool con stessi input
+python3 generate_report.py ES AbE           # in analisidef → report A
+python3 generate_report.py ES AbE --from-db # in App_tool   → report B
+diff <(grep "WR:" report_A.md) <(grep "WR:" report_B.md)
+# Devono essere identici (stessi match, stessi calcoli)
+```
+
+**File da creare/modificare in App_tool:**
+```
+NUOVO:      lib/*.py (25 file copiati)
+MODIFICARE: lib/loader.py (aggiungere load_matches_from_db)
+MODIFICARE: lib/cards_dict.py (path da config)
+NUOVO:      lib/config.py (path centralizzati: matches_dir, cards_db, decks_db)
+```
+
+**Durata stimata:** 1-2 giorni (copia + adattamento loader + test confronto)
+
+---
+
+#### M2 — Workers + Cron Batch
+
+**Obiettivo:** App_tool esegue autonomamente le pipeline che oggi girano in analisidef.
+
+**Worker 1: `daily_pipeline.py`** (sostituisce `daily_routine.py` di analisidef)
+
+Questo e' il pezzo piu' complesso. `daily_routine.py` e' un monolite da 3,456 LOC che:
+1. Scansiona match dalle cartelle (SET11, TOP, PRO, FRIENDS, INF)
+2. Aggrega WR per 8 perimetri
+3. Fetcha leaderboard duels.ink (4 queue)
+4. Fetcha community stats duels.ink
+5. Calcola tech choices, player_cards, meta share, trend
+6. Chiama team_training.py
+7. Scrive history.db (SQLite)
+8. Genera dashboard_data.json + report .md/.pdf
+
+**Strategia di migrazione daily_routine:**
+
+```
+NON riscrivere. Adattare.
+
+Fase 1 (M2): copiare daily_routine.py in App_tool/backend/workers/
+  - Sostituire load da file con load da PostgreSQL (usa loader.py adattato)
+  - Sostituire history.db SQLite con INSERT in daily_snapshots PostgreSQL
+  - fetch duels.ink API: invariato (stesso codice HTTP)
+  - team_training.py: copiare in App_tool/backend/workers/
+  - Output: scrive dashboard_data.json in App_tool/data/output/
+
+Fase 2 (M5): decomposizione in servizi
+  - stats_service.py gia' fa parte dei calcoli (WR, matrice)
+  - Estrarre funzioni da daily_routine in servizi dedicati
+  - Ma questo e' ottimizzazione, non blocco
+```
+
+**Worker 2: `match_importer.py`** (evoluzione di `scripts/import_matches.py`)
+
+Gia' funzionante come script cron. Da promuovere a worker:
+- Aggiungere log strutturato
+- Aggiungere metriche (match importati, tempo, errori)
+- Notifica Telegram se fallisce
+
+**Worker 3: `killer_curves_batch.py`** (sostituisce `run_all_killer_curves.sh`)
+
+Il batch shell fa:
+1. Per ogni matchup qualificato: genera archivio + digest (Python)
+2. Chiama Claude CLI per killer curves (4 paralleli, 120s pausa)
+3. Valida output
+4. Git commit + push
+
+```
+Strategia:
+  Fase 1: tradurre la parte Python dello shell script in Python puro
+  Fase 2: mantenere la chiamata Claude CLI come subprocess
+  Fase 3 (futuro con API credit): sostituire CLI con Claude API via SDK
+
+  Il batch resta un processo separato (non un endpoint API).
+  Gira come cron: 0 0 * * 2,4 (mar+gio mezzanotte).
+```
+
+**Worker 4: `refresh_dashboard.py`** (sostituisce `refresh_dashboard.sh`)
+
+Lo shell script:
+1. Copia template dashboard.html
+2. Inietta dati da dashboard_data.json
+3. Ridimensiona icone deck (PIL)
+4. Restart systemd service
+
+In App_tool questo diventa piu' semplice: il frontend legge via API, non serve embed nel template. Il worker si riduce a:
+1. Chiama daily_pipeline → genera dashboard_data.json
+2. REFRESH MATERIALIZED VIEW (gia' implementato in admin.py)
+
+**Cron schedule App_tool (post M2):**
+
+```
+# App_tool autonomo
+*/5 * * * *    healthcheck.sh              → auto-restart
+0   3 * * *    backup.sh                   → pg_dump + gzip
+30  6 * * *    match_importer.py           → importa nuovi match JSON → PostgreSQL
+1   7 * * *    daily_pipeline.py           → meta WR, leaderboard, dashboard_data.json
+0   0 * * 2,4  killer_curves_batch.py      → digest + LLM + validazione
+
+# analisidef (parallelo per validazione, poi spento)
+0   7 * * *    lorcana_monitor.py report   → resta attivo (scrive match JSON)
+1   7 * * *    daily_routine.py            → SPENTO dopo validazione M2
+0   0 * * 2,4  run_all_killer_curves.sh    → SPENTO dopo validazione M2
+```
+
+**File da creare:**
+```
+NUOVO: backend/workers/daily_pipeline.py    (~500 LOC, wrappa daily_routine adattato)
+NUOVO: backend/workers/match_importer.py    (evoluzione script esistente)
+NUOVO: backend/workers/killer_curves_batch.py (~200 LOC, traduce shell script)
+COPIARE: daily/team_training.py → backend/workers/team_training.py
+COPIARE: daily/history_db.py → backend/workers/ (adattare per PostgreSQL)
+COPIARE: daily/team_roster.json → data/team_roster.json
+```
+
+**Validazione M2:**
+```bash
+# Confronto output daily
+diff <(python3 -c "import json; d=json.load(open('analisidef/daily/output/dashboard_data.json')); print(sorted(d.keys()))") \
+     <(python3 -c "import json; d=json.load(open('App_tool/data/output/dashboard_data.json')); print(sorted(d.keys()))")
+
+# Confronto WR per deck (devono coincidere)
+# Confronto top_players (stessi nomi, stessi WR)
+# Confronto killer_curves count (stesso numero di curve valide)
+```
+
+**Durata stimata:** 3-5 giorni (daily_routine adattamento + test + cron setup)
+
+---
+
+#### M3 — Profile API + Frontend
+
+**Obiettivo:** implementare il tab Profile come descritto in sezione 7.5.
+
+**Backend (sezione 7.5 gia' specifica tutto):**
+```
+NUOVO: backend/api/user.py              # CRUD preferences, decks, my-stats
+NUOVO: backend/services/user_service.py  # Query my-stats, preferences merge, deck validation
+MODIFICARE: backend/main.py             # Mount user router
+```
+
+**Frontend:**
+```
+NUOVO: frontend/assets/js/profile.js    # Render Profile tab
+MODIFICARE: frontend/assets/js/app.js   # Aggiungere tab routing
+MODIFICARE: frontend/index.html         # Bottone tab Profile
+```
+
+**Dati:**
+- `users.preferences` JSONB → nick, country, pins (zero migrazioni)
+- `user_decks` tabella → CRUD deck (zero migrazioni)
+- `matches` tabella → query my-stats (zero migrazioni)
+
+**Durata stimata:** 2-3 giorni
+
+---
+
+#### M4 — Frontend SPA Completa
+
+**Obiettivo:** rompere la dipendenza dal `dashboard.html` monolitico di analisidef.
+Ogni tab diventa un modulo JS separato che chiama le API di App_tool.
+
+**Oggi:** `frontend/dashboard.html` e' un symlink a analisidef. Il JS monolitico
+(7,554 LOC) contiene tutto: Monitor, Coach, Lab, Team, Profile.
+
+**Target:** 7 moduli JS indipendenti, ciascuno chiama le API backend.
+
+```
+frontend/assets/js/
+├── app.js          Router, state, tab switching (esiste, da estendere)
+├── api.js          Fetch wrapper con JWT (esiste)
+├── monitor.js      Tab Monitor (estrarre da dashboard.html)
+├── coach.js        Tab Coach V2 (estrarre da dashboard.html)
+├── lab.js          Tab Lab (estrarre da dashboard.html)
+├── team.js         Tab Team Training (estrarre da dashboard.html + team_training_js.js)
+├── profile.js      Tab Profile (creato in M3)
+├── community.js    Tab Community (nuovo)
+├── events.js       Tab Events (nuovo)
+└── auth.js         Login/register UI (nuovo)
+```
+
+**Strategia estrazione dal monolite:**
+
+```
+dashboard.html (7,554 LOC) contiene:
+  - CSS (~1,700 LOC) → frontend/assets/css/app.css
+  - HTML template per ogni tab (~2,000 LOC) → inline nei render() di ogni .js
+  - JS globale + funzioni per tab (~3,800 LOC) → split per modulo
+
+Approccio:
+  1. Estrarre CSS in file separato
+  2. Per ogni tab, identificare le funzioni JS che usa
+  3. Creare modulo .js con quelle funzioni
+  4. Sostituire DATA.perimeters[*] con fetch('/api/v1/monitor/...')
+  5. Testare tab per tab
+
+Ordine estrazione (dal piu' indipendente al piu' intrecciato):
+  1. Profile (gia' fatto in M3)
+  2. Monitor (usa solo API monitor, nessuna dipendenza da altri tab)
+  3. Lab (usa API lab + coach, dipende da selezione deck)
+  4. Coach (usa API coach, dipende da selezione deck + formato)
+  5. Team Training (usa API team, dipende da roster)
+  6. Community + Events (nuovi, nessuna estrazione)
+```
+
+**Differenza chiave: DATA → API**
+
+In dashboard.html monolitico:
+```javascript
+// Tutto caricato in un blob JSON gigante
+const DATA = await fetch('/output/dashboard_data.json').then(r => r.json());
+const wr = DATA.perimeters.set11.decks.AmAm.wr;
+```
+
+In App_tool SPA:
+```javascript
+// Ogni tab chiama la sua API
+const meta = await API.get('/monitor/meta?game_format=core&days=2');
+const wr = meta.decks.find(d => d.code === 'AmAm').wr;
+```
+
+**Durata stimata:** 5-8 giorni (estrazione + test per ogni tab)
+
+---
+
+#### M5 — Cutover (spegnimento analisidef)
+
+**Obiettivo:** App_tool e' completamente autonomo. analisidef spenta.
+
+**Prerequisiti:**
+- [M1] lib/ funzionante con output identico
+- [M2] Worker cron testato per almeno 7 giorni in parallelo
+- [M3] Profile API operativo
+- [M4] Frontend SPA che non dipende da dashboard.html symlink
+
+**Checklist cutover:**
+
+```
+PRE-CUTOVER (giorno -7):
+  □ Worker daily_pipeline.py gira da 7+ giorni senza errori
+  □ Output confrontato giornalmente con analisidef (WR, players, curves identici)
+  □ Frontend SPA testato su tutti i tab
+  □ Backup verificato e restore testato
+
+CUTOVER DAY:
+  1. Disabilitare cron analisidef:
+     # crontab -e → commentare:
+     # 1   7 * * *   daily_routine.py
+     # 0   0 * * 2,4 run_all_killer_curves.sh
+     # 5   7 * * *   generate_and_send.py
+
+  2. Verificare che App_tool cron funziona da solo:
+     - daily_pipeline.py genera dashboard_data.json ✓
+     - killer_curves_batch.py genera curve ✓
+     - match_importer.py importa match ✓
+
+  3. Rimuovere symlink:
+     rm frontend/dashboard.html  # non piu' necessario
+
+  4. Aggiornare nginx per servire solo frontend/ statico
+
+  5. Monitorare per 48h
+
+POST-CUTOVER:
+  □ analisidef resta su disco come reference (read-only)
+  □ lorcana_monitor.py RESTA ATTIVO (scrive match JSON, App_tool li importa)
+  □ Rimuovere import paths da analisidef in config.py
+  □ Merge dev → main
+```
+
+**Cosa resta attivo di analisidef:**
+- `lorcana_monitor.py` — cattura match da duels.ink → `/matches/`. **Non si tocca.**
+  App_tool lo importa via `match_importer.py` cron 06:30.
+- I file JSON in `output/` restano come archivio storico.
+
+**Cosa viene spento:**
+- `daily_routine.py` cron → sostituito da `daily_pipeline.py`
+- `run_all_killer_curves.sh` cron → sostituito da `killer_curves_batch.py`
+- `serve_dashboard.py` (porta 8060) → non piu' necessario
+- `generate_and_send.py` → da migrare o riscrivere
+
+### 23.5 Mappa Dipendenze Esterne
+
+```
+lorcana_monitor.py (NON in analisidef, NON in App_tool — standalone)
+  │
+  │ scrive ogni 15s
+  ▼
+/mnt/.../matches/{DDMMYY}/{PERIMETER}/*.json
+  │
+  ├──── analisidef/lib/loader.py legge (OGGI)
+  │
+  └──── App_tool/scripts/import_matches.py importa (OGGI, cron 06:30)
+        App_tool/lib/loader.py leggera' da PostgreSQL (DOPO M1)
+
+/mnt/.../cards_db.json (1511 carte, aggiornato manualmente)
+  │
+  ├──── analisidef/lib/cards_dict.py legge
+  └──── App_tool/lib/cards_dict.py leggera' (path da config)
+
+duels.ink API (leaderboard + community stats)
+  │
+  ├──── analisidef/daily/daily_routine.py fetcha (OGGI)
+  └──── App_tool/backend/workers/daily_pipeline.py fetchera' (DOPO M2)
+
+Claude CLI (subscription OAuth, no API key)
+  │
+  ├──── analisidef/run_all_killer_curves.sh chiama (OGGI)
+  └──── App_tool/backend/workers/killer_curves_batch.py chiamera' (DOPO M2)
+```
+
+### 23.6 Rischi e Mitigazioni
+
+| Rischio | Impatto | Mitigazione |
+|---------|---------|-------------|
+| daily_routine.py (3456 LOC) diverge durante migrazione | Output diversi tra analisidef e App_tool | Confronto automatico giornaliero per 7+ giorni prima di cutover |
+| JSONB turns in PostgreSQL ha struttura diversa da JSON file | Query sbagliate, dati persi | Test su 100 match campione: deserializza JSONB → stessa struttura dict |
+| Claude CLI non disponibile (subscription scaduta) | Killer curves non generate | Fallback: usa killer curves esistenti in DB (generate_at recente) |
+| lorcana_monitor.py cambia formato output | Import fallisce | Healthcheck su import: se 0 nuovi match per 24h → alert |
+| Frontend SPA rotta durante estrazione | Utenti vedono errori | M4 su dev, merge solo quando tutti i tab passano test visivo |
+| cards_db.json aggiornato manualmente (nuove carte) | Mismatch tra file e DB | Singola fonte: il file resta master, caricato all'avvio da entrambi |
+
+### 23.7 Ordine Cronologico Consigliato
+
+```
+Settimana 1: M1 (lib migration)
+  Lun-Mar: copia lib/, adatta loader.py, test confronto
+  Mer-Gio: fix divergenze, test generate_report.py da DB
+  Ven: merge dev, tag v0.4.0-m1
+
+Settimana 2: M2 (workers)
+  Lun-Mar: daily_pipeline.py (adatta daily_routine)
+  Mer: killer_curves_batch.py (traduce shell script)
+  Gio-Ven: cron setup, test parallelo con analisidef
+  Ven: merge dev, tag v0.4.0-m2
+
+Settimana 3: M3 (Profile) + inizio M4
+  Lun: backend/api/user.py + user_service.py
+  Mar: frontend/profile.js
+  Mer-Ven: inizio estrazione Monitor + Coach da monolite
+  Ven: merge dev, tag v0.5.0-m3
+
+Settimana 4: M4 (Frontend SPA)
+  Lun-Mer: Lab + Team Training estrazione
+  Gio-Ven: Community + Events (nuovi)
+  Ven: merge dev, tag v0.6.0-m4
+
+Settimana 5: M5 (Cutover)
+  Lun: confronto finale output (7 giorni di parallelo)
+  Mar: cutover day (spegni cron analisidef)
+  Mer-Ven: monitoraggio, fix, merge dev → main
+  Ven: tag v1.0.0, merge main
+```

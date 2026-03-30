@@ -437,10 +437,42 @@ Il GDPR e' la legge europea sulla privacy. Se un utente europeo usa il tuo servi
 
 ## Frontend — Cosa Vede l'Utente
 
-### Oggi
-Un file HTML enorme (5000 righe) con tutti i dati JSON incorporati dentro. Il browser scarica 4MB, poi li visualizza. Funziona, ma e' lento e non ha login.
+### Oggi (aggiornato 30 Mar 2026)
+La dashboard e' un file HTML (288K) generato da analisidef con tutti i dati incorporati.
+Viene servita da App_tool via symlink. Funziona, la conosci, ci stai lavorando sopra.
 
-### Domani: PWA (Progressive Web App)
+Tab in sviluppo attivo su analisidef:
+- **Profile**: login, collegamento a duels.ink e lorcanito per i nickname
+- **Community Video**: video degli streamer che collaborano, School of Lorcana
+- **Community Tornei**: link ai tornei (tcg.ravensburgerplay.com)
+
+### Strategia di transizione (NON costruire la SPA adesso)
+
+Finche' sviluppi attivamente dashboard.html in analisidef, costruire una SPA
+in parallelo significherebbe fare doppio lavoro. La strategia e':
+
+```
+FASE ATTUALE — Dashboard cresce in analisidef, backend cresce in App_tool
+  analisidef: sviluppo tab Profile, Community, tornei
+  App_tool:   API, auth, DB, sicurezza, import dati
+
+QUANDO la dashboard e' STABILE (non ci lavori ogni giorno):
+  1. Copia dashboard.html in App_tool (snapshot statico, gia' pianificato)
+  2. Adatta il JS per chiamare le API invece di dashboard_data.json
+  3. Aggiungi schermata login davanti
+  4. Le API per profile/community/tornei saranno gia' pronte nel backend
+
+DOPO (se serve):
+  Ricostruisci come SPA vera (pagine separate, caricamento on-demand)
+  Oppure tieni la dashboard adattata — se funziona, funziona
+```
+
+### Perche' NON fare la SPA ora
+- Ogni feature la faresti due volte (in dashboard.html e nella SPA)
+- La SPA non sarebbe mai allineata con la dashboard che evolve
+- La dashboard attuale e' gia' ricca e funzionante
+
+### PWA (quando la dashboard sara' in App_tool)
 Lo stesso HTML, ma:
 - I dati non sono piu' incorporati — il JavaScript chiede al server via API solo quello che serve
 - C'e' un "Service Worker" — un programmino che salva i dati in cache nel browser, cosi' la prossima volta e' istantaneo
@@ -770,15 +802,21 @@ Sicurezza server:
 
 ### ✅ Da completare per Fase 4 — TODO
 - [ ] Snapshot statico dashboard (copia di sicurezza da analisidef)
-- [ ] Collegare endpoint API ai dati PostgreSQL (monitor, coach, lab)
 - [ ] Stripe checkout + webhook per pagamento
-- [ ] Frontend SPA con login/registrazione
+- [ ] API community: video streamer, tornei
+- [ ] API user: profilo, nickname duels.ink/lorcanito
 
-### ⏳ Fase 5 — Frontend PWA
-Service Worker, offline, manifest.json, bottom nav mobile.
+### ⏳ Fase 5 — Transizione Frontend
+NON costruire SPA adesso. Lo sviluppo HTML attivo e' in analisidef.
+Quando la dashboard sara' stabile:
+1. Copiare dashboard.html in App_tool
+2. Adattare JS per usare le API
+3. Aggiungere login
+Le API per profile/community/tornei saranno gia' pronte.
 
-### ⏳ Fase 6 — Mobile iOS
-Wrapper Capacitor per App Store.
+### ⏳ Fase 6 — PWA + Mobile iOS
+Service Worker, offline, manifest.json, Capacitor per App Store.
+Solo dopo che il frontend e' migrato in App_tool.
 
 ### Piano di transizione verso autonomia (futuro, 3 fasi)
 - **Fase A (ponte, attuale)**: App_tool serve, analisidef calcola. Zero rischi.
@@ -789,3 +827,5 @@ Ogni fase e' reversibile. Si procede solo quando la precedente e' validata.
 ### ⚠️ Vincoli attivi
 - Nessun piano Anthropic API con credito — LLM worker rimandato
 - Il motore di calcolo (lib/) resta in analisidef — App_tool dipende dal suo output
+- Lo sviluppo frontend e' attivo in analisidef/daily/dashboard.html, NON in App_tool
+- Tab in sviluppo attivo: Profile (login, nickname), Community (video, tornei)
