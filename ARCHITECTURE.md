@@ -146,6 +146,48 @@ App_tool/
 │   ├── gen_digest.py                 # Genera digest compatto per LLM
 │   └── validate_killer_curves.py     # Validazione meccanica
 │
+├── pipeline/                         # ⚠️ SNAPSHOT da analisidef — solo storage/git, NON usato da App_tool
+│   │                                 # Copiato il 01/04/2026 per avere backup versionato
+│   │                                 # La produzione gira ancora da analisidef/
+│   ├── daily/
+│   │   ├── daily_routine.py          # Orchestratore principale (cron giornaliero, 3456 LOC)
+│   │   ├── history_db.py             # Storico snapshot SQLite
+│   │   ├── serve_dashboard.py        # Server HTTP vecchio (:8060)
+│   │   ├── serve.py                  # Server minimale
+│   │   ├── team_training.py          # Team stats generator
+│   │   └── backfill_history.py       # Riempimento storico retroattivo
+│   ├── lib/
+│   │   ├── loader.py                 # Caricamento match JSON (42K LOC)
+│   │   ├── investigate.py            # Board state, ink budget, classify_losses
+│   │   ├── gen_archive.py            # Genera archive_*.json (dettagli partite)
+│   │   ├── gen_digest.py             # Genera digest compatto per LLM
+│   │   ├── gen_killer_curves.py      # Genera playbook + threat curves
+│   │   ├── gen_decklist.py           # Card scores per matchup
+│   │   ├── gen_review.py             # Review tattica
+│   │   ├── gen_risposte.py           # Analisi risposte
+│   │   ├── gen_mani.py               # Analisi mani iniziali
+│   │   ├── gen_panoramica.py         # Panoramica matchup
+│   │   ├── gen_curve_t1t7.py         # Curve mana turni 1-7
+│   │   ├── gen_deck_actually.py      # "Deck actually played" analysis
+│   │   ├── gen_all_turns.py          # Dump tutti i turni
+│   │   ├── gen_validate.py           # Validazione output generati
+│   │   ├── gen_killer_curves_draft.py # KC versione draft
+│   │   ├── stats.py                  # Calcoli statistici puri
+│   │   ├── cards_dict.py             # 1511 carte normalizzate
+│   │   ├── formatting.py             # Display helpers
+│   │   ├── i18n.py                   # Internazionalizzazione
+│   │   ├── assembler.py              # Assembla sezioni report
+│   │   ├── build_replay_steps.py     # Ricostruzione passi replay
+│   │   ├── validate.py               # Validazione generica
+│   │   ├── validate_killer_curves.py # Validazione meccanica KC
+│   │   ├── validate_semantics.py     # Validazione semantica
+│   │   └── __init__.py
+│   ├── generate_report.py            # Pipeline 5 fasi → report .md
+│   ├── run_kc_production.py          # Killer curves batch production
+│   ├── build_replay.py               # Replay builder v1
+│   ├── build_replay_v2.py            # Replay builder v2
+│   └── audit_replay.py               # Audit qualita' replay
+│
 ├── llm/                              # Output LLM (generati da Claude API)
 │   ├── killer_curves/                # JSON validati contro schema
 │   ├── threats/                      # Analisi minacce
@@ -543,6 +585,84 @@ Le richieste utente sono letture — veloci, cachate. Il pezzo pesante e' la pip
 ```
 
 Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker separato.
+
+---
+
+## 6.4 Pipeline dati — Snapshot da analisidef (01 Apr 2026)
+
+La cartella `pipeline/` contiene una **copia statica** di tutti i moduli Python che generano i dati per la dashboard. Questi file vengono da `analisidef/` e sono sotto git solo come backup versionato.
+
+**⚠️ STATO: la produzione gira ancora da `analisidef/`. La copia in `pipeline/` non e' usata da App_tool.**
+
+### Flusso dati attuale
+
+```
+Match JSON (duels.ink)
+  ↓
+analisidef/daily/daily_routine.py       ← cron giornaliero, orchestratore
+  ├── lib/loader.py                     ← carica match da /matches/{DATE}/
+  ├── lib/gen_archive.py                → archive_*.json (dettagli partite)
+  ├── lib/gen_digest.py                 → digest_*.json (per LLM)
+  ├── lib/gen_killer_curves.py          → playbook, threat curves
+  ├── lib/gen_decklist.py               → card scores
+  ├── lib/investigate.py                ← board state, loss classification
+  └── assembla tutto in:
+       ↓
+  analisidef/daily/output/dashboard_data.json   (9.4 MB, dati completi)
+  analisidef/daily/output/dashboard.html        (HTML con dati embedded)
+       ↓
+  App_tool/backend/services/dashboard_bridge.py (legge dashboard_data.json, serve via API)
+       ↓
+  App_tool/frontend/dashboard.html              (visualizza)
+```
+
+### Mappa file pipeline/ (31 file, ~15K LOC)
+
+| Cartella | File | LOC | Ruolo |
+|----------|------|-----|-------|
+| `daily/` | `daily_routine.py` | 3456 | Orchestratore: carica match, calcola tutto, produce dashboard_data.json |
+| `daily/` | `history_db.py` | 615 | Storico: salva snapshot giornalieri in SQLite |
+| `daily/` | `serve_dashboard.py` | 453 | Server HTTP vecchio (porta 8060) |
+| `daily/` | `team_training.py` | 261 | Genera stats per team coaching |
+| `daily/` | `backfill_history.py` | 127 | Riempimento retroattivo storico |
+| `daily/` | `serve.py` | 14 | Server minimale |
+| `lib/` | `loader.py` | 1096 | Caricamento e parsing match JSON |
+| `lib/` | `investigate.py` | 779 | Board state, ink budget, classify_losses |
+| `lib/` | `gen_archive.py` | 671 | Genera archive JSON con dettagli partite |
+| `lib/` | `gen_killer_curves.py` | 613 | Playbook e threat curves |
+| `lib/` | `gen_decklist.py` | 334 | Card scores per matchup |
+| `lib/` | `build_replay_steps.py` | 813 | Ricostruzione passi replay |
+| `lib/` | `i18n.py` | 418 | Internazionalizzazione stringhe |
+| `lib/` | `validate_killer_curves.py` | 313 | Validazione meccanica KC |
+| `lib/` | `validate_semantics.py` | 334 | Validazione semantica output |
+| `lib/` | `gen_digest.py` | 211 | Digest compatto per input LLM |
+| `lib/` | `gen_deck_actually.py` | 274 | Analisi "deck actually played" |
+| `lib/` | `gen_review.py` | 197 | Review tattica |
+| `lib/` | `gen_risposte.py` | 164 | Analisi risposte |
+| `lib/` | `stats.py` | 169 | Calcoli statistici puri |
+| `lib/` | `cards_dict.py` | 233 | DB 1511 carte normalizzate |
+| `lib/` | `gen_curve_t1t7.py` | 218 | Curve mana turni 1-7 |
+| `lib/` | `gen_validate.py` | 157 | Validazione output |
+| `lib/` | `gen_mani.py` | 67 | Analisi mani iniziali |
+| `lib/` | `gen_panoramica.py` | 57 | Panoramica matchup |
+| `lib/` | `gen_all_turns.py` | 82 | Dump tutti i turni |
+| `lib/` | `gen_killer_curves_draft.py` | 152 | KC versione draft |
+| `lib/` | `validate.py` | 130 | Validazione generica |
+| `lib/` | `formatting.py` | 51 | Display helpers |
+| `lib/` | `assembler.py` | 47 | Assembla sezioni report |
+| root | `generate_report.py` | 238 | Pipeline 5 fasi → report .md |
+| root | `run_kc_production.py` | 235 | Killer curves batch |
+| root | `build_replay.py` | 978 | Replay builder v1 |
+| root | `build_replay_v2.py` | 137 | Replay builder v2 |
+| root | `audit_replay.py` | 694 | Audit qualita' replay |
+
+### Piano futuro (non bloccante)
+
+Quando App_tool sara' completamente indipendente da analisidef:
+1. I moduli `pipeline/lib/` verranno importati direttamente da `backend/workers/`
+2. `daily_routine.py` verra' spezzato in worker separati (match_importer, daily_pipeline, etc.)
+3. L'output andra' direttamente in PostgreSQL, non piu' in dashboard_data.json
+4. La cartella `pipeline/` diventera' il codice attivo, non piu' uno snapshot
 
 ---
 

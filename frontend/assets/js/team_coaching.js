@@ -144,9 +144,15 @@ async function tcLoadReplay(gameId) {
 }
 
 // ═══ APPLY SNAPSHOT (DOM diff + animate) ═══
+let _tcApplyLock = false;
 async function tcApplySnap(idx, skipAnim) {
   const snaps = tcReplayData?.snapshots;
   if (!snaps || idx < 0 || idx >= snaps.length) return;
+  // Prevent concurrent calls — skip if already animating (unless skipping anim)
+  if (_tcApplyLock && !skipAnim) return;
+  if (skipAnim) _tcApplyLock = false; // force unlock on skip (slider drag, goTo)
+  _tcApplyLock = !skipAnim;
+  try {
   tcSnapIdx = idx;
   const snap = snaps[idx];
   const prev = idx > 0 ? snaps[idx - 1] : null;
@@ -269,15 +275,18 @@ async function tcApplySnap(idx, skipAnim) {
     }
   }
 
-  // ── NOW update board (death animations + innerHTML swap) ──
-  await tcUpdateField('tc-field-our', allOur, allPrevOur, skipAnim);
-  await tcUpdateField('tc-field-opp', allOpp, allPrevOpp, skipAnim);
+  // ── NOW update board (death animations + innerHTML swap) ── parallel both sides
+  await Promise.all([
+    tcUpdateField('tc-field-our', allOur, allPrevOur, skipAnim),
+    tcUpdateField('tc-field-opp', allOpp, allPrevOpp, skipAnim)
+  ]);
 
   // Events log
   tcUpdateEvents(snap, prev);
 
   // Hand
   tcUpdateHand(snap.hand || [], prev ? (prev.hand || []) : []);
+  } finally { _tcApplyLock = false; }
 }
 
 function tcUpdateEvents(snap, prev) {
@@ -550,9 +559,9 @@ function tcUpdateHand(hand, prevHand) {
 }
 
 // ═══ NAVIGATION ═══
-function tcGoTo(idx) { tcAbort = true; tcAnimating = false; setTimeout(() => { tcAbort = false; tcApplySnap(idx, true); }, 50); }
-function tcNext() { tcAbort = true; setTimeout(() => { tcAbort = false; tcApplySnap(tcSnapIdx + 1, false); }, 50); }
-function tcPrev() { tcAbort = true; setTimeout(() => { tcAbort = false; tcApplySnap(tcSnapIdx - 1, true); }, 50); }
+function tcGoTo(idx) { tcAbort = true; tcAnimating = false; clearTimeout(tcPlayTimer); setTimeout(() => { tcAbort = false; tcApplySnap(idx, true); }, 60); }
+function tcNext() { if (tcAnimating) return; tcAbort = true; clearTimeout(tcPlayTimer); setTimeout(() => { tcAbort = false; tcApplySnap(tcSnapIdx + 1, false); }, 60); }
+function tcPrev() { if (tcAnimating) return; tcAbort = true; clearTimeout(tcPlayTimer); setTimeout(() => { tcAbort = false; tcApplySnap(tcSnapIdx - 1, true); }, 60); }
 function tcStop() { tcPlaying = false; tcAbort = true; clearTimeout(tcPlayTimer); const b = document.getElementById('tc-btn-play'); if(b) b.textContent = '\u25b6'; }
 
 function tcTogglePlay() {
@@ -568,10 +577,13 @@ async function tcPlayTick() {
   const snaps = tcReplayData.snapshots || [];
   if (tcSnapIdx >= snaps.length - 1) { tcStop(); return; }
   tcAbort = false;
+  tcAnimating = true;
   await tcApplySnap(tcSnapIdx + 1, false);
+  tcAnimating = false;
   if (!tcPlaying) return;
-  const delay = Math.max(150, 800 / tcSpeed);
-  tcPlayTimer = setTimeout(tcPlayTick, delay);
+  // Post-animation pause: gives user time to read the board state
+  const pause = Math.max(200, 600 / tcSpeed);
+  tcPlayTimer = setTimeout(tcPlayTick, pause);
 }
 
 function tcCycleSpeed() {
