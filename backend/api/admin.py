@@ -1,12 +1,13 @@
 """Admin endpoints — health, metrics, refresh.
 Health is public (for uptime checks). Everything else requires admin.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_admin
 from backend.models.user import User
+from backend.services import dashboard_bridge
 
 router = APIRouter()
 
@@ -54,3 +55,13 @@ def metrics(
         {"day": r.day.isoformat(), "format": r.game_format, "games": r.games}
         for r in rows
     ]
+
+
+@router.get("/logs")
+def logs(
+    level: str = Query("error"),
+    limit: int = Query(100, ge=1, le=500),
+    admin: User = Depends(require_admin),
+):
+    """Recent audit log entries."""
+    return dashboard_bridge.get_recent_logs(level=level, limit=limit)

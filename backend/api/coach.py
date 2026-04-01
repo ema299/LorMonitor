@@ -1,4 +1,4 @@
-"""Coach tab — matchup analysis, killer curves, threats.
+"""Coach tab — matchup analysis, killer curves, threats, playbook.
 Requires: pro tier or above.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
-from backend.services import matchup_service
+from backend.services import matchup_service, dashboard_bridge
 
 router = APIRouter()
 
@@ -68,3 +68,17 @@ def matchup_history(
 ):
     """Daily WR trend for a specific matchup."""
     return matchup_service.get_matchup_history(db, our_deck, opp_deck, game_format, days)
+
+
+@router.get("/playbook/{our_deck}/{opp_deck}")
+def playbook(
+    our_deck: str,
+    opp_deck: str,
+    game_format: str = Query("core"),
+    user: User = Depends(require_tier("pro")),
+):
+    """Turn-by-turn opponent playbook (T1-T7): plays, combos, impact."""
+    result = dashboard_bridge.get_playbook(our_deck, opp_deck, game_format)
+    if not result:
+        raise HTTPException(404, f"No playbook for {our_deck} vs {opp_deck}")
+    return result

@@ -1,12 +1,12 @@
-"""Lab tab — card scores, optimizer, deck analytics.
+"""Lab tab — card scores, optimizer, mulligans, deck analytics.
 Requires: pro tier or above.
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
-from backend.services import deck_service
+from backend.services import deck_service, dashboard_bridge
 
 router = APIRouter()
 
@@ -33,3 +33,31 @@ def history_snapshots(
 ):
     """Historical daily snapshots."""
     return deck_service.get_history_snapshots(db, perimeter, days)
+
+
+@router.get("/optimizer/{our_deck}/{opp_deck}")
+def optimizer(
+    our_deck: str,
+    opp_deck: str,
+    game_format: str = Query("core"),
+    user: User = Depends(require_tier("pro")),
+):
+    """Optimized decklist for a matchup: full list, adds, cuts, mana curve."""
+    result = dashboard_bridge.get_optimizer(our_deck, opp_deck, game_format)
+    if not result:
+        raise HTTPException(404, f"No optimizer data for {our_deck} vs {opp_deck}")
+    return result
+
+
+@router.get("/mulligans/{our_deck}/{opp_deck}")
+def mulligans(
+    our_deck: str,
+    opp_deck: str,
+    game_format: str = Query("core"),
+    user: User = Depends(require_tier("pro")),
+):
+    """PRO mulligan hands: initial, sent, final, outcome, OTP/OTD."""
+    result = dashboard_bridge.get_mulligans(our_deck, opp_deck, game_format)
+    if not result:
+        raise HTTPException(404, f"No mulligan data for {our_deck} vs {opp_deck}")
+    return result

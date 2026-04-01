@@ -578,20 +578,20 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── GET /trend?game_format=core&days=5                                 ✅
 │   ├── GET /leaderboard?game_format=core&days=7&limit=100                 ✅
 │   ├── GET /players/{deck}?game_format=core&days=7                        ✅
-│   └── GET /tech-tornado?perimeter=set11                                  ⏳
+│   └── GET /tech-tornado?perimeter=set11&deck=AmAm                        ✅
 │
 ├── coach/                           # ✅ IMPLEMENTATO — [auth: tier pro+]
 │   ├── GET /matchup/{our}/{opp}?format=core&days=7                        ✅
 │   ├── GET /killer-curves/{our}/{opp}?format=core                         ✅
 │   ├── GET /threats/{our}/{opp}?format=core                               ✅
 │   ├── GET /history/{our}/{opp}?format=core&days=30                       ✅
-│   └── GET /playbook/{our}/{opp}?format=core                              ⏳
+│   └── GET /playbook/{our}/{opp}?format=core                              ✅
 │
 ├── lab/                             # ✅ IMPLEMENTATO — [auth: tier pro+]
 │   ├── GET /card-scores/{our}/{opp}?format=core&days=7                    ✅
 │   ├── GET /history?perimeter=full&days=30                                ✅
-│   ├── GET /optimizer/{our}/{opp}?format=core                             ⏳
-│   └── GET /mulligans/{our}/{opp}?format=core                             ⏳
+│   ├── GET /optimizer/{our}/{opp}?format=core                             ✅
+│   └── GET /mulligans/{our}/{opp}?format=core                             ✅
 │
 ├── user/                            # ✅ IMPLEMENTATO 01/04/2026 — [auth: qualsiasi tier]
 │   ├── GET    /profile              # Profilo completo (nick, link esterni)  ✅
@@ -624,7 +624,7 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── GET  /health                 # Pubblico (uptime monitors)          ✅
 │   ├── GET  /metrics                # [admin]                             ✅
 │   ├── POST /refresh-views          # [admin]                             ✅
-│   └── GET  /logs?level=error&limit=100                                   ⏳
+│   └── GET  /logs?level=error&limit=100                                   ✅
 │
 └── webhooks/                                                              ⏳
     └── POST /stripe                 # Webhook Stripe (signature verificata)
@@ -640,6 +640,12 @@ IMPLEMENTATO:
   scripts/create_admin.py             — seed account admin + test
   backend/api/user.py                 — profile, nicknames, decks CRUD, preferences, GDPR export
   backend/services/user_service.py    — business logic: deck validation, prefs whitelist, export
+  backend/services/dashboard_bridge.py — bridge layer: reads dashboard_data.json for playbook,
+                                         mulligans, optimizer, tech tornado (transitional → PostgreSQL)
+  backend/api/coach.py +playbook      — GET /playbook/{our}/{opp} via dashboard_bridge
+  backend/api/lab.py +optimizer,mulligans — GET /optimizer, /mulligans via dashboard_bridge
+  backend/api/monitor.py +tech-tornado — GET /tech-tornado via dashboard_bridge
+  backend/api/admin.py +logs          — GET /logs from audit_log table
 
   Testato: login → JWT → /me → profilo OK
   Token: access 15min, refresh 30gg con rotazione (old revocato, new emesso)

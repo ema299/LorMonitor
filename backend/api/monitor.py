@@ -1,12 +1,12 @@
 """Monitor tab — meta game overview, matchup matrix, leaderboard.
 Requires: logged in (any tier). Free users see all monitor data.
 """
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.deps import get_current_user, get_db
 from backend.models.user import User
-from backend.services import stats_service, players_service
+from backend.services import stats_service, players_service, dashboard_bridge
 
 router = APIRouter()
 
@@ -105,3 +105,16 @@ def winrates(
 ):
     """Win rates per deck."""
     return stats_service.get_deck_winrates(db, game_format, perimeter, days)
+
+
+@router.get("/tech-tornado")
+def tech_tornado(
+    perimeter: str = Query("set11"),
+    deck: str | None = Query(None, description="Filter to a single deck"),
+    user: User = Depends(get_current_user),
+):
+    """Tech tornado: cards in/out vs consensus for a perimeter."""
+    result = dashboard_bridge.get_tech_tornado(perimeter, deck)
+    if not result:
+        raise HTTPException(404, f"No tech tornado data for perimeter={perimeter}")
+    return result
