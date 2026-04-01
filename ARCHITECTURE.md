@@ -593,17 +593,18 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── GET /optimizer/{our}/{opp}?format=core                             ⏳
 │   └── GET /mulligans/{our}/{opp}?format=core                             ⏳
 │
-├── user/                            # [auth] — Profilo utente             ⏳
-│   ├── GET    /profile              # Profilo completo (nick, link esterni)
-│   ├── PUT    /profile              # Aggiorna profilo
-│   ├── PUT    /nicknames            # Associa nickname duels.ink / lorcanito
-│   ├── GET    /decks
-│   ├── POST   /decks               # Salva deck nel profilo
-│   ├── PUT    /decks/{id}           # Aggiorna deck
-│   ├── DELETE /decks/{id}
-│   ├── GET    /preferences
-│   ├── PUT    /preferences          # Lingua, notifiche, deck preferito
-│   └── GET    /export               # GDPR: esporta tutti i dati utente
+├── user/                            # ✅ IMPLEMENTATO 01/04/2026 — [auth: qualsiasi tier]
+│   ├── GET    /profile              # Profilo completo (nick, link esterni)  ✅
+│   ├── PUT    /profile              # Aggiorna profilo                       ✅
+│   ├── GET    /nicknames            # Leggi nickname linkati                 ✅
+│   ├── PUT    /nicknames            # Associa nickname duels.ink / lorcanito ✅
+│   ├── GET    /decks                                                         ✅
+│   ├── POST   /decks               # Salva deck nel profilo                 ✅
+│   ├── PUT    /decks/{id}           # Aggiorna deck                          ✅
+│   ├── DELETE /decks/{id}                                                    ✅
+│   ├── GET    /preferences                                                   ✅
+│   ├── PUT    /preferences          # Lingua, notifiche, deck preferito     ✅
+│   └── GET    /export               # GDPR: esporta tutti i dati utente     ✅
 │
 ├── community/                       # [auth] — Contenuti community       ⏳
 │   ├── GET /videos                  # Lista video streamer + School of Lorcana
@@ -629,7 +630,7 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
     └── POST /stripe                 # Webhook Stripe (signature verificata)
 ```
 
-### 7.2 Stato Implementazione (aggiornato 30 Mar 2026)
+### 7.2 Stato Implementazione (aggiornato 01 Apr 2026)
 
 ```
 IMPLEMENTATO:
@@ -637,6 +638,8 @@ IMPLEMENTATO:
   backend/api/auth.py                 — register, login, logout, refresh, me, delete me
   backend/deps.py                     — get_current_user, require_tier(), require_admin
   scripts/create_admin.py             — seed account admin + test
+  backend/api/user.py                 — profile, nicknames, decks CRUD, preferences, GDPR export
+  backend/services/user_service.py    — business logic: deck validation, prefs whitelist, export
 
   Testato: login → JWT → /me → profilo OK
   Token: access 15min, refresh 30gg con rotazione (old revocato, new emesso)

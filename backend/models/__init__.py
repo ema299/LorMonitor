@@ -28,3 +28,4 @@ from backend.models.match import Match  # noqa: E402, F401
 from backend.models.analysis import KillerCurve, Archive, ThreatLLM, DailySnapshot  # noqa: E402, F401
 from backend.models.audit import AuditLog  # noqa: E402, F401
 from backend.models.promo import PromoCode, PromoRedemption  # noqa: E402, F401
+from backend.models.team import TeamReplay, TeamRoster  # noqa: E402, F401
