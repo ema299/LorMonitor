@@ -32,18 +32,19 @@ class UpdatePreferencesRequest(BaseModel):
     notifications_email: bool | None = None
     notifications_push: bool | None = None
     theme: str | None = None
+    country: str | None = None
 
 
 class CreateDeckRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     deck_code: str = Field(min_length=2, max_length=10)
-    cards: list[dict] = Field(default_factory=list)
+    cards: dict | list = Field(default_factory=dict)
 
 
 class UpdateDeckRequest(BaseModel):
     name: str | None = Field(None, max_length=100)
     deck_code: str | None = Field(None, max_length=10)
-    cards: list[dict] | None = None
+    cards: dict | list | None = None
 
 
 # ── Profile ──────────────────────────────────────────────────────────

@@ -318,19 +318,33 @@ def _deck_to_dict(deck: UserDeck) -> dict:
     }
 
 
-def _validate_cards(cards: list[dict]) -> None:
-    """Basic structural validation for card list."""
-    if not isinstance(cards, list):
+def _validate_cards(cards) -> None:
+    """Basic structural validation for card list or dict.
+    Accepts:
+      - dict: {"Card Name": qty, ...}  (frontend format)
+      - list: [{"card_name": "x", "count": 2}, ...]  (API format)
+      - empty dict/list (deck senza carte, bozza)
+    """
+    if isinstance(cards, dict):
+        total = 0
+        for name, qty in cards.items():
+            if not isinstance(name, str) or not isinstance(qty, int) or qty < 1 or qty > 4:
+                raise ValueError("invalid_card_entry")
+            total += qty
+        if total > 60:
+            raise ValueError("deck_exceeds_60_cards")
+    elif isinstance(cards, list):
+        if len(cards) > 60:
+            raise ValueError("too_many_cards")
+        total = 0
+        for c in cards:
+            if not isinstance(c, dict) or "card_name" not in c:
+                raise ValueError("invalid_card_entry")
+            count = c.get("count", 1)
+            if not isinstance(count, int) or count < 1 or count > 4:
+                raise ValueError("invalid_card_count")
+            total += count
+        if total > 60:
+            raise ValueError("deck_exceeds_60_cards")
+    else:
         raise ValueError("invalid_cards_format")
-    if len(cards) > 60:
-        raise ValueError("too_many_cards")
-    total = 0
-    for c in cards:
-        if not isinstance(c, dict) or "card_name" not in c:
-            raise ValueError("invalid_card_entry")
-        count = c.get("count", 1)
-        if not isinstance(count, int) or count < 1 or count > 4:
-            raise ValueError("invalid_card_count")
-        total += count
-    if total > 60:
-        raise ValueError("deck_exceeds_60_cards")
