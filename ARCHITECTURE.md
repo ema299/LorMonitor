@@ -1,6 +1,6 @@
 # Lorcana Monitor — Architettura Produzione
 
-**Versione:** 3.0 | **Data:** 27 Marzo 2026
+**Versione:** 3.1 | **Data:** 01 Aprile 2026
 
 ---
 
@@ -604,6 +604,7 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 │   ├── DELETE /decks/{id}                                                    ✅
 │   ├── GET    /preferences                                                   ✅
 │   ├── PUT    /preferences          # Lingua, notifiche, deck preferito     ✅
+│   ├── GET    /my-stats?game_format=core&days=30  # Stats personali da nick ✅
 │   └── GET    /export               # GDPR: esporta tutti i dati utente     ✅
 │
 ├── community/                       # [auth] — Contenuti community       ⏳
@@ -638,16 +639,18 @@ IMPLEMENTATO:
   backend/api/auth.py                 — register, login, logout, refresh, me, delete me
   backend/deps.py                     — get_current_user, require_tier(), require_admin
   scripts/create_admin.py             — seed account admin + test
-  backend/api/user.py                 — profile, nicknames, decks CRUD, preferences, GDPR export
-  backend/services/user_service.py    — business logic: deck validation, prefs whitelist, export
+  backend/api/user.py                 — profile, nicknames, decks CRUD, preferences, my-stats, GDPR export
+  backend/services/user_service.py    — business logic: deck validation, prefs whitelist, my-stats SQL, export
   backend/services/dashboard_bridge.py — bridge layer: reads dashboard_data.json for playbook,
                                          mulligans, optimizer, tech tornado (transitional → PostgreSQL)
   backend/api/coach.py +playbook      — GET /playbook/{our}/{opp} via dashboard_bridge
   backend/api/lab.py +optimizer,mulligans — GET /optimizer, /mulligans via dashboard_bridge
   backend/api/monitor.py +tech-tornado — GET /tech-tornado via dashboard_bridge
   backend/api/admin.py +logs          — GET /logs from audit_log table
+  frontend/dashboard.html             — auth UI (login/register/logout), profile tab con save nicknames,
+                                         country via API, pfRefreshAuthUser() per sync profilo
 
-  Testato: login → JWT → /me → profilo OK
+  Testato: login → JWT → /me → profilo OK, nicknames save → API OK, my-stats → OK
   Token: access 15min, refresh 30gg con rotazione (old revocato, new emesso)
   Sessioni: hash SHA-256 in DB, revocabili, legate a IP/device
 
@@ -714,7 +717,7 @@ Protezioni:
   - Scadenza upgrade con revert automatico al tier originale
 ```
 
-### 7.5 Profile — Dati Utente e Stats Personali (da implementare)
+### 7.5 Profile — Dati Utente e Stats Personali (implementato 01 Apr 2026)
 
 Il tab Profile permette all'utente di associare il proprio nickname duels.ink, salvare deck personalizzati e visualizzare le proprie statistiche reali calcolate dai match in database.
 
@@ -844,7 +847,28 @@ GET /api/v1/user/my-stats?format=core&days=30
   }
 ```
 
-**Protezione omonimi:** il lookup confronta `lower(player_a_name)` con il nick salvato. Se piu' player hanno lo stesso nick (raro su duels.ink), il backend filtra per MMR range usando la leaderboard (stessa logica del filtro omonimi in `players_service.py`).
+**⚠️ NOTA CRITICA — Identita' player duels.ink (01/04/2026):**
+
+duels.ink non fornisce un player ID univoco nei log — solo `name` + `mmr`.
+Problemi noti:
+1. **Nickname duplicabili**: due player diversi possono avere lo stesso nick
+2. **Nickname mutabili**: un player puo' cambiare nick in qualsiasi momento
+3. **Nessun ID stabile** nei match JSON (`game_info.player1` ha solo name/mmr)
+
+Impatto sul Profile tab:
+- My Stats cerca per `lower(player_a_name)` — se il nick e' duplicato, le stats mescolano due player
+- Se l'utente cambia nick su duels.ink, deve aggiornarlo manualmente nel profilo
+- Il filtro omonimi (±200 MMR via leaderboard) e' un workaround, non una soluzione
+
+Impatto sull'auth:
+- Il login usa username scelto dall'utente (NON il nick duels.ink)
+- Il nick duels.ink e' solo un campo profilo per agganciare le stats
+- Email opzionale (solo per reset password), criptata se presente
+
+**TODO futuri (non bloccanti per MVP):**
+- Se duels.ink esporra' un player ID stabile, usarlo come chiave di lookup
+- Considerare verifica ownership nick (es. "gioca una partita con deck X per conferma")
+- Aggiungere campo `mmr_range_hint` nel profilo per disambiguare omonimi manualmente
 
 #### 7.5.3 Deck Salvati — CRUD su user_decks
 
@@ -900,24 +924,16 @@ Profile                          Coach / Monitor / Lab
 
 **My Deck → Coach:** se l'utente ha un deck custom (60 carte salvate in `user_decks`), il Coach puo' mostrare il confronto "tua lista vs consensus meta" usando i dati dal record `user_decks.cards` incrociati con i dati di `archives.aggregates`.
 
-#### 7.5.5 Implementazione — File da creare/modificare
+#### 7.5.5 Implementazione — File modificati
 
 ```
-NUOVO:
-  backend/api/user.py              # Route handler: preferences, decks, my-stats
-  backend/services/user_service.py # Business logic: CRUD deck, query my-stats, preferences merge
-  frontend/assets/js/profile.js    # Tab Profile (render, deck management, stats display)
-
-MODIFICARE:
-  backend/main.py                  # Aggiungere router user
-  frontend/assets/js/app.js        # Aggiungere tab "profile" nel routing
-  frontend/index.html              # Aggiungere bottone tab Profile nella nav
-
-GIA' PRONTO (non toccare):
-  backend/models/user.py           # User con preferences JSONB
-  backend/models/user_deck.py      # UserDeck model
-  backend/deps.py                  # get_current_user, require_tier
-  db/migrations/                   # Tabelle gia' create, zero migrazioni
+IMPLEMENTATO (01 Apr 2026):
+  backend/api/user.py              # Route handler: profile, nicknames, decks, preferences, my-stats, export
+  backend/services/user_service.py # Business logic: CRUD deck, query my-stats (3 SQL), prefs whitelist+country
+  frontend/dashboard.html          # Auth UI inline (login/register/logout), profile save via API,
+                                     pfSaveNicknames(), pfSaveCountry(), pfRefreshAuthUser()
+  frontend/assets/js/team_coaching.js # Team coaching replay/roster
+  backend/main.py                  # Router user registrato
 ```
 
 ---

@@ -1,11 +1,11 @@
 """
-User service — profile, nicknames, decks, preferences, GDPR export.
+User service — profile, nicknames, decks, preferences, GDPR export, my-stats.
 All user data lives in PostgreSQL (users table + user_decks table).
 """
 import uuid
 from datetime import datetime
 
-from sqlalchemy import and_
+from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
 from backend.models.user import User
@@ -66,7 +66,7 @@ def update_nicknames(db: Session, user: User, duels_ink: str | None = None,
 
 ALLOWED_PREFS = {
     "language", "default_deck", "default_format", "notifications_email",
-    "notifications_push", "theme",
+    "notifications_push", "theme", "country",
 }
 
 
@@ -176,6 +176,116 @@ def export_user_data(db: Session, user: User) -> dict:
         "preferences": get_preferences(user),
         "decks": decks,
         "exported_at": datetime.utcnow().isoformat(),
+    }
+
+
+# ── My Stats ─────────────────────────────────────────────────────────
+
+def get_my_stats(db: Session, user: User, game_format: str = "core", days: int = 30) -> dict | None:
+    """Get personal stats by looking up user's duels.ink nickname in matches."""
+    prefs = user.preferences or {}
+    nick = prefs.get("nickname_duels_ink", "")
+    if not nick:
+        return None
+
+    nick_lower = nick.lower()
+
+    # WR per deck played
+    deck_rows = db.execute(text("""
+        SELECT
+          CASE WHEN lower(player_a_name) = :nick THEN deck_a ELSE deck_b END AS my_deck,
+          COUNT(*) AS games,
+          SUM(CASE
+            WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+            WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+            ELSE 0
+          END) AS wins
+        FROM matches
+        WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+          AND played_at >= now() - make_interval(days => :days)
+          AND game_format = :fmt
+        GROUP BY my_deck
+        ORDER BY games DESC
+    """), {"nick": nick_lower, "days": days, "fmt": game_format}).fetchall()
+
+    if not deck_rows:
+        return {"nick": nick, "decks": [], "total_games": 0, "total_wins": 0, "total_wr": 0}
+
+    decks = []
+    total_g = 0
+    total_w = 0
+    for r in deck_rows:
+        g, w = r.games, r.wins
+        total_g += g
+        total_w += w
+        decks.append({
+            "deck": r.my_deck,
+            "games": g,
+            "wins": w,
+            "losses": g - w,
+            "wr": round(w / g * 100, 1) if g else 0,
+        })
+
+    # Matchup breakdown for top deck
+    matchups = []
+    if decks:
+        top_deck = decks[0]["deck"]
+        mu_rows = db.execute(text("""
+            SELECT
+              CASE WHEN lower(player_a_name) = :nick THEN deck_b ELSE deck_a END AS vs_deck,
+              COUNT(*) AS games,
+              SUM(CASE
+                WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+                WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+                ELSE 0
+              END) AS wins
+            FROM matches
+            WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+              AND CASE WHEN lower(player_a_name) = :nick THEN deck_a ELSE deck_b END = :my_deck
+              AND played_at >= now() - make_interval(days => :days)
+              AND game_format = :fmt
+            GROUP BY vs_deck
+            ORDER BY games DESC
+        """), {"nick": nick_lower, "my_deck": top_deck, "days": days, "fmt": game_format}).fetchall()
+
+        matchups = [
+            {"vs_deck": r.vs_deck, "games": r.games, "wins": r.wins,
+             "wr": round(r.wins / r.games * 100, 1) if r.games else 0}
+            for r in mu_rows
+        ]
+
+    # Daily trend (last 30 days)
+    trend_rows = db.execute(text("""
+        SELECT
+          played_at::date AS day,
+          COUNT(*) AS games,
+          SUM(CASE
+            WHEN lower(player_a_name) = :nick AND winner = 'deck_a' THEN 1
+            WHEN lower(player_b_name) = :nick AND winner = 'deck_b' THEN 1
+            ELSE 0
+          END) AS wins
+        FROM matches
+        WHERE (lower(player_a_name) = :nick OR lower(player_b_name) = :nick)
+          AND played_at >= now() - make_interval(days => :days)
+          AND game_format = :fmt
+        GROUP BY day
+        ORDER BY day
+    """), {"nick": nick_lower, "days": days, "fmt": game_format}).fetchall()
+
+    daily_trend = [
+        {"day": r.day.isoformat(), "games": r.games, "wins": r.wins,
+         "wr": round(r.wins / r.games * 100, 1) if r.games else 0}
+        for r in trend_rows
+    ]
+
+    return {
+        "nick": nick,
+        "total_games": total_g,
+        "total_wins": total_w,
+        "total_wr": round(total_w / total_g * 100, 1) if total_g else 0,
+        "decks": decks,
+        "matchups": matchups,
+        "daily_trend": daily_trend,
     }
 
 

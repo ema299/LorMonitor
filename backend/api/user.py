@@ -161,6 +161,22 @@ def delete_deck(
         raise HTTPException(status_code=404, detail="deck_not_found")
 
 
+# ── My Stats ─────────────────────────────────────────────────────────
+
+@router.get("/my-stats")
+def my_stats(
+    game_format: str = Query("core"),
+    days: int = Query(30, ge=1, le=90),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Personal stats based on duels.ink nickname: WR per deck, matchups, trend."""
+    result = user_service.get_my_stats(db, user, game_format, days)
+    if not result:
+        raise HTTPException(404, "Set your duels.ink nickname first")
+    return result
+
+
 # ── GDPR Export ──────────────────────────────────────────────────────
 
 @router.get("/export")

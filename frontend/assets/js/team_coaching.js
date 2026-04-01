@@ -11,7 +11,7 @@ let tcContainer = null;
 let tcSnapIdx = 0;
 let tcPlaying = false;
 let tcPlayTimer = null;
-let tcSpeed = 1; // 0.5, 1, 2, 4
+let tcSpeed = 0.5; // 0.5, 1, 2, 4
 let tcAbort = false;
 let tcAnimating = false;
 
@@ -111,7 +111,7 @@ async function tcLoadReplay(gameId) {
       <button class="tc-btn tc-btn-play" id="tc-btn-play" onclick="tcTogglePlay()">\u25b6</button>
       <button class="tc-btn" onclick="tcNext()">\u25b6</button>
       <button class="tc-btn" onclick="tcGoTo(${snaps.length-1})">\u23ed</button>
-      <button class="tc-btn tc-btn-speed" onclick="tcCycleSpeed()" id="tc-btn-speed">1x</button>
+      <button class="tc-btn tc-btn-speed" onclick="tcCycleSpeed()" id="tc-btn-speed">0.5x</button>
       <input type="range" class="tc-slider" id="tc-slider" min="0" max="${snaps.length-1}" value="0" oninput="tcGoTo(+this.value)">
       <span class="tc-step-num" id="tc-step-num">1/${snaps.length}</span>
     </div>
@@ -188,40 +188,90 @@ async function tcApplySnap(idx, skipAnim) {
   const allPrevOur = [...prevBoard.our, ...prevItems.our];
   const allPrevOpp = [...prevBoard.opp, ...prevItems.opp];
 
-  await tcUpdateField('tc-field-our', allOur, allPrevOur, skipAnim);
-  await tcUpdateField('tc-field-opp', allOpp, allPrevOpp, skipAnim);
+  // ── Animations on OLD DOM (targets still exist) ──
 
-  // Spell overlay for actions/songs
+  // Spell overlay for actions/songs (old DOM has targets for arrows)
   if (!skipAnim && prev) {
     await tcShowSpellOverlay(snap, prev);
   }
 
-  // Combat arrows — ONLY for ATTACK actions with real attacker/defender
+  // Combat arrows — ONLY for ATTACK actions (old DOM has attacker + defender)
   if (!skipAnim && prev && snap.action_type === 'ATTACK' && !tcAbort) {
-    for (const [fieldId, curr, prevC, otherCurr, otherPrev] of [
-      ['tc-field-opp', allOpp, allPrevOpp, allOur, allPrevOur],
-      ['tc-field-our', allOur, allPrevOur, allOpp, allPrevOpp]
-    ]) {
-      for (const c of curr) {
+    let atkName = null, atkFieldId = null, defFieldId = null, defSideCurr = null, defSidePrev = null;
+    for (const [fid, curr, prevC] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
+      const newlyExerted = curr.find(c => {
         const pc = prevC.find(p => p.name === c.name);
-        if (pc && c.damage > pc.damage) {
-          const otherFieldId = fieldId === 'tc-field-opp' ? 'tc-field-our' : 'tc-field-opp';
-          // Attacker = card that became newly exerted on opposite side
-          const attacker = otherCurr.find(a => {
-            const pa = otherPrev.find(p => p.name === a.name);
-            return a.exerted && pa && !pa.exerted;
-          });
-          const srcEl = attacker
-            ? document.querySelector(`#${otherFieldId} [data-name="${attacker.name}"]`)
-            : null;
-          const tgtEl = document.querySelector(`#${fieldId} [data-name="${c.name}"]`);
-          if (srcEl && tgtEl && !tcAbort) {
-            await tcDrawArrow(srcEl, tgtEl, '#ef4444', '-' + (c.damage - pc.damage));
-          }
-        }
+        return c.exerted && pc && !pc.exerted;
+      });
+      if (newlyExerted) {
+        atkName = newlyExerted.name;
+        atkFieldId = fid;
+        defFieldId = fid === 'tc-field-our' ? 'tc-field-opp' : 'tc-field-our';
+        defSideCurr = fid === 'tc-field-our' ? allOpp : allOur;
+        defSidePrev = fid === 'tc-field-our' ? allPrevOpp : allPrevOur;
+        break;
+      }
+    }
+    if (atkName && defFieldId) {
+      // Attacker is on old DOM (not yet exerted visually, but positioned correctly)
+      const srcEl = document.querySelector(`#${atkFieldId} [data-name="${atkName}"]`);
+      // Defender: card that took damage or died on opposite side
+      let defName = null, dmgAmount = 0;
+      for (const c of defSideCurr) {
+        const pc = defSidePrev.find(p => p.name === c.name);
+        if (pc && c.damage > pc.damage) { defName = c.name; dmgAmount = c.damage - pc.damage; break; }
+      }
+      if (!defName) {
+        const currNames = defSideCurr.map(c => c.name);
+        const died = defSidePrev.find(c => !currNames.includes(c.name));
+        if (died) defName = died.name;
+      }
+      // Target is on old DOM (still exists, even if it will die after board update)
+      const tgtEl = defName ? document.querySelector(`#${defFieldId} [data-name="${defName}"]`) : null;
+      if (srcEl && tgtEl && !tcAbort) {
+        await tcDrawArrow(srcEl, tgtEl, '#ef4444', dmgAmount ? '-' + dmgAmount : '\u2694');
       }
     }
   }
+
+  // Damage transfer (boost/ability): card heals AND another card takes damage or dies in same snapshot
+  if (!skipAnim && prev && snap.action_type !== 'ATTACK' && !tcAbort) {
+    // Find card that lost damage (healed)
+    for (const [srcFid, srcCurr, srcPrev] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
+      const healed = srcCurr.find(c => {
+        const pc = srcPrev.find(p => p.name === c.name);
+        return pc && c.damage < pc.damage;
+      });
+      if (!healed) continue;
+      const healPc = srcPrev.find(p => p.name === healed.name);
+      const dmgMoved = healPc.damage - healed.damage;
+      // Find target that took damage or died (either side)
+      for (const [tgtFid, tgtCurr, tgtPrev] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
+        let tgtName = null;
+        for (const c of tgtCurr) {
+          if (c.name === healed.name) continue;
+          const pc = tgtPrev.find(p => p.name === c.name);
+          if (pc && c.damage > pc.damage) { tgtName = c.name; break; }
+        }
+        if (!tgtName) {
+          const currNames = tgtCurr.map(c => c.name);
+          const died = tgtPrev.find(c => c.name !== healed.name && !currNames.includes(c.name));
+          if (died) tgtName = died.name;
+        }
+        if (tgtName) {
+          const srcEl = document.querySelector(`#${srcFid} [data-name="${healed.name}"]`);
+          const tgtEl = document.querySelector(`#${tgtFid} [data-name="${tgtName}"]`);
+          if (srcEl && tgtEl) await tcDrawArrow(srcEl, tgtEl, '#f59e0b', '-' + dmgMoved);
+          break;
+        }
+      }
+      break;
+    }
+  }
+
+  // ── NOW update board (death animations + innerHTML swap) ──
+  await tcUpdateField('tc-field-our', allOur, allPrevOur, skipAnim);
+  await tcUpdateField('tc-field-opp', allOpp, allPrevOpp, skipAnim);
 
   // Events log
   tcUpdateEvents(snap, prev);
@@ -351,9 +401,9 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
         if (dmgEl) dmgEl.classList.add('tc-dmg-flash');
       }
     }
-    // Wait for death animation
+    // Wait for death animation (fixed, clearly visible)
     if (el.querySelector('.tc-dying')) {
-      await new Promise(r => setTimeout(r, 400 / tcSpeed));
+      await new Promise(r => setTimeout(r, 500));
     }
   }
 
@@ -374,7 +424,7 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
     let cls = 'rv-mc';
     if (ink) cls += ' rv-ink-' + ink;
     if (c.exerted) cls += ' rv-exerted';
-    if (!skipAnim && isNew) cls += ' tc-anim-play';
+    if (!skipAnim && isNew) cls += ' tc-anim-play tc-new-glow';
     const dmgCls = dmgChanged ? ' tc-dmg-flash' : '';
     const dmgHtml = isCh && dmg > 0 ? `<div class="rv-dmg${dmgCls}">-${dmg}</div>` : '';
     const style = imgUrl ? `background-image:url(${imgUrl});background-size:cover;background-position:center 15%` : '';
@@ -393,7 +443,7 @@ async function tcShowSpellOverlay(snap, prev) {
   if (!prev || snap.action_type !== 'PLAY_CARD' || tcAbort) return;
   // Find card that left hand but didn't appear on board (= spell)
   const prevH = [...(prev.hand || [])];
-  const currH = snap.hand || [];
+  const currH = [...(snap.hand || [])];  // copy to avoid mutating snapshot
   let spellName = null;
   for (const name of prevH) {
     const pi = currH.indexOf(name);
@@ -423,8 +473,8 @@ async function tcShowSpellOverlay(snap, prev) {
   boardWrap.style.position = 'relative';
   boardWrap.appendChild(overlay);
 
-  // Wait for animation, then check for effects (damage/removal in this snapshot)
-  await new Promise(r => setTimeout(r, 400 / tcSpeed));
+  // Wait for pop-in animation, then check for effects
+  await new Promise(r => setTimeout(r, 350));
 
   // Draw arrows from spell to affected cards (damage increased or cards died)
   if (!tcAbort) {
@@ -453,30 +503,11 @@ async function tcShowSpellOverlay(snap, prev) {
 
   // Fade out
   overlay.style.opacity = '0';
-  await new Promise(r => setTimeout(r, 500 / tcSpeed));
+  await new Promise(r => setTimeout(r, 300));
   overlay.remove();
 }
 
-// ═══ COMBAT ARROW ═══
-async function tcAnimateCombat(our, opp, prevOur, prevOpp) {
-  // Find which card died (was in prev but not in current)
-  for (const side of [['tc-field-opp', opp, prevOpp], ['tc-field-our', our, prevOur]]) {
-    const [fieldId, curr, prev] = side;
-    const currNames = curr.map(c=>c.name);
-    for (const pc of prev) {
-      if (!currNames.includes(pc.name) || curr.filter(c=>c.name===pc.name).length < prev.filter(c=>c.name===pc.name).length) {
-        // pc died — find attacker (card that became exerted in opposite field)
-        const otherFieldId = fieldId === 'tc-field-opp' ? 'tc-field-our' : 'tc-field-opp';
-        const atkEl = document.querySelector(`#${otherFieldId} .rv-exerted[data-name]`);
-        const defEl = document.querySelector(`#${fieldId} [data-name="${pc.name}"]`);
-        if (atkEl && defEl) {
-          await tcDrawArrow(atkEl, defEl, '#ef4444', '\u2694');
-        }
-      }
-    }
-  }
-}
-
+// ═══ ARROW RENDERING ═══
 async function tcDrawArrow(srcEl, tgtEl, color, midLabel) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:100;width:100vw;height:100vh';
@@ -487,11 +518,11 @@ async function tcDrawArrow(srcEl, tgtEl, color, midLabel) {
   const mx=(x1+x2)/2, my=(y1+y2)/2;
   const d = `M${x1} ${y1} Q${cx} ${cy} ${x2} ${y2}`;
   const col = color || '#ef4444';
-  svg.innerHTML = `<defs><filter id="tcag"><feGaussianBlur in="SourceGraphic" stdDeviation="6"/></filter><marker id="tcah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${col}"/></marker></defs><path d="${d}" stroke="${col}" stroke-width="16" stroke-opacity="0.12" fill="none" filter="url(#tcag)"/><path d="${d}" stroke="${col}" stroke-width="6" fill="none" marker-end="url(#tcah)" style="stroke-dasharray:1000;stroke-dashoffset:1000;animation:tcDrawArrow 0.4s ease forwards"/><foreignObject x="${mx-20}" y="${my-20}" width="40" height="40" style="overflow:visible"><div xmlns="http://www.w3.org/1999/xhtml" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${col};box-shadow:0 0 20px ${col};color:#fff;font-weight:800;font-size:0.9rem;animation:tcCombatPulse 0.3s ease-in-out">${midLabel||''}</div></foreignObject>`;
+  svg.innerHTML = `<defs><filter id="tcag"><feGaussianBlur in="SourceGraphic" stdDeviation="6"/></filter><marker id="tcah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${col}"/></marker></defs><path d="${d}" stroke="${col}" stroke-width="16" stroke-opacity="0.12" fill="none" filter="url(#tcag)"/><path d="${d}" stroke="${col}" stroke-width="6" fill="none" marker-end="url(#tcah)" style="stroke-dasharray:1000;stroke-dashoffset:1000;animation:tcDrawArrow .35s ease forwards"/><foreignObject x="${mx-20}" y="${my-20}" width="40" height="40" style="overflow:visible"><div xmlns="http://www.w3.org/1999/xhtml" style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${col};box-shadow:0 0 20px ${col};color:#fff;font-weight:800;font-size:0.9rem;animation:tcCombatPulse 0.3s ease-in-out">${midLabel||''}</div></foreignObject>`;
   document.body.appendChild(svg);
   srcEl.style.boxShadow = `0 0 14px ${col}`;
   tgtEl.style.boxShadow = `0 0 14px ${col}`;
-  await new Promise(r => setTimeout(r, 900 / tcSpeed));
+  await new Promise(r => setTimeout(r, 500));
   srcEl.style.boxShadow = ''; tgtEl.style.boxShadow = '';
   svg.remove();
 }
@@ -539,7 +570,7 @@ async function tcPlayTick() {
   tcAbort = false;
   await tcApplySnap(tcSnapIdx + 1, false);
   if (!tcPlaying) return;
-  const delay = Math.max(200, 800 / tcSpeed);
+  const delay = Math.max(150, 800 / tcSpeed);
   tcPlayTimer = setTimeout(tcPlayTick, delay);
 }
 
@@ -594,15 +625,15 @@ function tcCycleSpeed() {
     .tc-mid-sep{flex:1;height:1px;background:var(--border);max-width:60px}
     .tc-cnt{font-size:.72em;color:var(--text2);font-weight:600}
 
-    .tc-field .rv-mc{transition:transform .3s ease,opacity .3s ease,filter .3s ease}
-    .tc-field .rv-exerted{transform:rotate(90deg);opacity:.7;transition:transform .3s ease,opacity .3s ease}
-    .tc-anim-play{animation:tcPlay .4s ease both}
-    .tc-dying{animation:tcDie .4s ease both;pointer-events:none}
-    .tc-dmg-flash{animation:tcDmgFlash .5s ease both}
-    @keyframes tcPlay{0%{opacity:0;transform:translateY(20px) scale(.8)}100%{opacity:1;transform:translateY(0) scale(1)}}
-    @keyframes tcDie{0%{opacity:1;transform:scale(1)}30%{opacity:.8;transform:scale(1.05);filter:brightness(1.3)}100%{opacity:0;transform:scale(.6);filter:grayscale(1)}}
-    @keyframes tcDmgFlash{0%{transform:scale(1)}30%{transform:scale(1.5);background:#ef4444;box-shadow:0 0 12px #ef4444}100%{transform:scale(1)}}
-    @keyframes tcDrawArrow{to{stroke-dashoffset:0}}
+    .tc-field .rv-mc{transition:none !important}
+    .tc-anim-play{animation:tcPlay .5s cubic-bezier(.22,1,.36,1) both !important}
+    .tc-dying{animation:tcDie .5s ease both !important;pointer-events:none}
+    .tc-dmg-flash{animation:tcDmgFlash .5s ease both !important}
+    @keyframes tcPlay{0%{opacity:0;transform:translateY(30px) scale(.6);filter:brightness(1.5)}60%{opacity:1;transform:translateY(-4px) scale(1.05);filter:brightness(1.1)}100%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1)}}
+    @keyframes tcDie{0%{opacity:1;transform:scale(1) rotate(0deg)}20%{opacity:.9;transform:scale(1.08);filter:brightness(1.4) saturate(2)}100%{opacity:0;transform:scale(.4) rotate(8deg);filter:grayscale(1) brightness(.5)}}
+    @keyframes tcDmgFlash{0%{transform:scale(1);box-shadow:none}30%{transform:scale(1.6);background:#ef4444;box-shadow:0 0 16px 4px #ef4444;color:#fff}100%{transform:scale(1);box-shadow:none}}
+    .tc-new-glow{box-shadow:0 0 12px 3px var(--gold) !important;border-color:var(--gold) !important}
+    @keyframes tcDrawArrow{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
     @keyframes tcCombatPulse{0%{transform:scale(0);opacity:0}50%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
 
     .tc-hand-panel{border-top:2px solid var(--gold);padding:10px 14px;background:rgba(212,160,58,.04)}
@@ -614,8 +645,8 @@ function tcCycleSpeed() {
     .tc-hc-name{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.45em;padding:3px;height:100%;color:var(--text2);word-break:break-word}
     .tc-hc-new{animation:tcPlay .4s ease both}
 
-    .tc-spell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50;animation:tcFadeIn .3s ease;transition:opacity .4s ease;border-radius:8px}
-    .tc-spell-card{text-align:center;animation:tcSpellPop .4s cubic-bezier(.34,1.56,.64,1) both}
+    .tc-spell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50;animation:tcFadeIn .25s ease;transition:opacity .3s ease;border-radius:8px}
+    .tc-spell-card{text-align:center;animation:tcSpellPop .3s cubic-bezier(.34,1.56,.64,1) both}
     .tc-spell-card img{width:140px;border-radius:10px;box-shadow:0 0 30px rgba(168,85,247,.6);border:2px solid rgba(168,85,247,.7)}
     .tc-spell-song img{box-shadow:0 0 30px rgba(59,130,246,.6);border-color:rgba(59,130,246,.7)}
     .tc-spell-name{margin-top:8px;font-size:.75em;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
