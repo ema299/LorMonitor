@@ -1,25 +1,29 @@
-"""Dashboard data bridge — serves analisidef's dashboard_data.json as-is."""
-import json
-from pathlib import Path
+"""Dashboard data — serves the full dashboard blob from PostgreSQL daily_snapshots."""
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import ORJSONResponse, JSONResponse
-
-from backend.config import ANALISIDEF_DAILY_DIR
+from backend.deps import get_db
 
 router = APIRouter()
 
-DASHBOARD_JSON = ANALISIDEF_DAILY_DIR / "dashboard_data.json"
-
 
 @router.get("/dashboard-data")
-def get_dashboard_data():
-    """Serve the full dashboard_data.json produced by analisidef's daily routine.
-    This is the bridge: analisidef calculates, App_tool serves."""
-    if not DASHBOARD_JSON.exists():
-        raise HTTPException(404, "dashboard_data.json not found. Is analisidef daily routine running?")
+def get_dashboard_data(db: Session = Depends(get_db)):
+    """Serve the full dashboard data blob from daily_snapshots (perimeter='full').
 
-    with open(DASHBOARD_JSON) as f:
-        data = json.load(f)
+    This replaces the old file-based bridge that read analisidef's dashboard_data.json.
+    The snapshot is populated by scripts/import_snapshots.py during the daily routine.
+    """
+    row = db.execute(text("""
+        SELECT data FROM daily_snapshots
+        WHERE perimeter = 'full'
+        ORDER BY snapshot_date DESC
+        LIMIT 1
+    """)).fetchone()
 
-    return JSONResponse(content=data)
+    if not row:
+        raise HTTPException(404, "No dashboard snapshot found in database.")
+
+    return JSONResponse(content=row.data)

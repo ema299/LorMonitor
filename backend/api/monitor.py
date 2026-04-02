@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_current_user, get_db
 from backend.models.user import User
-from backend.services import stats_service, players_service, dashboard_bridge
+from backend.services import stats_service, players_service
 
 router = APIRouter()
 
@@ -119,9 +119,6 @@ def tech_tornado(
     """Tech tornado: cards in/out vs consensus for a perimeter. Data from PostgreSQL."""
     from backend.services import tech_service
     result = tech_service.get_tech_tornado(db, perimeter, deck, game_format, days)
-    if not result:
-        # Fallback to dashboard bridge
-        result = dashboard_bridge.get_tech_tornado(perimeter, deck)
     if not result:
         raise HTTPException(404, f"No tech tornado data for perimeter={perimeter}")
     return result

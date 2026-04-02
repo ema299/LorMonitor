@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_admin
 from backend.models.user import User
-from backend.services import dashboard_bridge
 
 router = APIRouter()
 
@@ -62,6 +61,24 @@ def logs(
     level: str = Query("error"),
     limit: int = Query(100, ge=1, le=500),
     admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
 ):
     """Recent audit log entries."""
-    return dashboard_bridge.get_recent_logs(level=level, limit=limit)
+    rows = db.execute(text("""
+        SELECT id, event_type, user_id, ip_address, details, created_at
+        FROM audit_log
+        ORDER BY created_at DESC
+        LIMIT :lim
+    """), {"lim": limit}).fetchall()
+
+    return [
+        {
+            "id": r.id,
+            "event_type": r.event_type,
+            "user_id": str(r.user_id) if r.user_id else None,
+            "ip_address": str(r.ip_address) if r.ip_address else None,
+            "details": r.details,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]

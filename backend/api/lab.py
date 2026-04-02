@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
-from backend.services import deck_service, dashboard_bridge
+from backend.services import deck_service, matchup_service
 
 router = APIRouter()
 
@@ -41,9 +41,10 @@ def optimizer(
     opp_deck: str,
     game_format: str = Query("core"),
     user: User = Depends(require_tier("pro")),
+    db: Session = Depends(get_db),
 ):
     """Optimized decklist for a matchup: full list, adds, cuts, mana curve."""
-    result = dashboard_bridge.get_optimizer(our_deck, opp_deck, game_format)
+    result = matchup_service.get_optimizer(db, our_deck, opp_deck, game_format)
     if not result:
         raise HTTPException(404, f"No optimizer data for {our_deck} vs {opp_deck}")
     return result
@@ -60,9 +61,6 @@ def mulligans(
 ):
     """PRO mulligan hands: initial, sent, final, outcome, OTP/OTD. Data from PostgreSQL."""
     result = deck_service.get_pro_mulligans(db, our_deck, opp_deck, game_format, days)
-    if not result:
-        # Fallback to dashboard bridge
-        result = dashboard_bridge.get_mulligans(our_deck, opp_deck, game_format)
     if not result:
         raise HTTPException(404, f"No mulligan data for {our_deck} vs {opp_deck}")
     return result

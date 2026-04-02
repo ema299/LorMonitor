@@ -40,20 +40,19 @@ Dati sorgente:
 - Backup pg_dump giornaliero (locale), offsite da configurare
 - Dashboard HTML senza dati embedded, fetch da API
 
-**Migrazione indipendenza da analisidef (piano 6 fasi):**
-- [x] Fase 0: Tabelle dati statici (cards, consensus_lists, reference_decklists, matchup_reports) + servizi (static_data_service, tech_service, history_service)
-- [x] Fase 1: Tech tornado da PostgreSQL (query JSONB CARD_PLAYED + consensus) — fallback bridge
-- [x] Fase 2: Mulligans da PostgreSQL (query JSONB INITIAL_HAND + MULLIGAN) — fallback bridge
-- [ ] Fase 3: Playbook + Optimizer da PostgreSQL (import report .md → matchup_reports table)
+**Migrazione indipendenza da analisidef (piano 6 fasi) — COMPLETATA 02 Apr 2026:**
+- [x] Fase 0: Tabelle dati statici (cards, consensus_lists, reference_decklists, matchup_reports) + servizi
+- [x] Fase 1: Tech tornado da PostgreSQL (query JSONB CARD_PLAYED + consensus)
+- [x] Fase 2: Mulligans da PostgreSQL (query JSONB INITIAL_HAND + MULLIGAN)
+- [x] Fase 3: Playbook + Optimizer da PostgreSQL (961 report importati da dashboard_data.json → matchup_reports)
 - [x] Fase 4: Leaderboard da duels.ink API diretta (leaderboard_service.py, cache Redis 1h)
-- [ ] Fase 5: Assemblare /api/v1/dashboard-data interamente da PostgreSQL
-- [ ] Fase 6: Cleanup — rimuovere dashboard_bridge.py e riferimenti ANALISIDEF_*
+- [x] Fase 5: /api/v1/dashboard-data serve da daily_snapshots (perimeter='full') in PostgreSQL
+- [x] Fase 6: dashboard_bridge.py rimosso, nessun fallback a file JSON, API 100% da PostgreSQL
 
 **Resta in analisidef:** solo `lorcana_monitor.py` (intercetta partite live, salva JSON in /matches/)
+**Import scripts** usano ancora ANALISIDEF_OUTPUT_DIR/DAILY_DIR per importare dati in PG (non dipendenza runtime)
 
 **Residui da migrare:**
-- Coach playbook + Lab optimizer ancora su JSON bridge (Fase 3)
-- `/api/v1/dashboard-data` serve ancora il blob JSON da analisidef (Fase 5)
 - Frontend HTML monolite (non split in moduli JS separati)
 - Workers pronti ma non ancora in cron (usano ancora scripts/ manuali)
 
@@ -125,7 +124,7 @@ App_tool/
 │   │   ├── stats_service.py          # WR, matrice, trend, meta share, OTP/OTD              ✅
 │   │   ├── players_service.py        # Top players, pro detail, scouting                    ✅
 │   │   ├── tech_service.py           # Tech tornado da PG (CARD_PLAYED JSONB + consensus)   ✅
-│   │   ├── matchup_service.py        # Killer curves, threats, playbook                     ✅
+│   │   ├── matchup_service.py        # Killer curves, threats, playbook, optimizer da PG    ✅
 │   │   ├── deck_service.py           # Card scores, mulligan da PG (INITIAL_HAND JSONB)     ✅
 │   │   ├── static_data_service.py    # Cards, consensus, reference decklists da PG          ✅
 │   │   ├── leaderboard_service.py    # Fetch duels.ink API diretta, cache Redis 1h          ✅
@@ -133,8 +132,7 @@ App_tool/
 │   │   ├── subscription_service.py   # Stripe checkout, webhook, cancel                     ✅
 │   │   ├── team_service.py           # Team stats, overview, weaknesses da PG               ✅
 │   │   ├── cache.py                  # Redis cache layer con fallback dict                  ✅
-│   │   ├── alerting.py               # Telegram bot notifiche (serve TG_BOT_TOKEN)          ✅
-│   │   └── dashboard_bridge.py       # ⚠️ TRANSITIONAL: legge dashboard_data.json (da eliminare Fase 6)
+│   │   └── alerting.py               # Telegram bot notifiche (serve TG_BOT_TOKEN)          ✅
 │   │
 │   ├── middleware/                    # Cross-cutting concerns
 │   │   ├── rate_limit.py             # Per-endpoint, per-tier rate limiting

@@ -103,7 +103,7 @@ def get_pro_mulligans(db: Session, our_deck: str, opp_deck: str,
     """PRO mulligan hands from matches.turns JSONB.
 
     Extracts INITIAL_HAND + MULLIGAN events for pro/top perimeters.
-    Returns same shape as dashboard_bridge.get_mulligans().
+    Returns: {our_deck, opp_deck, hands: [...], count: int}.
     """
     # Get matching pro/top games
     rows = db.execute(text("""

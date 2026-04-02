@@ -90,6 +90,55 @@ def get_threats(db: Session, our_deck: str, opp_deck: str, game_format: str = "c
     }
 
 
+def get_report(db: Session, our_deck: str, opp_deck: str,
+               report_type: str, game_format: str = "core"):
+    """Get a matchup report by type from matchup_reports table."""
+    row = db.execute(text("""
+        SELECT data, generated_at
+        FROM matchup_reports
+        WHERE game_format = :fmt
+          AND our_deck = :our AND opp_deck = :opp
+          AND report_type = :rtype
+          AND is_current = true
+        ORDER BY generated_at DESC
+        LIMIT 1
+    """), {"fmt": game_format, "our": our_deck, "opp": opp_deck, "rtype": report_type}).fetchone()
+
+    if not row:
+        return None
+
+    return {
+        "our_deck": our_deck,
+        "opp_deck": opp_deck,
+        "data": row.data,
+        "generated_at": row.generated_at.isoformat(),
+    }
+
+
+def get_playbook(db: Session, our_deck: str, opp_deck: str, game_format: str = "core"):
+    """Get playbook from matchup_reports (report_type='playbook')."""
+    result = get_report(db, our_deck, opp_deck, "playbook", game_format)
+    if not result:
+        return None
+    return {
+        "our_deck": our_deck,
+        "opp_deck": opp_deck,
+        "playbook": result["data"],
+    }
+
+
+def get_optimizer(db: Session, our_deck: str, opp_deck: str, game_format: str = "core"):
+    """Get optimized decklist from matchup_reports (report_type='decklist')."""
+    result = get_report(db, our_deck, opp_deck, "decklist", game_format)
+    if not result:
+        return None
+    return {
+        "our_deck": our_deck,
+        "opp_deck": opp_deck,
+        "decklist": result["data"],
+    }
+
+
 def get_matchup_history(db: Session, our_deck: str, opp_deck: str,
                         game_format: str = "core", days: int = 30):
     """Daily WR trend for a specific matchup."""

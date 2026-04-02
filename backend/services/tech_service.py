@@ -1,6 +1,6 @@
 """Tech service — tech tornado, player card usage, consensus comparison.
 
-Replaces dashboard_bridge.get_tech_tornado() with PostgreSQL queries.
+Tech tornado from PostgreSQL queries (CARD_PLAYED + consensus).
 Data source: matches.turns JSONB (CARD_PLAYED events) + consensus_lists table.
 """
 from sqlalchemy import text

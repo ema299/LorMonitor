@@ -14,6 +14,7 @@ if not DATABASE_URL_ASYNC:
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 MATCHES_DIR = Path(os.getenv("MATCHES_DIR", "/mnt/HC_Volume_104764377/finanza/Lor/matches"))
+# Used by import scripts (not runtime API). Points to analisidef pipeline output.
 ANALISIDEF_OUTPUT_DIR = Path(os.getenv("ANALISIDEF_OUTPUT_DIR", "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/output"))
 ANALISIDEF_DAILY_DIR = Path(os.getenv("ANALISIDEF_DAILY_DIR", "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/daily/output"))
 

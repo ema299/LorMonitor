@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
-from backend.services import matchup_service, dashboard_bridge
+from backend.services import matchup_service
 
 router = APIRouter()
 
@@ -76,9 +76,10 @@ def playbook(
     opp_deck: str,
     game_format: str = Query("core"),
     user: User = Depends(require_tier("pro")),
+    db: Session = Depends(get_db),
 ):
     """Turn-by-turn opponent playbook (T1-T7): plays, combos, impact."""
-    result = dashboard_bridge.get_playbook(our_deck, opp_deck, game_format)
+    result = matchup_service.get_playbook(db, our_deck, opp_deck, game_format)
     if not result:
         raise HTTPException(404, f"No playbook for {our_deck} vs {opp_deck}")
     return result
