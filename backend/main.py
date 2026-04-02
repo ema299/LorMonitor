@@ -1,12 +1,15 @@
 """Lorcana Monitor — FastAPI entrypoint."""
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription
+from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
 from backend.middleware.rate_limit import RateLimitMiddleware
 
@@ -62,6 +65,29 @@ def serve_dashboard():
 @app.get("/dashboard.html")
 def serve_dashboard_alias():
     return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
+
+
+# Cards DB for replay viewer and profile tech card images (public, no auth)
+@app.get("/api/replay/cards_db")
+def replay_cards_db(db: Session = Depends(get_db)):
+    """Slim cards DB: name → {cost, type, ink, str, will, lore, ability, set, number}."""
+    rows = db.execute(text(
+        "SELECT name, cost, card_type, ink, str, will, lore, ability, set_code, card_number FROM cards"
+    )).fetchall()
+    slim = {}
+    for r in rows:
+        slim[r.name] = {
+            "cost": r.cost or "",
+            "type": r.card_type or "",
+            "ink": r.ink or "",
+            "str": r.str or "",
+            "will": r.will or "",
+            "lore": r.lore or "",
+            "ability": r.ability or "",
+            "set": r.set_code or "",
+            "number": r.card_number or "",
+        }
+    return JSONResponse(content=slim)
 
 
 # Serve all frontend static files (icons, manifest, chart.js, assets/)
