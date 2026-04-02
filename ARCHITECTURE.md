@@ -33,15 +33,27 @@ Dati sorgente:
 ```
 
 **Stato migrazione (02 Apr 2026):**
-- `daily_routine.py` resta monolite 3456 LOC ma genera solo dashboard_data.json per App_tool
 - 136K match importati in PostgreSQL (scripts/import_matches.py)
+- 2822 carte in tabella `cards` (da cards_db.json), 192 consensus cards, 14 reference decklists
 - Auth JWT completa, HTTPS via nginx + Let's Encrypt su metamonitor.app
 - Rate limiting Redis + nginx, fail2ban, UFW attivo
 - Backup pg_dump giornaliero (locale), offsite da configurare
 - Dashboard HTML senza dati embedded, fetch da API
 
+**Migrazione indipendenza da analisidef (piano 6 fasi):**
+- [x] Fase 0: Tabelle dati statici (cards, consensus_lists, reference_decklists, matchup_reports) + servizi (static_data_service, tech_service, history_service)
+- [x] Fase 1: Tech tornado da PostgreSQL (query JSONB CARD_PLAYED + consensus) — fallback bridge
+- [x] Fase 2: Mulligans da PostgreSQL (query JSONB INITIAL_HAND + MULLIGAN) — fallback bridge
+- [ ] Fase 3: Playbook + Optimizer da PostgreSQL (import report .md → matchup_reports table)
+- [x] Fase 4: Leaderboard da duels.ink API diretta (leaderboard_service.py, cache Redis 1h)
+- [ ] Fase 5: Assemblare /api/v1/dashboard-data interamente da PostgreSQL
+- [ ] Fase 6: Cleanup — rimuovere dashboard_bridge.py e riferimenti ANALISIDEF_*
+
+**Resta in analisidef:** solo `lorcana_monitor.py` (intercetta partite live, salva JSON in /matches/)
+
 **Residui da migrare:**
-- Monitor/Lab API ancora su JSON bridge (dashboard_data.json), non PostgreSQL diretto
+- Coach playbook + Lab optimizer ancora su JSON bridge (Fase 3)
+- `/api/v1/dashboard-data` serve ancora il blob JSON da analisidef (Fase 5)
 - Frontend HTML monolite (non split in moduli JS separati)
 - Workers pronti ma non ancora in cron (usano ancora scripts/ manuali)
 
@@ -109,16 +121,20 @@ App_tool/
 │   │   └── user_deck.py              # UserDeck
 │   │
 │   ├── services/                     # Business logic (moduli puri)
-│   │   ├── auth_service.py           # Hash, verify, JWT, refresh token, password reset
-│   │   ├── stats_service.py          # WR, matrice, trend, meta share, OTP/OTD
-│   │   ├── players_service.py        # Top players, pro detail, scouting
-│   │   ├── tech_service.py           # Tech tornado, consensus, card impact
-│   │   ├── matchup_service.py        # Killer curves, threats, playbook
-│   │   ├── deck_service.py           # Optimizer, card scores, mulligan
-│   │   ├── community_service.py      # Fetch duels.ink
-│   │   ├── history_service.py        # Storico snapshot, trend
-│   │   ├── subscription_service.py   # Stripe, tier check, paywall
-│   │   └── team_service.py           # Team training, player stats
+│   │   ├── auth_service.py           # Hash, verify, JWT, refresh token, password reset     ✅
+│   │   ├── stats_service.py          # WR, matrice, trend, meta share, OTP/OTD              ✅
+│   │   ├── players_service.py        # Top players, pro detail, scouting                    ✅
+│   │   ├── tech_service.py           # Tech tornado da PG (CARD_PLAYED JSONB + consensus)   ✅
+│   │   ├── matchup_service.py        # Killer curves, threats, playbook                     ✅
+│   │   ├── deck_service.py           # Card scores, mulligan da PG (INITIAL_HAND JSONB)     ✅
+│   │   ├── static_data_service.py    # Cards, consensus, reference decklists da PG          ✅
+│   │   ├── leaderboard_service.py    # Fetch duels.ink API diretta, cache Redis 1h          ✅
+│   │   ├── history_service.py        # Storico snapshot, trend da PG                        ✅
+│   │   ├── subscription_service.py   # Stripe checkout, webhook, cancel                     ✅
+│   │   ├── team_service.py           # Team stats, overview, weaknesses da PG               ✅
+│   │   ├── cache.py                  # Redis cache layer con fallback dict                  ✅
+│   │   ├── alerting.py               # Telegram bot notifiche (serve TG_BOT_TOKEN)          ✅
+│   │   └── dashboard_bridge.py       # ⚠️ TRANSITIONAL: legge dashboard_data.json (da eliminare Fase 6)
 │   │
 │   ├── middleware/                    # Cross-cutting concerns
 │   │   ├── rate_limit.py             # Per-endpoint, per-tier rate limiting
