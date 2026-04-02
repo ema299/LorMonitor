@@ -54,10 +54,15 @@ def mulligans(
     our_deck: str,
     opp_deck: str,
     game_format: str = Query("core"),
+    days: int = Query(7),
     user: User = Depends(require_tier("pro")),
+    db: Session = Depends(get_db),
 ):
-    """PRO mulligan hands: initial, sent, final, outcome, OTP/OTD."""
-    result = dashboard_bridge.get_mulligans(our_deck, opp_deck, game_format)
+    """PRO mulligan hands: initial, sent, final, outcome, OTP/OTD. Data from PostgreSQL."""
+    result = deck_service.get_pro_mulligans(db, our_deck, opp_deck, game_format, days)
+    if not result:
+        # Fallback to dashboard bridge
+        result = dashboard_bridge.get_mulligans(our_deck, opp_deck, game_format)
     if not result:
         raise HTTPException(404, f"No mulligan data for {our_deck} vs {opp_deck}")
     return result
