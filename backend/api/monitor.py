@@ -111,10 +111,17 @@ def winrates(
 def tech_tornado(
     perimeter: str = Query("set11"),
     deck: str | None = Query(None, description="Filter to a single deck"),
+    game_format: str = Query("core"),
+    days: int = Query(2),
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    """Tech tornado: cards in/out vs consensus for a perimeter."""
-    result = dashboard_bridge.get_tech_tornado(perimeter, deck)
+    """Tech tornado: cards in/out vs consensus for a perimeter. Data from PostgreSQL."""
+    from backend.services import tech_service
+    result = tech_service.get_tech_tornado(db, perimeter, deck, game_format, days)
+    if not result:
+        # Fallback to dashboard bridge
+        result = dashboard_bridge.get_tech_tornado(perimeter, deck)
     if not result:
         raise HTTPException(404, f"No tech tornado data for perimeter={perimeter}")
     return result
