@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Killer Curves",
+  "type": "object",
+  "properties": {
+    "our_deck": {"type": "string"},
+    "opp_deck": {"type": "string"},
+    "curves": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "integer"},
+          "name": {"type": "string"},
+          "profile": {"type": "string", "enum": ["fast", "typical", "slow"]},
+          "type": {"type": "string"},
+          "frequency": {"type": "object"},
+          "critical_turn": {"type": "object"},
+          "key_cards": {"type": "array", "items": {"type": "string"}},
+          "sequence": {"type": "object"},
+          "response": {"type": "object"},
+          "worst_case_validated": {"type": "boolean"},
+          "validation": {"type": "object"}
+        },
+        "required": ["id", "name", "profile", "sequence", "response"]
+      }
+    }
+  },
+  "required": ["our_deck", "opp_deck", "curves"]
+}

@@ -134,6 +134,47 @@ def get_roster(
     return [{"name": r.name, "role": r.role, "added_at": r.added_at.isoformat()} for r in roster]
 
 
+@router.get("/player/{name}/stats")
+def player_stats(
+    name: str,
+    game_format: str = Query("core"),
+    days: int = Query(30),
+    user: User = Depends(require_tier("team")),
+    db: Session = Depends(get_db),
+):
+    """Get WR stats for a specific team player."""
+    from backend.services import team_service
+    return team_service.get_player_stats(db, name, game_format, days)
+
+
+@router.get("/overview")
+def team_overview(
+    game_format: str = Query("core"),
+    days: int = Query(30),
+    user: User = Depends(require_tier("team")),
+    db: Session = Depends(get_db),
+):
+    """Get aggregated stats for all roster players."""
+    from backend.services import team_service
+    roster = db.query(TeamRoster).all()
+    names = [r.name for r in roster]
+    return team_service.get_team_overview(db, names, game_format, days)
+
+
+@router.get("/weaknesses")
+def team_weaknesses(
+    game_format: str = Query("core"),
+    days: int = Query(30),
+    user: User = Depends(require_tier("team")),
+    db: Session = Depends(get_db),
+):
+    """Find worst matchups across the team."""
+    from backend.services import team_service
+    roster = db.query(TeamRoster).all()
+    names = [r.name for r in roster]
+    return team_service.get_team_weaknesses(db, names, game_format, days)
+
+
 @router.put("/roster")
 def update_roster(
     players: list[dict],

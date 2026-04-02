@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Monitor Meta Response",
+  "type": "object",
+  "properties": {
+    "game_format": {"type": "string", "enum": ["core", "infinity"]},
+    "period_days": {"type": "integer"},
+    "decks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "deck": {"type": "string"},
+          "games": {"type": "integer"},
+          "wins": {"type": "integer"},
+          "wr": {"type": "number"},
+          "meta_share": {"type": "number"}
+        },
+        "required": ["deck", "games", "wins", "wr"]
+      }
+    }
+  },
+  "required": ["game_format", "decks"]
+}

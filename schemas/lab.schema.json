@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Lab Card Scores Response",
+  "type": "object",
+  "properties": {
+    "our_deck": {"type": "string"},
+    "opp_deck": {"type": "string"},
+    "cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "card": {"type": "string"},
+          "delta": {"type": "number"},
+          "apps": {"type": "integer"},
+          "win_apps": {"type": "integer"},
+          "loss_apps": {"type": "integer"}
+        },
+        "required": ["card", "delta", "apps"]
+      }
+    }
+  },
+  "required": ["our_deck", "opp_deck", "cards"]
+}

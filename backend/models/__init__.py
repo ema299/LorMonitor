@@ -29,3 +29,4 @@ from backend.models.analysis import KillerCurve, Archive, ThreatLLM, DailySnapsh
 from backend.models.audit import AuditLog  # noqa: E402, F401
 from backend.models.promo import PromoCode, PromoRedemption  # noqa: E402, F401
 from backend.models.team import TeamReplay, TeamRoster  # noqa: E402, F401
+from backend.models.community import Video, Tournament  # noqa: E402, F401

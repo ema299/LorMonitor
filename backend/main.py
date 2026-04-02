@@ -6,8 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user
+from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription
 from backend.middleware.error_handler import global_exception_handler
+from backend.middleware.rate_limit import RateLimitMiddleware
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -20,6 +21,9 @@ app = FastAPI(
 
 # Global error handler
 app.add_exception_handler(Exception, global_exception_handler)
+
+# Rate limiting
+app.add_middleware(RateLimitMiddleware)
 
 # CORS — permissive in dev, da restringere in prod
 app.add_middleware(
@@ -39,6 +43,8 @@ app.include_router(lab.router, prefix="/api/v1/lab", tags=["Lab"])
 app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(team.router, prefix="/api/v1/team", tags=["Team"])
 app.include_router(user.router, prefix="/api/v1/user", tags=["User"])
+app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["Dashboard"])
 
 

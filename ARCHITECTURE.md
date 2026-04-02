@@ -1,6 +1,6 @@
 # Lorcana Monitor — Architettura Produzione
 
-**Versione:** 3.1 | **Data:** 01 Aprile 2026
+**Versione:** 4.0 | **Data:** 02 Aprile 2026
 
 ---
 
@@ -32,13 +32,18 @@ Dati sorgente:
   decks_db/                                  # Decklist tornei
 ```
 
-**Problemi attuali:**
-- `daily_routine.py` e' un monolite da 3456 LOC che fa tutto
-- 64K file JSON scansionati a ogni run (~22s per matchup)
-- Nessuna auth, nessun HTTPS, porta 8060 su IP diretto
-- SimpleHTTPServer, nessun rate limit, nessun log strutturato
-- Nessun backup automatico, nessun recovery
-- Single point of failure su tutto
+**Stato migrazione (02 Apr 2026):**
+- `daily_routine.py` resta monolite 3456 LOC ma genera solo dashboard_data.json per App_tool
+- 136K match importati in PostgreSQL (scripts/import_matches.py)
+- Auth JWT completa, HTTPS via nginx + Let's Encrypt su metamonitor.app
+- Rate limiting Redis + nginx, fail2ban, UFW attivo
+- Backup pg_dump giornaliero (locale), offsite da configurare
+- Dashboard HTML senza dati embedded, fetch da API
+
+**Residui da migrare:**
+- Monitor/Lab API ancora su JSON bridge (dashboard_data.json), non PostgreSQL diretto
+- Frontend HTML monolite (non split in moduli JS separati)
+- Workers pronti ma non ancora in cron (usano ancora scripts/ manuali)
 
 ---
 
@@ -480,6 +485,61 @@ CREATE TABLE audit_log (
 );
 
 CREATE INDEX idx_audit_user ON audit_log(user_id, created_at DESC);
+
+-- ============================================================
+-- COMMUNITY (aggiunto 02 Apr 2026)
+-- ============================================================
+
+CREATE TABLE videos (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title           VARCHAR(200) NOT NULL,
+    url             VARCHAR(500) NOT NULL,
+    platform        VARCHAR(20),
+    topic           VARCHAR(50),
+    tags            JSONB DEFAULT '[]',
+    is_live         BOOLEAN DEFAULT false,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE tournaments (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name            VARCHAR(200) NOT NULL,
+    date            DATE NOT NULL,
+    location        VARCHAR(200),
+    format          VARCHAR(20),
+    region          VARCHAR(50),
+    url             VARCHAR(500),
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+-- ============================================================
+-- PROMO CODES (aggiunto 30 Mar 2026)
+-- ============================================================
+
+CREATE TABLE promo_codes (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            VARCHAR(50) UNIQUE NOT NULL,
+    type            VARCHAR(20) NOT NULL,       -- tier_upgrade, discount
+    granted_tier    VARCHAR(20),
+    duration_days   INTEGER,
+    discount_percent INTEGER,
+    discount_months INTEGER,
+    max_uses        INTEGER,
+    times_used      INTEGER DEFAULT 0,
+    is_active       BOOLEAN DEFAULT true,
+    expires_at      TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE promo_redemptions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    promo_code_id   UUID REFERENCES promo_codes(id),
+    user_id         UUID REFERENCES users(id),
+    redeemed_at     TIMESTAMPTZ DEFAULT now(),
+    original_tier   VARCHAR(20),
+    granted_tier    VARCHAR(20),
+    expires_at      TIMESTAMPTZ
+);
 ```
 
 ### 5.3 Materialized Views (precalcolo)
@@ -594,12 +654,12 @@ La cartella `pipeline/` contiene una **copia statica** di tutti i moduli Python 
 
 **⚠️ STATO: la produzione gira ancora da `analisidef/`. La copia in `pipeline/` non e' usata da App_tool.**
 
-### Flusso dati attuale
+### Flusso dati attuale (aggiornato 02 Apr 2026)
 
 ```
 Match JSON (duels.ink)
   ↓
-analisidef/daily/daily_routine.py       ← cron giornaliero, orchestratore
+analisidef/daily/daily_routine.py       ← cron 07:01, orchestratore
   ├── lib/loader.py                     ← carica match da /matches/{DATE}/
   ├── lib/gen_archive.py                → archive_*.json (dettagli partite)
   ├── lib/gen_digest.py                 → digest_*.json (per LLM)
@@ -608,12 +668,22 @@ analisidef/daily/daily_routine.py       ← cron giornaliero, orchestratore
   ├── lib/investigate.py                ← board state, loss classification
   └── assembla tutto in:
        ↓
-  analisidef/daily/output/dashboard_data.json   (9.4 MB, dati completi)
-  analisidef/daily/output/dashboard.html        (HTML con dati embedded)
+  analisidef/daily/output/dashboard_data.json   (9 MB, dati completi)
        ↓
-  App_tool/backend/services/dashboard_bridge.py (legge dashboard_data.json, serve via API)
+  App_tool/backend/api/dashboard.py             → GET /api/v1/dashboard-data (serve JSON)
+  App_tool/backend/services/dashboard_bridge.py → playbook, mulligans, optimizer, tech tornado
+  App_tool/backend/services/cache.py            → Redis cache (60s TTL, fallback dict)
        ↓
-  App_tool/frontend/dashboard.html              (visualizza)
+  App_tool/frontend/dashboard.html              (fetch da API, NO dati embedded)
+
+PostgreSQL (136K match):
+  scripts/import_matches.py             → bulk import JSON → matches table
+  scripts/import_killer_curves.py       → killer_curves table
+  backend/workers/match_importer.py     → import incrementale (cron ready)
+  backend/workers/daily_pipeline.py     → orchestratore: import + refresh views
+  backend/workers/llm_worker.py         → import killer curves da file JSON
+  backend/workers/backup_worker.py      → pg_dump + GPG + cleanup
+```
 ```
 
 ### Mappa file pipeline/ (31 file, ~15K LOC)
@@ -747,30 +817,65 @@ Quando App_tool sara' completamente indipendente da analisidef:
 │   ├── POST /refresh-views          # [admin]                             ✅
 │   └── GET  /logs?level=error&limit=100                                   ✅
 │
-└── webhooks/                                                              ⏳
-    └── POST /stripe                 # Webhook Stripe (signature verificata)
+├── subscription/                    # ✅ IMPLEMENTATO 02/04/2026
+│   ├── POST /subscribe              # Crea Stripe Checkout Session         ✅
+│   ├── GET  /subscription/status    # Stato abbonamento corrente           ✅
+│   └── POST /subscription/cancel    # Cancella a fine periodo              ✅
+│
+├── community/                       # ✅ IMPLEMENTATO 02/04/2026
+│   ├── GET  /videos                 # Lista video (pubblico)               ✅
+│   ├── POST /videos                 # [admin] Aggiungi video               ✅
+│   ├── DELETE /videos/{id}          # [admin] Rimuovi video                ✅
+│   ├── GET  /tournaments            # Lista tornei (pubblico)              ✅
+│   ├── POST /tournaments            # [admin] Aggiungi torneo              ✅
+│   └── DELETE /tournaments/{id}     # [admin] Rimuovi torneo               ✅
+│
+└── webhooks/                        # ✅ IMPLEMENTATO 02/04/2026
+    └── POST /stripe                 # Webhook Stripe (signature verificata) ✅
 ```
 
-### 7.2 Stato Implementazione (aggiornato 01 Apr 2026)
+### 7.2 Stato Implementazione (aggiornato 02 Apr 2026)
 
 ```
 IMPLEMENTATO:
-  backend/services/auth_service.py    — bcrypt (cost 12), JWT HS256, refresh token rotation
-  backend/api/auth.py                 — register, login, logout, refresh, me, delete me
+  backend/services/auth_service.py    — bcrypt (cost 12), JWT HS256, refresh token rotation,
+                                         password reset (create_token + reset_password)
+  backend/api/auth.py                 — register, login, logout, refresh, me, delete me,
+                                         forgot-password, reset-password
   backend/deps.py                     — get_current_user, require_tier(), require_admin
   scripts/create_admin.py             — seed account admin + test
   backend/api/user.py                 — profile, nicknames, decks CRUD, preferences, my-stats, GDPR export
   backend/services/user_service.py    — business logic: deck validation, prefs whitelist, my-stats SQL, export
   backend/services/dashboard_bridge.py — bridge layer: reads dashboard_data.json for playbook,
                                          mulligans, optimizer, tech tornado (transitional → PostgreSQL)
-  backend/api/coach.py +playbook      — GET /playbook/{our}/{opp} via dashboard_bridge
+  backend/services/cache.py           — Redis cache con fallback dict (TTL configurabile)
+  backend/services/subscription_service.py — Stripe checkout, webhook handler, cancel, status
+  backend/services/team_service.py    — player stats, team overview, weaknesses SQL
+  backend/services/alerting.py        — Telegram bot notifiche (placeholder, serve TG_BOT_TOKEN)
+  backend/middleware/rate_limit.py    — per-IP, per-tier rate limiting via Redis
+  backend/api/community.py           — videos + tournaments CRUD (tabelle PostgreSQL)
+  backend/api/subscription.py        — subscribe, status, cancel, webhook
+  backend/api/coach.py +playbook     — GET /playbook/{our}/{opp} via dashboard_bridge
   backend/api/lab.py +optimizer,mulligans — GET /optimizer, /mulligans via dashboard_bridge
   backend/api/monitor.py +tech-tornado — GET /tech-tornado via dashboard_bridge
   backend/api/admin.py +logs          — GET /logs from audit_log table
+  backend/api/team.py                 — replay upload/list/get, roster, player stats, overview, weaknesses
   frontend/dashboard.html             — auth UI (login/register/logout), profile tab con save nicknames,
-                                         country via API, pfRefreshAuthUser() per sync profilo
+                                         country via API, pfRefreshAuthUser() per sync profilo.
+                                         Dati via fetch('/api/v1/dashboard-data'), no embedded data.
+
+  backend/workers/match_importer.py   — import nuovi match JSON → PostgreSQL, refresh views
+  backend/workers/daily_pipeline.py   — orchestratore: import + refresh views
+  backend/workers/llm_worker.py       — import killer curves JSON → PostgreSQL
+  backend/workers/backup_worker.py    — pg_dump + GPG encryption + cleanup
+
+  schemas/                            — JSON Schema contratti API (monitor, coach, lab, user, killer_curves)
+  schemas/validate.py                 — validatore generico contro schema
+
+  frontend/sw.js                      — Service Worker PWA (cache-first static, network-first API)
 
   Testato: login → JWT → /me → profilo OK, nicknames save → API OK, my-stats → OK
+  Tutti i nuovi endpoint verificati su /api/docs (Swagger)
   Token: access 15min, refresh 30gg con rotazione (old revocato, new emesso)
   Sessioni: hash SHA-256 in DB, revocabili, legate a IP/device
 
@@ -784,9 +889,14 @@ ACCOUNT TEST (tutti tier=team, accesso completo):
   NOTA: in fase di test tutti gli account sono team per vedere tutto.
   I tier verranno differenziati quando il paywall sara' attivo.
 
-DA IMPLEMENTARE:
-  - POST /forgot-password, /reset-password (richiede email service)
-  - Webhook Stripe per upgrade/downgrade tier automatico
+SERVIZI ESTERNI DA CONFIGURARE (.env):
+  - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_*  → per pagamenti
+  - TG_BOT_TOKEN, TG_CHAT_ID                                  → per alerting Telegram
+  - Storage Box SFTP credentials                               → per backup offsite
+
+DA IMPLEMENTARE (frontend):
+  - Collegare dashboard HTML ai nuovi endpoint API (community, subscription, team stats)
+  - Registrare Service Worker in dashboard.html
   - Password blacklist (top 10K comuni)
 ```
 
@@ -1317,17 +1427,20 @@ TARGET:
 
 ```
 URGENTE (fare subito, prima del lancio):
-  [ ] Attivare UFW (ufw enable, allow 80,443,22)
-  [ ] Installare fail2ban
-  [ ] Cambiare password PostgreSQL da default
-  [ ] chmod 600 .env
+  [x] Attivare UFW (ufw enable, allow 80,443,22) — FATTO, porta 8889 Jupyter rimossa
+  [x] Installare fail2ban — FATTO, SSH + nginx jails attivi, 15+ IP bannati
+  [x] Cambiare password PostgreSQL da default — FATTO, 32-char hex
+  [x] chmod 600 .env — FATTO
+  [x] Rimuovere fallback insicuri da config.py — FATTO, fail-fast se .env mancante
   [ ] Verificare proxy Cloudflare attivo
 
 IMPORTANTE (fare prima di utenti paganti):
+  [x] Generare JWT secret sicuro — FATTO, 64-char hex
+  [x] Rate limiting nginx + backend — FATTO, login 5/15min, API 100/min, Redis-backed
+  [x] Rate limiting middleware FastAPI — FATTO, per-tier (free/pro/team)
   [ ] Creare utente lorcana, non girare come root
-  [ ] Generare JWT secret sicuro
-  [ ] Attivare backup criptato offsite
-  [ ] Impostare alerting (UptimeRobot + Telegram)
+  [ ] Attivare backup criptato offsite (serve Storage Box Hetzner)
+  [ ] Impostare alerting Telegram (serve TG_BOT_TOKEN)
   [ ] pip audit su dipendenze
   [ ] Branch protection su main (GitHub)
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coach Matchup Response",
+  "type": "object",
+  "properties": {
+    "our_deck": {"type": "string"},
+    "opp_deck": {"type": "string"},
+    "games": {"type": "integer"},
+    "wins": {"type": "integer"},
+    "wr": {"type": "number"},
+    "avg_turns": {"type": "number"},
+    "otp_wr": {"type": ["number", "null"]},
+    "otd_wr": {"type": ["number", "null"]}
+  },
+  "required": ["our_deck", "opp_deck", "games", "wins", "wr"]
+}

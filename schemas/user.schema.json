@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "User Profile Response",
+  "type": "object",
+  "properties": {
+    "id": {"type": "string", "format": "uuid"},
+    "email": {"type": "string", "format": "email"},
+    "display_name": {"type": ["string", "null"]},
+    "tier": {"type": "string", "enum": ["free", "pro", "team", "admin"]},
+    "is_admin": {"type": "boolean"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "preferences": {"type": "object"}
+  },
+  "required": ["id", "email", "tier"]
+}

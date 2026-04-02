@@ -114,3 +114,34 @@ def me(user: User = Depends(get_current_user)):
 def delete_me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     auth_service.delete_user(db, user.id)
     return {"detail": "Account scheduled for deletion in 30 days"}
+
+
+# --- Password Reset ---
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+@router.post("/forgot-password", status_code=200)
+def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    token = auth_service.create_password_reset_token(db, body.email)
+    if token:
+        # TODO: send email with reset link. For now, log it.
+        import logging
+        logging.getLogger(__name__).info("Password reset token for %s: %s", body.email, token)
+    # Always return success to prevent email enumeration
+    return {"detail": "If the email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password", status_code=200)
+def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    try:
+        auth_service.reset_password(db, body.token, body.new_password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"detail": "Password updated successfully"}

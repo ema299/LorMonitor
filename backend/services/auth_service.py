@@ -178,3 +178,53 @@ def delete_user(db: Session, user_id: uuid.UUID) -> None:
         user.deletion_requested_at = datetime.now(timezone.utc)
         revoke_all_sessions(db, user_id)
         db.commit()
+
+
+# ── Password Reset ───────────────────────────────────────────────────
+
+from backend.models.user import PasswordResetToken
+
+
+def create_password_reset_token(db: Session, email: str) -> str | None:
+    """Create a password reset token. Returns raw token or None if email not found."""
+    user = db.query(User).filter(User.email == email, User.is_active == True).first()
+    if not user:
+        return None
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    reset = PasswordResetToken(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )
+    db.add(reset)
+    db.commit()
+    return raw_token
+
+
+def reset_password(db: Session, raw_token: str, new_password: str) -> None:
+    """Reset password using a valid token."""
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    reset = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used_at == None,
+        PasswordResetToken.expires_at > datetime.now(timezone.utc),
+    ).first()
+
+    if not reset:
+        raise ValueError("invalid_or_expired_token")
+
+    user = db.query(User).filter(User.id == reset.user_id).first()
+    if not user:
+        raise ValueError("user_not_found")
+
+    user.password_hash = _pwd_ctx.hash(new_password)
+    user.updated_at = datetime.now(timezone.utc)
+    reset.used_at = datetime.now(timezone.utc)
+
+    # Revoke all existing sessions
+    revoke_all_sessions(db, user.id)
+    db.commit()
