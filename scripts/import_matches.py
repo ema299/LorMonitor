@@ -44,13 +44,6 @@ for code, colors in DECK_COLORS.items():
     key = tuple(sorted(colors))
     _COLORS_TO_DECK[key] = code
 
-# Queue prefixes per formato
-FORMAT_QUEUE_PREFIXES = {
-    'core': ('S11-',),
-    'infinity': ('INF-', 'JA-', 'ZH-'),
-}
-
-
 def colors_to_deck(ink_colors: list[str]) -> str | None:
     """Convert ink color list to deck code."""
     key = tuple(sorted(c.lower() for c in ink_colors))
@@ -63,8 +56,10 @@ def folder_to_perimeter(folder_name: str) -> str:
 
 
 def determine_game_format(queue_name: str | None, perimeter: str) -> str:
-    """Determine game format from queue name and perimeter."""
+    """Determine game format from perimeter folder."""
     if perimeter == 'inf':
+        return 'infinity'
+    if queue_name and ('INF-' in queue_name.upper()):
         return 'infinity'
     return 'core'
 
@@ -126,11 +121,6 @@ def parse_match_file(filepath: str, perimeter: str) -> dict | None:
     queue_name = gi.get('queueShortName', '')
     game_format = determine_game_format(queue_name, perimeter)
 
-    # Filter: queue prefix must match format
-    valid_prefixes = FORMAT_QUEUE_PREFIXES.get(game_format, ())
-    if valid_prefixes and queue_name and not any(queue_name.startswith(p) for p in valid_prefixes):
-        return None
-
     winner = determine_winner(logs, deck_a, deck_b)
     total_turns = gi.get('currentTurn', 0)
 
@@ -156,13 +146,8 @@ def parse_match_file(filepath: str, perimeter: str) -> dict | None:
     }
 
 
-def import_all(dry_run: bool = False):
-    matches_dir = str(MATCHES_DIR)
-    print(f"Scanning {matches_dir} ...")
-
-    all_rows = []
-    skipped = 0
-
+def iter_json_files(matches_dir: str):
+    """Yield (filepath, perimeter) for all match JSON files — no memory buildup."""
     for date_dir in sorted(os.listdir(matches_dir)):
         date_path = os.path.join(matches_dir, date_dir)
         if not os.path.isdir(date_path):
@@ -175,61 +160,135 @@ def import_all(dry_run: bool = False):
 
             perimeter = folder_to_perimeter(perim_dir)
 
-            for fname in os.listdir(perim_path):
-                if not fname.endswith('.json'):
-                    continue
-                filepath = os.path.join(perim_path, fname)
-                row = parse_match_file(filepath, perimeter)
-                if row:
-                    all_rows.append(row)
-                else:
-                    skipped += 1
+            for entry in os.listdir(perim_path):
+                full = os.path.join(perim_path, entry)
+                if entry.endswith('.json'):
+                    yield full, perimeter
+                elif os.path.isdir(full):
+                    for sub in os.listdir(full):
+                        if sub.endswith('.json'):
+                            yield os.path.join(full, sub), perimeter
 
-    print(f"Parsed {len(all_rows)} matches, skipped {skipped}")
 
-    if dry_run:
-        print("[DRY RUN] No data written.")
-        return
+INSERT_SQL = text("""
+    INSERT INTO matches
+        (external_id, played_at, game_format, queue_name, perimeter,
+         deck_a, deck_b, winner, player_a_name, player_b_name,
+         player_a_mmr, player_b_mmr, total_turns, lore_a_final, lore_b_final,
+         turns, cards_a, cards_b)
+    VALUES
+        (:external_id, :played_at, :game_format, :queue_name, :perimeter,
+         :deck_a, :deck_b, :winner, :player_a_name, :player_b_name,
+         :player_a_mmr, :player_b_mmr, :total_turns, :lore_a_final, :lore_b_final,
+         :turns, :cards_a, :cards_b)
+    ON CONFLICT (external_id) DO NOTHING
+""")
 
-    # Bulk insert in batches
-    BATCH_SIZE = 1000
-    db = SessionLocal()
+
+SKIP_CACHE = Path(__file__).parent / ".import_skip_cache"
+
+
+def _load_known_ids(db) -> set[str]:
+    """Pre-fetch all external_ids already in PG to skip files without parsing."""
+    rows = db.execute(text("SELECT external_id FROM matches")).fetchall()
+    return {r[0] for r in rows}
+
+
+def _load_skip_cache() -> set[str]:
+    """Load IDs of files that failed parsing (won't change, skip on next run)."""
+    if SKIP_CACHE.exists():
+        return set(SKIP_CACHE.read_text().splitlines())
+    return set()
+
+
+def _save_skip_cache(ids: set[str]):
+    SKIP_CACHE.write_text("\n".join(sorted(ids)))
+
+
+def _extract_id_from_path(filepath: str) -> str | None:
+    """Extract game UUID from filename (e.g. '019d6508-...-.json' → '019d6508-...')."""
+    basename = os.path.basename(filepath)
+    if basename.endswith('.json'):
+        return basename[:-5]
+    return None
+
+
+def import_all(dry_run: bool = False):
+    matches_dir = str(MATCHES_DIR)
+    print(f"Scanning {matches_dir} ...")
+
+    BATCH_SIZE = 500
+    batch = []
+    parsed = 0
+    skipped = 0
+    already_known = 0
     inserted = 0
-    duplicates = 0
+
+    db = None if dry_run else SessionLocal()
+
+    # Pre-fetch known IDs + skip cache to avoid re-reading unparseable files
+    known_ids = set()
+    skip_ids = _load_skip_cache()
+    if db:
+        print("Loading known match IDs from PG...")
+        known_ids = _load_known_ids(db)
+        print(f"  {len(known_ids)} in DB, {len(skip_ids)} in skip cache")
 
     try:
-        for i in range(0, len(all_rows), BATCH_SIZE):
-            batch = all_rows[i:i + BATCH_SIZE]
-            for row in batch:
-                try:
-                    db.execute(
-                        text("""
-                            INSERT INTO matches
-                                (external_id, played_at, game_format, queue_name, perimeter,
-                                 deck_a, deck_b, winner, player_a_name, player_b_name,
-                                 player_a_mmr, player_b_mmr, total_turns, lore_a_final, lore_b_final,
-                                 turns, cards_a, cards_b)
-                            VALUES
-                                (:external_id, :played_at, :game_format, :queue_name, :perimeter,
-                                 :deck_a, :deck_b, :winner, :player_a_name, :player_b_name,
-                                 :player_a_mmr, :player_b_mmr, :total_turns, :lore_a_final, :lore_b_final,
-                                 :turns, :cards_a, :cards_b)
-                            ON CONFLICT (external_id) DO NOTHING
-                        """),
-                        {**row, 'turns': json.dumps(row['turns']),
-                         'cards_a': json.dumps(row['cards_a']) if row['cards_a'] else None,
-                         'cards_b': json.dumps(row['cards_b']) if row['cards_b'] else None},
-                    )
-                    inserted += 1
-                except Exception as e:
-                    duplicates += 1
+        for filepath, perimeter in iter_json_files(matches_dir):
+            # Fast skip: if UUID already in DB or known-bad, don't read the file
+            file_id = _extract_id_from_path(filepath)
+            if file_id and (file_id in known_ids or file_id in skip_ids):
+                already_known += 1
+                continue
 
+            row = parse_match_file(filepath, perimeter)
+            if not row:
+                skipped += 1
+                if file_id:
+                    skip_ids.add(file_id)
+                continue
+
+            parsed += 1
+
+            if dry_run:
+                if parsed % 10000 == 0:
+                    print(f"  [dry-run] {parsed} parsed, {skipped} skipped...")
+                continue
+
+            batch.append({
+                **row,
+                'turns': json.dumps(row['turns']),
+                'cards_a': json.dumps(row['cards_a']) if row['cards_a'] else None,
+                'cards_b': json.dumps(row['cards_b']) if row['cards_b'] else None,
+            })
+
+            if len(batch) >= BATCH_SIZE:
+                for r in batch:
+                    db.execute(INSERT_SQL, r)
+                db.commit()
+                inserted += len(batch)
+                batch = []
+                print(f"  {inserted} inserted ({skipped} skipped)...")
+
+        # Final batch
+        if batch and db:
+            for r in batch:
+                db.execute(INSERT_SQL, r)
             db.commit()
-            print(f"  Batch {i // BATCH_SIZE + 1}: inserted up to {min(i + BATCH_SIZE, len(all_rows))}")
+            inserted += len(batch)
 
-        print(f"\nDone: {inserted} inserted, {duplicates} duplicates/errors")
+        # Persist skip cache for next run
+        _save_skip_cache(skip_ids)
+
+        print(f"\nDone!")
+        print(f"  Already in DB: {already_known}")
+        print(f"  Parsed:   {parsed}")
+        print(f"  Skipped:  {skipped} (cached for next run)")
+        print(f"  Inserted: {inserted}")
     finally:
-        db.close()
+        if db:
+            db.close()
 
 
 if __name__ == '__main__':

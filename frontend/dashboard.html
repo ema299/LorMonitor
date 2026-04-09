@@ -323,6 +323,49 @@
     padding-bottom: 16px;
     border-top-color: var(--border);
   }
+
+  /* ── Monitor accordion (mon-acc) ── */
+  .mon-acc { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg2); overflow: hidden; }
+  .mon-acc__hdr {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px; width: 100%;
+    background: none; border: none; color: var(--text); cursor: pointer; text-align: left;
+    -webkit-tap-highlight-color: transparent; user-select: none; min-height: 52px;
+  }
+  .mon-acc__title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mon-acc__label-text { color: var(--gold); font-size: 1.1em; font-weight: 600; }
+  .mon-acc__summary {
+    font-size: 0.78em; color: var(--text2); font-weight: 400;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity 0.15s;
+  }
+  .mon-acc__chevron {
+    flex-shrink: 0; width: 18px; height: 18px; color: var(--text2); transition: transform 0.25s ease;
+  }
+  .mon-acc.is-open .mon-acc__chevron { transform: rotate(180deg); color: var(--gold); }
+  .mon-acc.is-open .mon-acc__summary { opacity: 0; pointer-events: none; }
+  .mon-acc__body {
+    overflow: hidden; max-height: 0; opacity: 0;
+    transition: max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease;
+  }
+  .mon-acc.is-open .mon-acc__body { max-height: 4000px; opacity: 1; }
+  .mon-acc__inner { padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  /* Sub-accordion (nested, lighter) */
+  .mon-acc--sub { margin: 8px 0; border-radius: 8px; background: var(--bg3); border-color: transparent; }
+  .mon-acc--sub .mon-acc__hdr { padding: 10px 14px; min-height: 44px; }
+  .mon-acc--sub .mon-acc__label-text { color: var(--text); font-size: 0.9em; }
+  .mon-acc--sub .mon-acc__inner { padding: 0 14px 12px; border-top-color: rgba(48,54,61,0.6); }
+  /* Desktop: always open */
+  @media (min-width: 769px) {
+    .mon-acc.mon-acc--desktop-open .mon-acc__body { max-height: none !important; opacity: 1 !important; }
+    .mon-acc.mon-acc--desktop-open .mon-acc__summary { opacity: 0; }
+    .mon-acc.mon-acc--desktop-open .mon-acc__chevron { display: none; }
+    .mon-acc--sub.mon-acc--desktop-open .mon-acc__body { max-height: none !important; opacity: 1 !important; }
+    .mon-acc--sub.mon-acc--desktop-open .mon-acc__chevron { display: none; }
+  }
+  @media (max-width: 480px) {
+    .mon-acc__hdr { padding: 12px 14px; }
+    .mon-acc__inner { padding: 0 12px 14px; }
+  }
+
   .player-detail .detail-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -2030,112 +2073,312 @@
   .pb-impact { color: var(--text2); font-size: 0.82em; margin-top: 4px; }
 
   /* === TEAM TRAINING TAB === */
-  .tt-layout { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
-  @media (max-width: 900px) { .tt-layout { grid-template-columns: 1fr; } }
+  .tt-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
 
+  /* ── Sidebar ── */
   .tt-sidebar {
     background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    padding: 14px; position: sticky; top: 12px; align-self: start;
+    padding: 12px; position: sticky; top: 12px; align-self: start;
   }
-  .tt-sidebar h3 { font-size: 0.85em; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .tt-sidebar-label {
+    font-size: 0.72em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.7px; font-weight: 600; padding: 0 4px; margin-bottom: 8px;
+  }
   .tt-player-btn {
     display: flex; align-items: center; gap: 8px; width: 100%;
-    padding: 8px 10px; margin-bottom: 4px; border-radius: 8px;
+    padding: 9px 10px; margin-bottom: 3px; border-radius: 8px;
     background: transparent; border: 1px solid transparent;
     color: var(--text); cursor: pointer; font-size: 0.85em;
-    transition: all 0.15s; text-align: left;
+    transition: all 0.15s; text-align: left; min-height: 44px;
   }
   .tt-player-btn:hover { background: var(--bg3); }
   .tt-player-btn.active { background: rgba(212,160,58,0.12); border-color: var(--gold); }
-  .tt-player-btn .tt-pb-dot {
-    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  }
-  .tt-player-btn .tt-pb-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tt-player-btn .tt-pb-wr { font-weight: 700; font-size: 0.9em; }
+  .tt-pb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tt-pb-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tt-pb-wr { font-weight: 700; font-size: 0.88em; }
   .tt-overview-btn {
-    display: block; width: 100%; padding: 8px 10px; margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 9px 10px; margin-bottom: 10px; min-height: 44px;
     border-radius: 8px; background: var(--bg3); border: 1px solid var(--border);
     color: var(--gold); cursor: pointer; font-size: 0.82em; font-weight: 600;
-    text-align: center; transition: all 0.15s;
+    transition: all 0.15s;
   }
   .tt-overview-btn:hover { border-color: var(--gold); }
   .tt-overview-btn.active { background: rgba(212,160,58,0.15); border-color: var(--gold); }
+  .tt-sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
-  /* KPI row */
-  .tt-kpi-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  /* ── KPI strip ── */
+  .tt-kpi-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .tt-kpi {
-    flex: 1; min-width: 120px; background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 12px; text-align: center;
+    flex: 1; min-width: 100px; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; text-align: center;
   }
-  .tt-kpi .tt-kpi-val { font-size: 1.4em; font-weight: 700; }
-  .tt-kpi .tt-kpi-lbl { font-size: 0.7em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .tt-kpi-val { font-size: 1.35em; font-weight: 700; line-height: 1.2; }
+  .tt-kpi-lbl { font-size: 0.68em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
 
-  /* Alerts */
-  .tt-alerts { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
-  .tt-alert {
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    border-radius: 8px; font-size: 0.85em; cursor: pointer; transition: background 0.15s;
+  /* ── Player roster cards (overview) ── */
+  .tt-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .tt-roster-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    display: flex; flex-direction: column; gap: 8px;
   }
-  .tt-alert:hover { filter: brightness(1.15); }
-  .tt-alert.danger { background: rgba(248,81,73,0.12); border-left: 3px solid var(--red); color: var(--red); }
-  .tt-alert.warning { background: rgba(210,153,34,0.12); border-left: 3px solid var(--yellow); color: var(--yellow); }
-  .tt-alert .tt-alert-player { font-weight: 600; color: var(--text); min-width: 80px; }
+  .tt-roster-card:hover { border-color: var(--gold); background: rgba(212,160,58,0.04); }
+  .tt-rc-top { display: flex; align-items: center; gap: 8px; }
+  .tt-rc-avatar {
+    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 0.82em; flex-shrink: 0;
+    border: 2px solid transparent;
+  }
+  .tt-rc-info { flex: 1; min-width: 0; }
+  .tt-rc-name { font-weight: 600; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tt-rc-role { font-size: 0.7em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
+  .tt-rc-wr { font-weight: 700; font-size: 1.1em; flex-shrink: 0; }
+  .tt-rc-stats { display: flex; gap: 12px; font-size: 0.75em; color: var(--text2); }
+  .tt-rc-stat span { color: var(--text); font-weight: 600; }
+  .tt-rc-alert-peek {
+    font-size: 0.75em; line-height: 1.35; padding: 5px 8px; border-radius: 6px;
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .tt-rc-alert-peek.danger { background: rgba(248,81,73,0.1); color: var(--red); border-left: 2px solid var(--red); }
+  .tt-rc-alert-peek.warning { background: rgba(210,153,34,0.1); color: var(--yellow); border-left: 2px solid var(--yellow); }
+  .tt-rc-alert-peek.ok { background: rgba(63,185,80,0.08); color: var(--green); border-left: 2px solid var(--green); }
 
-  /* Comparison table */
-  .tt-comp-table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-bottom: 16px; }
+  /* ── Coaching Inbox ── */
+  .tt-inbox { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tt-inbox-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+  }
+  .tt-inbox-title { font-size: 0.82em; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+  .tt-inbox-badge {
+    font-size: 0.75em; background: var(--red); color: #fff; border-radius: 10px;
+    padding: 1px 7px; font-weight: 700; line-height: 1.5;
+  }
+  .tt-inbox-badge.warn { background: var(--yellow); color: var(--bg); }
+  .tt-inbox-badge.ok { background: var(--green); color: var(--bg); }
+  .tt-time-filter { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tt-tf-btn {
+    padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--text2); font-size: 0.75em; cursor: pointer;
+    transition: all 0.15s; min-height: 28px;
+  }
+  .tt-tf-btn:hover { border-color: var(--gold); color: var(--text); }
+  .tt-tf-btn.active { background: rgba(212,160,58,0.15); border-color: var(--gold); color: var(--gold); font-weight: 600; }
+
+  .tt-inbox-body { padding: 0; }
+  .tt-inbox-group { }
+  .tt-inbox-group-label {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; font-size: 0.72em; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.6px; background: var(--bg3);
+    border-bottom: 1px solid var(--border); color: var(--text2);
+  }
+  .tt-inbox-group-label .tt-sev-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .tt-inbox-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 11px 16px; border-bottom: 1px solid rgba(48,54,61,0.5);
+    cursor: pointer; transition: background 0.12s; min-height: 44px;
+  }
+  .tt-inbox-item:last-child { border-bottom: none; }
+  .tt-inbox-item:hover { background: rgba(255,255,255,0.025); }
+  .tt-sev-icon {
+    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 0.72em; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+  }
+  .tt-sev-icon.critical { background: rgba(248,81,73,0.18); color: var(--red); }
+  .tt-sev-icon.warning { background: rgba(210,153,34,0.18); color: var(--yellow); }
+  .tt-sev-icon.info { background: rgba(88,166,255,0.18); color: #58a6ff; }
+  .tt-inbox-content { flex: 1; min-width: 0; }
+  .tt-inbox-who {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+  }
+  .tt-inbox-player-tag {
+    font-size: 0.72em; font-weight: 600; padding: 1px 7px; border-radius: 10px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .tt-inbox-player-tag.team { background: rgba(212,160,58,0.18); color: var(--gold); }
+  .tt-inbox-player-tag.player { background: rgba(255,255,255,0.08); color: var(--text2); }
+  .tt-inbox-msg { font-size: 0.84em; line-height: 1.45; color: var(--text); }
+  .tt-inbox-arrow { font-size: 0.75em; color: var(--text2); flex-shrink: 0; margin-top: 4px; }
+  .tt-inbox-empty { padding: 24px 16px; text-align: center; color: var(--text2); font-size: 0.85em; }
+
+  /* ── Swipe-to-archive ── */
+  .tt-inbox-item-wrap {
+    position: relative; overflow: hidden;
+    border-bottom: 1px solid rgba(48,54,61,0.5);
+  }
+  .tt-inbox-item-wrap:last-child { border-bottom: none; }
+  .tt-inbox-item {
+    border-bottom: none !important; /* border now on wrapper */
+    position: relative; z-index: 1; background: var(--bg2);
+    transition: transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94), background 0.12s;
+  }
+  .tt-inbox-item.swiping { transition: none; }
+  .tt-archive-reveal {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 80px; display: flex; align-items: center; justify-content: center;
+    background: rgba(212,160,58,0.18); color: var(--gold);
+    font-size: 0.75em; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; cursor: pointer; user-select: none;
+    border-left: 1px solid rgba(212,160,58,0.3);
+    flex-direction: column; gap: 3px;
+  }
+  .tt-archive-reveal svg { width: 16px; height: 16px; opacity: 0.8; }
+  /* Desktop: archive icon on hover */
+  .tt-inbox-item-wrap .tt-archive-btn-desk {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: rgba(212,160,58,0.12); border: 1px solid rgba(212,160,58,0.25);
+    color: var(--gold); border-radius: 6px; padding: 4px 8px;
+    font-size: 0.7em; cursor: pointer; opacity: 0; transition: opacity 0.15s;
+    z-index: 2; white-space: nowrap; min-height: 28px; display: flex; align-items: center; gap: 4px;
+  }
+  .tt-inbox-item-wrap:hover .tt-archive-btn-desk { opacity: 1; }
+  /* Slide-out animation */
+  @keyframes tt-slide-out {
+    from { max-height: 80px; opacity: 1; padding: 0; }
+    to   { max-height: 0;   opacity: 0; padding: 0; overflow: hidden; }
+  }
+  .tt-inbox-item-wrap.archiving {
+    animation: tt-slide-out 0.3s ease forwards;
+    pointer-events: none;
+  }
+
+  /* ── Archive section ── */
+  .tt-inbox-archived {
+    border-top: 1px solid var(--border); margin-top: 0;
+  }
+  .tt-archived-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; cursor: pointer; background: none; border: none;
+    width: 100%; text-align: left; color: var(--text2);
+  }
+  .tt-archived-head:hover { background: rgba(255,255,255,0.02); }
+  .tt-archived-title {
+    font-size: 0.72em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tt-archived-count {
+    font-size: 0.8em; background: rgba(255,255,255,0.08); color: var(--text2);
+    border-radius: 10px; padding: 1px 7px; font-weight: 600;
+  }
+  .tt-archived-chevron { font-size: 0.65em; transition: transform 0.2s; }
+  .tt-archived-open .tt-archived-chevron { transform: rotate(180deg); }
+  .tt-archived-body { display: none; }
+  .tt-archived-open .tt-archived-body { display: block; }
+  .tt-archived-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 16px; border-bottom: 1px solid rgba(48,54,61,0.4);
+    opacity: 0.5;
+  }
+  .tt-archived-item:last-child { border-bottom: none; }
+  .tt-archived-content { flex: 1; min-width: 0; }
+  .tt-archived-del {
+    background: none; border: none; color: var(--red); cursor: pointer;
+    font-size: 1.1em; padding: 0 4px; min-height: 24px; opacity: 0.6;
+    transition: opacity 0.15s; flex-shrink: 0; line-height: 1;
+  }
+  .tt-archived-del:hover { opacity: 1; }
+
+  /* ── Comparison table (kept for heatmap section) ── */
+  .tt-comp-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
   .tt-comp-table th {
     text-align: left; color: var(--text2); font-weight: 500; padding: 8px;
-    border-bottom: 1px solid var(--border); font-size: 0.85em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border); font-size: 0.82em; text-transform: uppercase;
   }
   .tt-comp-table td { padding: 8px; border-bottom: 1px solid rgba(48,54,61,0.4); }
   .tt-comp-table tr { cursor: pointer; transition: background 0.1s; }
   .tt-comp-table tr:hover { background: rgba(255,255,255,0.03); }
   .tt-comp-table .tt-name-cell { font-weight: 600; }
-  .tt-comp-table .tt-role { font-size: 0.75em; color: var(--text2); margin-left: 6px; }
+  .tt-comp-table .tt-role { font-size: 0.72em; color: var(--text2); margin-left: 5px; font-weight: 400; }
 
-  /* Weakness heatmap */
-  .tt-heatmap { overflow-x: auto; margin-bottom: 16px; -webkit-overflow-scrolling: touch; }
-  .tt-heatmap table { border-collapse: collapse; font-size: 0.8em; min-width: 500px; }
-  .tt-heatmap th { padding: 6px 8px; color: var(--text2); font-weight: 500; font-size: 0.85em; text-align: center; }
+  /* ── Weakness heatmap ── */
+  .tt-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tt-heatmap table { border-collapse: collapse; font-size: 0.8em; min-width: 400px; }
+  .tt-heatmap th { padding: 6px 8px; color: var(--text2); font-weight: 500; font-size: 0.82em; text-align: center; }
   .tt-heatmap td {
     padding: 6px 8px; text-align: center; font-weight: 600; border: 1px solid rgba(48,54,61,0.3);
-    min-width: 50px; border-radius: 4px; transition: transform 0.1s;
+    min-width: 48px; border-radius: 4px; transition: transform 0.1s;
   }
   .tt-heatmap td:hover { transform: scale(1.05); }
-  .tt-heatmap .tt-hm-name { text-align: left; font-weight: 600; color: var(--text); white-space: nowrap; }
+  .tt-hm-name { text-align: left; font-weight: 600; color: var(--text); white-space: nowrap; }
 
-  /* Player profile */
+  /* ── Collapsible section ── */
+  .tt-collapsible { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tt-coll-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; cursor: pointer; transition: background 0.12s;
+    background: none; border: none; width: 100%; color: var(--text); text-align: left;
+  }
+  .tt-coll-head:hover { background: rgba(255,255,255,0.02); }
+  .tt-coll-title { font-size: 0.82em; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
+  .tt-coll-chevron { font-size: 0.7em; color: var(--text2); transition: transform 0.2s; }
+  .tt-collapsible.open .tt-coll-chevron { transform: rotate(180deg); }
+  .tt-coll-body { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
+  .tt-collapsible.open .tt-coll-body { display: block; padding-top: 14px; }
+
+  /* ── Player profile header ── */
   .tt-profile-header {
-    display: flex; align-items: center; gap: 16px; padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
     background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
     margin-bottom: 16px; flex-wrap: wrap;
   }
-  .tt-profile-header .tt-ph-name { font-size: 1.2em; font-weight: 700; }
-  .tt-profile-header .tt-ph-deck { color: var(--gold); font-weight: 600; }
-  .tt-profile-header .tt-ph-stat { text-align: center; }
-  .tt-profile-header .tt-ph-val { font-weight: 700; font-size: 1.1em; }
-  .tt-profile-header .tt-ph-lbl { font-size: 0.65em; color: var(--text2); text-transform: uppercase; }
+  .tt-ph-name { font-size: 1.15em; font-weight: 700; }
+  .tt-ph-stat { text-align: center; }
+  .tt-ph-val { font-weight: 700; font-size: 1.05em; }
+  .tt-ph-lbl { font-size: 0.62em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
   .tt-back-btn {
     background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
     padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em;
-    transition: all 0.15s;
+    transition: all 0.15s; min-height: 36px;
   }
   .tt-back-btn:hover { border-color: var(--gold); color: var(--text); }
+
+  /* ── Profile inline alert strip ── */
+  .tt-profile-alerts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+  .tt-pal {
+    display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
+    border-radius: 8px; font-size: 0.84em; line-height: 1.4;
+  }
+  .tt-pal.danger { background: rgba(248,81,73,0.1); border-left: 3px solid var(--red); }
+  .tt-pal.warning { background: rgba(210,153,34,0.1); border-left: 3px solid var(--yellow); }
+  .tt-pal-icon { flex-shrink: 0; margin-top: 1px; font-size: 0.9em; }
+  .tt-pal.danger .tt-pal-icon { color: var(--red); }
+  .tt-pal.warning .tt-pal-icon { color: var(--yellow); }
+  .tt-pal-text { color: var(--text); }
 
   /* Notes textarea */
   .tt-notes {
     width: 100%; min-height: 80px; background: var(--bg3); color: var(--text);
     border: 1px solid var(--border); border-radius: 8px; padding: 10px;
-    font-family: inherit; font-size: 0.85em; resize: vertical;
-    margin-top: 12px;
+    font-family: inherit; font-size: 0.85em; resize: vertical; box-sizing: border-box;
+    margin-top: 10px;
   }
   .tt-notes::placeholder { color: var(--text2); }
 
+  /* ── Mobile: sidebar becomes horizontal nav strip ── */
   @media (max-width: 900px) {
-    .tt-sidebar { position: static; display: flex; gap: 6px; flex-wrap: wrap; padding: 10px; }
-    .tt-sidebar h3 { display: none; }
-    .tt-player-btn { width: auto; flex: 0 0 auto; padding: 6px 12px; }
-    .tt-overview-btn { width: auto; margin-bottom: 0; }
+    .tt-layout { grid-template-columns: 1fr; gap: 10px; }
+    .tt-sidebar {
+      position: static; display: flex; align-items: center; gap: 6px;
+      flex-wrap: nowrap; overflow-x: auto; padding: 8px 10px;
+      -webkit-overflow-scrolling: touch; border-radius: 10px;
+    }
+    .tt-sidebar-label { display: none; }
+    .tt-sidebar-divider { display: none; }
+    .tt-player-btn { width: auto; flex: 0 0 auto; padding: 7px 12px; min-height: 36px; white-space: nowrap; }
+    .tt-overview-btn { width: auto; flex: 0 0 auto; margin-bottom: 0; padding: 7px 12px; min-height: 36px; }
+    .tt-pb-wr { display: none; }
+    .tt-roster { grid-template-columns: 1fr 1fr; }
+    .tt-kpi { min-width: 80px; }
+  }
+  @media (max-width: 480px) {
+    .tt-roster { grid-template-columns: 1fr; }
+    .tt-profile-header { gap: 8px; }
+    .tt-ph-stat { display: none; }
+    .tt-ph-stat:nth-child(-n+3) { display: block; }
   }
 
   /* ============================================================ */
@@ -2529,6 +2772,24 @@
     text-transform: uppercase; letter-spacing: 0.5px; display: inline-block;
   }
   .plan-free { background: rgba(155,164,174,0.15); color: var(--text2); }
+  /* Profile format toggle */
+  .pf-format-toggle {
+    display: flex; align-items: center; gap: 6px; font-size: 0.75em; margin-left: auto; white-space: nowrap;
+  }
+  .pf-format-toggle span { color: var(--text2); transition: color 0.2s; cursor: pointer; }
+  .pf-format-toggle span.active { color: var(--gold); font-weight: 700; }
+  .pf-format-switch {
+    position: relative; width: 36px; height: 20px; cursor: pointer;
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    transition: background 0.2s;
+  }
+  .pf-format-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--text2); transition: transform 0.2s, background 0.2s;
+  }
+  .pf-format-switch.infinity { background: rgba(212,160,58,0.2); border-color: var(--gold); }
+  .pf-format-switch.infinity::after { transform: translateX(16px); background: var(--gold); }
   .plan-pro { background: rgba(212,160,58,0.2); color: var(--gold); border: 1px solid rgba(212,160,58,0.4); }
   .plan-coach { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
   .pf-gear-btn {
@@ -2697,6 +2958,261 @@
   .pf-overview-kpi-lbl { font-size: 0.68em; color: var(--text2); text-transform: uppercase; margin-top: 3px; letter-spacing: 0.3px; }
   .pf-overview-mu-strip { font-size: 0.82em; color: var(--text2); display: flex; gap: 16px; flex-wrap: wrap; }
 
+  /* Dual panel: Tech Cards + Meta Radar side by side (legacy, kept for compatibility) */
+  .pf-dual-panel {
+    display: grid; grid-template-columns: 55fr 45fr; gap: 12px; align-items: start;
+  }
+  @media (max-width: 640px) { .pf-dual-panel { grid-template-columns: 1fr; } }
+
+  /* ── REDESIGN: Hero Row (Deck Selector + Meta Radar) ── */
+  .pf-hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: stretch;
+  }
+  @media (max-width: 640px) { .pf-hero-row { grid-template-columns: 1fr; } }
+
+  /* Deck selector card — left hero panel */
+  .pf-hero-deck {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; display: flex; flex-direction: column; gap: 0;
+  }
+  .pf-hero-deck-identity {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  }
+  .pf-hero-deck-name {
+    font-size: 1.05em; font-weight: 700; color: var(--text); line-height: 1.2;
+  }
+  .pf-hero-deck-code {
+    font-size: 0.72em; color: var(--text2); letter-spacing: 0.3px; margin-top: 2px;
+  }
+  .pf-hero-ink-row {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .pf-hero-pins {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);
+  }
+  .pf-hero-pins-label {
+    font-size: 0.65em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600; white-space: nowrap;
+  }
+  /* KPI strip inside the hero deck card */
+  .pf-hero-kpi-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; background: var(--bg3); margin-top: 14px;
+  }
+  .pf-hero-kpi {
+    text-align: center; padding: 12px 6px;
+    border-right: 1px solid var(--border);
+  }
+  .pf-hero-kpi:last-child { border-right: none; }
+  .pf-hero-kpi-val { font-size: 1.2em; font-weight: 700; line-height: 1.2; }
+  .pf-hero-kpi-lbl { font-size: 0.62em; color: var(--text2); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.3px; }
+  /* Best/worst strip inside hero */
+  .pf-hero-mu-strip {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;
+    font-size: 0.78em; color: var(--text2); align-items: center;
+  }
+
+  /* Meta Radar card — right hero panel */
+  .pf-hero-radar {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; display: flex; flex-direction: column;
+  }
+  .pf-hero-radar-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+  }
+  .pf-hero-radar-title {
+    font-size: 0.75em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600;
+  }
+  .pf-hero-radar-live-row {
+    display: flex; align-items: center; gap: 5px;
+  }
+  /* Snapshot label */
+  .pf-hero-radar-snap {
+    font-size: 0.68em; color: var(--text2); font-style: italic;
+    margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    line-height: 1.4;
+  }
+
+  /* ── LIST PANEL: Standard List + Tech Cards side by side ── */
+  .pf-list-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  @media (max-width: 640px) { .pf-list-panel { grid-template-columns: 1fr; } }
+
+  /* ── iPhone / small screens (≤ 400px) ── */
+  @media (max-width: 400px) {
+    .pf-hero-deck, .pf-hero-radar, .pf-std-card { padding: 12px 14px; }
+    .pf-hero-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+    .pf-hero-kpi { padding: 8px 4px; }
+    .pf-hero-kpi-val { font-size: 1.05em; }
+    .pf-hero-kpi-lbl { font-size: 0.58em; }
+    .pf-hero-mu-strip { font-size: 0.72em; }
+    .pf-radar-stats { gap: 8px; }
+    .pf-radar-stat-val { font-size: 0.92em; }
+    .pf-radar-name { font-size: 0.8em; }
+    .pf-radar-line2 { font-size: 0.66em; }
+    .pf-std-list { max-height: 240px; }
+    .pf-std-row { font-size: 0.75em; }
+    .pf-tech-card { width: 76px; padding: 6px 4px 8px; }
+    .pf-tech-img-wrap { width: 58px; height: 81px; }
+    .pf-tech-name { font-size: 0.62em; }
+  }
+
+  /* Standard/Consensus list card */
+  .pf-std-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px;
+  }
+  .pf-std-title {
+    font-size: 0.75em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pf-std-source {
+    font-size: 0.9em; color: var(--text2); font-weight: 400;
+    text-transform: none; letter-spacing: 0; font-style: italic;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 140px;
+  }
+  .pf-std-list {
+    margin-top: 10px;
+    max-height: 320px; overflow-y: auto; scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .pf-std-list::-webkit-scrollbar { width: 4px; }
+  .pf-std-list::-webkit-scrollbar-track { background: transparent; }
+  .pf-std-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .pf-std-row {
+    display: flex; align-items: center; gap: 6px; padding: 4px 0;
+    border-bottom: 1px solid rgba(48,54,61,0.5); font-size: 0.8em;
+    transition: background 0.1s; border-radius: 4px; padding-left: 4px;
+  }
+  .pf-std-row:last-child { border-bottom: none; }
+  .pf-std-row:hover { background: rgba(212,160,58,0.05); }
+  .pf-std-qty {
+    flex-shrink: 0; width: 16px; text-align: right;
+    font-weight: 700; color: var(--gold); font-size: 0.9em;
+  }
+  .pf-std-name {
+    flex: 1; color: var(--text); line-height: 1.35; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .pf-std-tech-badge {
+    flex-shrink: 0; font-size: 0.62em; font-weight: 700;
+    padding: 1px 6px; border-radius: 8px; letter-spacing: 0.3px;
+  }
+  .pf-std-tech-badge.is-in {
+    background: rgba(63,185,80,0.12); color: var(--green);
+    border: 1px solid rgba(63,185,80,0.25);
+  }
+  .pf-std-total {
+    font-size: 0.7em; color: var(--text2); margin-top: 8px; text-align: right;
+    padding-top: 6px; border-top: 1px solid var(--border);
+  }
+
+  /* ── META DECK PANEL ── */
+  .pf-meta-deck {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 20px; margin-top: 16px;
+  }
+  .pf-md-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
+  }
+  .pf-md-title {
+    font-size: 0.75em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-weight: 600;
+  }
+  .pf-md-coverage {
+    font-size: 0.72em; padding: 2px 8px; border-radius: 10px; font-weight: 700;
+  }
+  .pf-md-coverage.high { background: rgba(63,185,80,0.12); color: var(--green); }
+  .pf-md-coverage.mid { background: rgba(212,160,58,0.12); color: var(--gold); }
+  .pf-md-coverage.low { background: rgba(232,93,117,0.12); color: var(--ruby); }
+  .pf-md-changes { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+  .pf-md-change-group { flex: 1; min-width: 140px; }
+  .pf-md-change-label {
+    font-size: 0.65em; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text2); margin-bottom: 4px; font-weight: 600;
+  }
+  .pf-md-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.72em; padding: 2px 7px; border-radius: 6px; margin: 2px 2px;
+  }
+  .pf-md-chip.cut { background: rgba(232,93,117,0.1); color: var(--ruby); }
+  .pf-md-chip.add { background: rgba(63,185,80,0.1); color: var(--green); }
+  .pf-md-chip.tech { background: rgba(212,160,58,0.1); color: var(--gold); border: 1px solid rgba(212,160,58,0.2); }
+  .pf-md-list {
+    max-height: 280px; overflow-y: auto; scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent; margin-top: 8px;
+  }
+  .pf-md-copy {
+    margin-top: 10px; display: flex; justify-content: flex-end;
+  }
+  .pf-md-copy-btn {
+    font-size: 0.7em; padding: 4px 12px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .pf-md-copy-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .pf-md-mana {
+    display: flex; align-items: flex-end; gap: 3px; height: 40px; margin-top: 8px;
+    padding-top: 6px; border-top: 1px solid var(--border);
+  }
+  .pf-md-mana-bar {
+    flex: 1; background: rgba(212,160,58,0.2); border-radius: 2px 2px 0 0;
+    position: relative; min-width: 0;
+  }
+  .pf-md-mana-label {
+    position: absolute; bottom: -14px; left: 50%; transform: translateX(-50%);
+    font-size: 0.55em; color: var(--text2);
+  }
+
+  /* Meta Radar — compact two-line alerts */
+  .pf-radar { display: flex; flex-direction: column; gap: 6px; }
+  .pf-radar-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--bg3);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .pf-radar-row:hover { background: rgba(255,255,255,0.03); }
+  .pf-radar-inks { display: flex; gap: 4px; flex-shrink: 0; }
+  .pf-radar-ink { width: 14px; height: 14px; border-radius: 50%; display: block; border: 1.5px solid rgba(255,255,255,0.1); }
+  .pf-radar-info { flex: 1; min-width: 0; }
+  .pf-radar-name { font-size: 0.88em; font-weight: 700; color: var(--text); }
+  .pf-radar-line2 { font-size: 0.72em; color: var(--text2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pf-radar-stats { display: flex; gap: 12px; flex-shrink: 0; text-align: right; }
+  .pf-radar-stat { display: flex; flex-direction: column; align-items: flex-end; }
+  .pf-radar-stat-val { font-size: 1.05em; font-weight: 800; line-height: 1.1; }
+  .pf-radar-stat-lbl { font-size: 0.55em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+  .pf-radar-empty { color: var(--text2); font-size: 0.8em; padding: 12px 0; text-align: center; }
+  .pf-radar-live { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; animation: mr-pulse 2.4s ease-in-out infinite; }
+  @keyframes mr-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  /* Info tooltip button (reusable) */
+  .pf-info-btn {
+    width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border);
+    background: transparent; color: var(--text2); font-size: 0.68em; font-weight: 700;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    transition: background 0.15s, color 0.15s; flex-shrink: 0;
+  }
+  .pf-info-btn:hover { background: var(--bg3); color: var(--text); }
+  .pf-info-tip {
+    display: none; font-size: 0.75em; color: var(--text2); line-height: 1.45;
+    padding: 10px 12px; margin-top: 8px; background: var(--bg3); border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .pf-info-tip.open { display: block; }
+
   /* Tech Choices — redesigned */
   .pf-tech-meta {
     display: flex; align-items: center; justify-content: space-between;
@@ -2714,7 +3230,7 @@
 
   /* Single unified flow: IN badge → cards → vertical divider → OUT badge → cards */
   .pf-tech-flow {
-    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: center;
   }
 
   /* Inline group label badge inside the flow */
@@ -2829,6 +3345,127 @@
   }
   .pf-tech-conf {
     font-size: 0.55em; letter-spacing: 1px; color: var(--gold); line-height: 1; margin-top: 1px;
+  }
+  .pf-tech-source-label {
+    font-size: 0.6em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 1px 6px; border-radius: 6px; background: rgba(255,255,255,0.05);
+    max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Best Plays v2 — real game highlights */
+  .bp2-list { display: flex; flex-direction: column; gap: 8px; }
+  .bp2-tile {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; cursor: pointer; transition: border-color 0.18s, box-shadow 0.18s;
+    border-left: 3px solid var(--cat-color, var(--gold));
+  }
+  .bp2-tile:hover, .bp2-tile.open {
+    border-color: var(--cat-color, var(--gold));
+    box-shadow: 0 0 0 1px var(--cat-color, var(--gold)), 0 4px 16px rgba(0,0,0,0.35);
+  }
+  .bp2-compact {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 52px;
+  }
+  .bp2-cat {
+    flex-shrink: 0; font-size: 0.58em; font-weight: 800; letter-spacing: 0.6px;
+    text-transform: uppercase; padding: 3px 7px; border-radius: 5px;
+    color: var(--bg); background: var(--cat-color, var(--gold));
+    line-height: 1.3; text-align: center; max-width: 52px; word-break: break-word;
+  }
+  .bp2-turn-chip {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 1px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 6px; min-width: 34px;
+  }
+  .bp2-turn-num { font-size: 0.92em; font-weight: 800; color: var(--gold); line-height: 1; }
+  .bp2-ink-label { font-size: 0.55em; color: var(--text2); font-weight: 600; }
+  .bp2-cards { display: flex; gap: 3px; flex-shrink: 0; align-items: center; }
+  .bp2-card-thumb {
+    width: 34px; height: 48px; border-radius: 3px; object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.08); display: block; transition: transform 0.15s;
+  }
+  .bp2-card-thumb:hover { transform: scale(1.15) translateY(-3px); z-index: 2; position: relative; }
+  .bp2-summary { flex: 1; min-width: 0; }
+  .bp2-headline {
+    font-size: 0.84em; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.3;
+  }
+  .bp2-tagline { display: flex; align-items: center; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+  .bp2-effect {
+    display: flex; align-items: center; gap: 3px; font-size: 0.7em; font-weight: 700; line-height: 1;
+  }
+  .bp2-effect.kills { color: var(--red); }
+  .bp2-effect.lore { color: var(--green); }
+  .bp2-effect.bounce { color: var(--sapphire); }
+  .bp2-effect.combo { color: #b58fd8; }
+  .bp2-chevron {
+    flex-shrink: 0; color: var(--text2); transition: transform 0.2s; opacity: 0.5;
+  }
+  .bp2-tile.open .bp2-chevron { transform: rotate(180deg); opacity: 1; }
+  .bp2-expanded {
+    max-height: 0; overflow: hidden; opacity: 0;
+    transition: max-height 0.32s ease, opacity 0.22s ease;
+    border-top: 1px solid transparent;
+  }
+  .bp2-tile.open .bp2-expanded { max-height: 700px; opacity: 1; border-top-color: var(--border); }
+  .bp2-exp-inner { padding: 12px 14px 14px; }
+  .bp2-context {
+    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px;
+    padding: 8px 10px; background: rgba(255,255,255,0.03); border-radius: 7px;
+    border-left: 2px solid var(--border);
+  }
+  .bp2-context-text { font-size: 0.78em; color: var(--text2); line-height: 1.4; }
+  .bp2-context-text strong { color: var(--text); font-weight: 600; }
+  .bp2-play-label {
+    font-size: 0.67em; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--text2); font-weight: 600; margin-bottom: 6px;
+  }
+  .bp2-plays-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; align-items: flex-start; }
+  .bp2-play-card { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
+  .bp2-play-img {
+    width: 52px; height: 73px; border-radius: 4px; object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.1); display: block;
+  }
+  .bp2-play-cost {
+    position: absolute; top: -6px; left: -6px; width: 18px; height: 18px;
+    border-radius: 50%; background: var(--bg); border: 1.5px solid var(--border);
+    font-size: 0.6em; font-weight: 800; display: flex; align-items: center;
+    justify-content: center; color: var(--gold); z-index: 1;
+  }
+  .bp2-play-name {
+    font-size: 0.62em; color: var(--text2); text-align: center;
+    max-width: 56px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bp2-effects-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bp2-effect-chip {
+    display: flex; align-items: center; gap: 5px; padding: 5px 9px;
+    border-radius: 20px; font-size: 0.72em; font-weight: 600; line-height: 1; border: 1px solid;
+  }
+  .bp2-effect-chip.kill {
+    border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.1); color: var(--red);
+  }
+  .bp2-effect-chip.lore {
+    border-color: rgba(63,185,80,0.3); background: rgba(63,185,80,0.1); color: var(--green);
+  }
+  .bp2-effect-chip.ability {
+    border-color: rgba(123,63,160,0.3); background: rgba(123,63,160,0.1); color: #b58fd8;
+  }
+  .bp2-effect-chip.bounce {
+    border-color: rgba(36,113,163,0.3); background: rgba(36,113,163,0.1); color: #6ab4e8;
+  }
+  .bp2-killed-name {
+    text-decoration: line-through; opacity: 0.8; font-size: 0.9em;
+    color: var(--text2); font-style: italic; display: block; margin-top: 2px;
+  }
+  @media (max-width: 600px) {
+    .bp2-headline { font-size: 0.8em; }
+    .bp2-play-img { width: 44px; height: 62px; }
+    .bp2-card-thumb { width: 30px; height: 42px; }
+  }
+  @media (max-width: 768px) {
+    .bp-turn-step { min-width: 48px; }
+    .bp-turn-step img { width: 32px !important; height: 45px !important; }
+    .bp-card.open .bp-body { max-height: 800px; }
   }
 
   /* legacy — kept for safety, no longer emitted */
@@ -2957,33 +3594,24 @@
   <!-- Populated by JS -->
 </div>
 
-<!-- FOOTER -->
-<div class="footer">
-  <h4>Data Sources</h4>
-  <p>Aggregated data from <strong>duels.ink</strong> (weekly community stats) and matches collected automatically across SET11, PRO and TOP categories.</p>
-  <p>Reference "standard" decklists from <strong>inkdecks.com</strong> (official tournaments).</p>
-
-  <h4>Scope Definitions</h4>
-  <p><strong>SET11 High ELO</strong> — All Set 11 matches with average MMR &ge; 1300. ~4000-5000 matches/day, representative of the competitive ladder meta.</p>
-  <p><strong>TOP</strong> — Top player matches at high MMR (&ge;1600). ~500 match sample, indicative of the optimal ladder meta.</p>
-  <p><strong>PRO</strong> — Recognized pro players (27 monitored). Small sample (~70 matches) but representative of top competitive choices.</p>
-  <p><strong>Community</strong> — Weekly aggregated stats from duels.ink, ~60,000+ matches. Represents the entire online meta, including casual players.</p>
-
-  <h4>Abbreviations</h4>
-  <p><strong>WR</strong> = Win Rate | <strong>OTP</strong> = On The Play (first player) | <strong>OTD</strong> = On The Draw (second player) | <strong>MMR</strong> = Matchmaking Rating</p>
-  <p><strong>Ink</strong>: Ab=Amber, Amy=Amethyst, Em=Emerald, R=Ruby, Sa=Sapphire, St=Steel. E.g.: AmSa = Amethyst/Sapphire, AbSt = Amber/Steel, EmSa = Emerald/Sapphire.</p>
-
-  <div class="privacy">
-    <strong>Privacy</strong> — Player names come from public profiles on online gaming platforms. No personal data is collected or stored beyond what is publicly available. Data is aggregated for statistical purposes for the Lorcana community.
-  </div>
-</div>
+<!-- FOOTER (hidden — content moved to info popup) -->
+<div class="footer" style="display:none"></div>
 
 <!-- INFO FAB -->
 <button class="info-fab" onclick="event.stopPropagation();const p=document.getElementById('info-popup');p.classList.toggle('open');if(p.classList.contains('open')){const h=e=>{if(!p.contains(e.target)&&e.target!==this){p.classList.remove('open');document.removeEventListener('click',h)}};setTimeout(()=>document.addEventListener('click',h),0)}" aria-label="Info">i</button>
-<div class="info-popup" id="info-popup">
-  <strong>Privacy</strong> — Player names come from public profiles on online gaming platforms. No personal data is collected or stored beyond what is publicly available. Data is aggregated for statistical purposes for the Lorcana community.
-  <br><br>
-  <strong>Data</strong> — Aggregated from duels.ink and matches collected across SET11, PRO and TOP categories. Reference decklists from inkdecks.com.
+<div class="info-popup" id="info-popup" style="max-height:70vh;overflow-y:auto">
+  <strong style="color:var(--gold)">Data Sources</strong><br>
+  Aggregated from <strong>duels.ink</strong> (community stats) and matches collected across SET11, PRO and TOP categories. Reference decklists from <strong>inkdecks.com</strong>.<br><br>
+  <strong style="color:var(--gold)">Scope</strong><br>
+  <strong>SET11 High ELO</strong> — MMR ≥ 1300, ~4-5K matches/day.<br>
+  <strong>TOP</strong> — Top 70 players, MMR ≥ 1600, ~500 matches.<br>
+  <strong>PRO</strong> — Top 30 players, ~70 matches.<br>
+  <strong>Community</strong> — duels.ink weekly, ~60K+ matches.<br><br>
+  <strong style="color:var(--gold)">Abbreviations</strong><br>
+  <strong>WR</strong> = Win Rate · <strong>OTP</strong> = On The Play · <strong>OTD</strong> = On The Draw · <strong>MMR</strong> = Matchmaking Rating<br>
+  <strong>Ink</strong>: Ab=Amber, Amy=Amethyst, Em=Emerald, R=Ruby, Sa=Sapphire, St=Steel.<br><br>
+  <strong style="color:var(--gold)">Privacy</strong><br>
+  Player names from public profiles. No personal data collected. Aggregated for community statistical purposes.
 </div>
 
 <!-- PRE-MATCH CHEATSHEET OVERLAY -->
@@ -3200,27 +3828,17 @@ let labBaseMode = 'standard'; // 'standard' or 'personal'
 
 // === LOAD DATA ===
 // /*__INLINE_DATA__*/
+// === LOAD DATA (from API, no embedded blob) ===
 async function loadData() {
-  if (typeof _EMBEDDED_DATA !== 'undefined') {
-    DATA = _EMBEDDED_DATA;
-    initKPI();
-    initFormat();
-    render();
-    return;
-  }
   try {
     const resp = await fetch('/api/v1/dashboard-data');
-    if (!resp.ok) throw new Error(resp.status);
+    if (!resp.ok) throw new Error(`API error: ${resp.status}`);
     DATA = await resp.json();
   } catch(e) {
-    try {
-      const resp = await fetch('dashboard_data.json');
-      DATA = await resp.json();
-    } catch(e2) {
-      document.getElementById('main-content').innerHTML =
-        '<div class="card" style="text-align:center;padding:40px"><h2>Error loading data</h2><p>Dashboard data not available. Please try again later.</p></div>';
-      return;
-    }
+    console.error('Failed to load dashboard data:', e);
+    document.getElementById('main-content').innerHTML =
+      '<div class="card" style="text-align:center;padding:40px"><h2>Loading error</h2><p>Could not fetch dashboard data from API. Please try again later.</p></div>';
+    return;
   }
   initKPI();
   initFormat();
@@ -3257,6 +3875,21 @@ function initKPI() {
     kpis += `<div class="kpi"><div class="value">${(g.pro||0).toLocaleString()}</div><div class="label">PRO</div></div>`;
   }
   kpis += `<div class="kpi"><div class="value">${m.updated}</div><div class="label">Updated</div></div>`;
+
+  // KC Spy health badge
+  const spy = DATA.kc_spy;
+  if (spy) {
+    const s = spy.status;
+    const v = spy.validation || {};
+    const color = s === 'OK' ? 'var(--green)' : s === 'WARN' ? 'var(--yellow)' : 'var(--red)';
+    const icon = s === 'OK' ? '✓' : s === 'WARN' ? '⚠' : '✗';
+    const vAfter = spy.validation_after_fix || v;
+    const failCount = vAfter.files_fail || 0;
+    const detail = failCount > 0 ? `${failCount} fail` : `${(v.files_ok||0)+(v.files_warn||0)} files OK`;
+    const tooltip = `KC Spy ${spy.date}: canary ${s}, ${detail}`;
+    kpis += `<div class="kpi" title="${tooltip}" style="cursor:help"><div class="value" style="color:${color}">${icon}</div><div class="label">KC Health</div></div>`;
+  }
+
   document.getElementById('kpi-bar').innerHTML = kpis;
   // Hide lock icons when PRO is unlocked
   if (PRO_UNLOCKED) {
@@ -3341,6 +3974,14 @@ function setFormat(fmt) {
   syncPerimButtons();
   initKPI();
   render();
+}
+
+// Profile format toggle helpers
+function pfToggleFormat() {
+  pfSetFormat(currentFormat === 'infinity' ? 'core' : 'infinity');
+}
+function pfSetFormat(fmt) {
+  setFormat(fmt);  // reuses existing global format switch + render
 }
 
 // Build ink picker HTML (compact, for format bar)
@@ -3672,6 +4313,48 @@ function destroyCharts() {
 }
 
 // === RENDER LADDER (SET11 / PROTOP) ===
+// ── Monitor accordion helpers ──
+const _monAccRegistry = {};
+function monAccordion(id, labelHtml, summaryHtml, contentHtml, opts = {}) {
+  const { openOnMobile = false, sub = false } = opts;
+  if (opts.onOpen) _monAccRegistry[id] = opts;
+  const isOpenClass = openOnMobile ? ' is-open' : '';
+  const subClass = sub ? ' mon-acc--sub' : '';
+  const chevron = '<svg class="mon-acc__chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return `<div class="mon-acc${subClass} mon-acc--desktop-open${isOpenClass}" id="${id}">
+    <button class="mon-acc__hdr" onclick="monAccToggle('${id}')">
+      <span class="mon-acc__title">
+        <span class="mon-acc__label-text">${labelHtml}</span>
+        ${summaryHtml ? `<span class="mon-acc__summary">${summaryHtml}</span>` : ''}
+      </span>${chevron}
+    </button>
+    <div class="mon-acc__body"><div class="mon-acc__inner">${contentHtml}</div></div>
+  </div>`;
+}
+function monAccToggle(id) {
+  if (window.innerWidth >= 769) return;
+  const el = document.getElementById(id);
+  if (!el) return;
+  const isOpen = el.classList.contains('is-open');
+  if (isOpen) { el.classList.remove('is-open'); }
+  else {
+    el.classList.add('is-open');
+    const reg = _monAccRegistry[id];
+    if (reg && reg.onOpen) {
+      requestAnimationFrame(() => requestAnimationFrame(() => { reg.onOpen(id); delete _monAccRegistry[id]; }));
+    }
+  }
+}
+function monAccordionInit() {
+  Object.keys(_monAccRegistry).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) { delete _monAccRegistry[id]; return; }
+    if (el.classList.contains('is-open') && _monAccRegistry[id].onOpen) {
+      requestAnimationFrame(() => requestAnimationFrame(() => { _monAccRegistry[id].onOpen(id); delete _monAccRegistry[id]; }));
+    }
+  });
+}
+
 function renderLadder(main) {
   const pd = getPerimData();
   const decks = Object.keys(pd.wr).sort((a,b) => pd.wr[b].games - pd.wr[a].games);
@@ -3684,66 +4367,87 @@ function renderLadder(main) {
     if (inks) selectedInks = [...inks];
   }
 
-  // Build analysis HTML
-  const analysisHtml = DATA.analysis ? renderMarkdown(DATA.analysis) : '<p style="color:var(--text2)">Analysis not yet available. Run the full daily routine.</p>';
+  // Build compact meta table: deck | share | WR
+  let metaTableRows = '';
+  topDecks.forEach(d => {
+    const sh = pd.meta_share[d];
+    const w = pd.wr[d];
+    const sharePct = sh ? sh.share.toFixed(1) : '-';
+    const wrPct = w ? w.wr.toFixed(1) : '-';
+    const wrVal = w ? w.wr : 50;
+    metaTableRows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+      ${deckImg(d, 24)}
+      <span style="font-size:1em;font-weight:600;min-width:52px">${d}</span>
+      <span style="margin-left:auto;font-size:1em;font-weight:600;min-width:48px;text-align:right">${sharePct}%</span>
+      <span style="font-size:1em;font-weight:700;min-width:48px;text-align:right;color:${wrColor(wrVal)}">${wrPct}%</span>
+    </div>`;
+  });
 
   main.innerHTML = `
-    <!-- META OVERVIEW -->
+    <!-- META OVERVIEW — section title tappable, table toggles -->
     <div class="section">
-      <div class="section-title">Meta Overview</div>
-      <div class="grid-2">
-        <div class="chart-box">
-          <h3>Meta Share</h3>
-          <!-- Desktop: Chart.js doughnut -->
-          <div class="share-desktop"><canvas id="chart-share" style="max-height:280px"></canvas></div>
-          <!-- Mobile: HTML list -->
-          <div class="share-mobile" id="chart-share-list"></div>
+      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('meta-table');var c=document.getElementById('meta-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
+        Meta Overview
+        <svg id="meta-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div id="meta-table" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;padding:6px 0 8px;font-size:0.8em;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px">
+          <span style="flex:1"></span><span style="min-width:48px;text-align:right">Share</span><span style="min-width:48px;text-align:right">WR</span>
         </div>
-        <div class="chart-box"><h3>Win Rate by Deck</h3><div id="chart-wr"></div></div>
+        ${metaTableRows}
       </div>
     </div>
 
     <!-- DECK DEEP DIVE -->
     <div class="section">
-      <div class="section-title">Analisi Deck</div>
-      <div id="deck-identity"></div>
-      <div id="deck-analysis" class="card" style="margin-bottom:16px;display:none"></div>
-      <div id="deck-trend" style="margin-bottom:16px"></div>
-      <div class="grid-2" id="deck-charts">
-        <div class="chart-box"><h3>Matchup Win Rate</h3><div id="chart-matchup"></div></div>
-        <div class="chart-box"><h3>OTP vs OTD Gap</h3><div id="chart-otpotd"></div></div>
+      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('deck-body');var c=document.getElementById('deck-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
+        Analisi Deck
+        <svg id="deck-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div id="deck-body">
+        <div id="deck-identity"></div>
+        <div id="deck-analysis" class="card" style="margin-bottom:16px;display:none"></div>
+        <div id="deck-trend" style="margin-bottom:16px"></div>
+        <div class="grid-2" id="deck-charts">
+          <div class="chart-box"><h3>Matchup Win Rate</h3><div id="chart-matchup"></div></div>
+          <div class="chart-box"><h3>OTP vs OTD Gap</h3><div id="chart-otpotd"></div></div>
+        </div>
       </div>
     </div>
 
-    <!-- TOP PLAYERS + TECH -->
+    <!-- TOP PLAYERS -->
     <div class="section">
-      <div class="section-title">Top Players — <span id="players-deck-label"></span></div>
-      <div id="deck-compare-strip"></div>
-      <div id="players-list"></div>
+      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('players-body');var c=document.getElementById('players-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
+        Top Players — <span id="players-deck-label"></span>
+        <svg id="players-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div id="players-body">
+        <div id="deck-compare-strip"></div>
+        <div id="players-list"></div>
+      </div>
     </div>
 
     <!-- TECH TORNADO CHART -->
     <div class="section">
-      <div class="section-title">Tech Choices — Cosa Cambia dal Meta Standard</div>
-      <div class="chart-box" id="tech-tornado-box">
-        <h3 id="tech-tornado-title">Adoption %: cards cut (←) vs added (→)</h3>
-        <canvas id="chart-tech-tornado"></canvas>
+      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('tech-body');var c=document.getElementById('tech-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
+        Tech Choices
+        <svg id="tech-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
-      <div style="font-size:0.75em;color:var(--text2);margin-top:6px;padding:0 4px">
-        Bar = % of qualified players making this choice | Color = avg WR (green &ge;55%, red &le;48%) | Hover for details
+      <div id="tech-body">
+        <div class="chart-box" id="tech-tornado-box">
+          <h3 id="tech-tornado-title">Adoption %: cards cut (←) vs added (→)</h3>
+          <canvas id="chart-tech-tornado"></canvas>
+        </div>
+        <div style="font-size:0.75em;color:var(--text2);margin-top:6px;padding:0 4px">
+          Bar = % of qualified players | Color = avg WR (green &ge;55%, red &le;48%) | Hover for details
+        </div>
       </div>
     </div>
-
-    <!-- Analisi LLM now inside deck dive -->
   `;
 
-  // Render charts
-  renderShareChart(pd, topDecks);
-  renderWRChart(pd, topDecks);
+  // Render charts (share/WR charts removed — replaced by compact table)
   renderDeckDive(pd);
   renderTechTornado();
-
-  // Ink picker handles deck selection via toggleInk()
 }
 
 function renderShareChart(pd, decks) {
@@ -6234,28 +6938,24 @@ var _mullRevealed = false; // whether pro's mull is shown
 // Fuzzy card image lookup: try exact, then normalize punctuation
 function cardImgUrlFuzzy(cardName) {
   if (!cardName) return '';
-  let ci = (DATA.card_images || {})[cardName];
-  if (ci) { const [s,n] = ci.split('/'); return `https://cards.duels.ink/lorcana/en/thumbnail/${s}-${n.replace(/^0+/,'')}.webp`; }
-  const norm = cardName.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
   const imgs = DATA.card_images || {};
   const mkUrl = (v) => { const [s,n] = v.split('/'); return `https://cards.duels.ink/lorcana/en/thumbnail/${s}-${n.replace(/^0+/,'')}.webp`; };
 
-  // 1. Normalized exact match
+  // 1. Exact match
+  let ci = imgs[cardName];
+  if (ci) return mkUrl(ci);
+
+  // 2. Normalized exact match (smart quotes → standard)
+  const norm = cardName.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
   for (const [k, v] of Object.entries(imgs)) {
     const kn = k.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
     if (kn === norm) return mkUrl(v);
   }
-  // 2. Prefix match: "Bobby Zimuruski" matches "Bobby Zimuruski - Spray Cheese Kid"
-  for (const [k, v] of Object.entries(imgs)) {
-    if (k.startsWith(cardName + ' - ') || k.startsWith(norm + ' - ')) return mkUrl(v);
-  }
-  // 3. Close match: same first 8 chars, small diff
-  for (const [k, v] of Object.entries(imgs)) {
-    if (k.substring(0,8) === cardName.substring(0,8) && Math.abs(k.length - cardName.length) <= 3) {
-      let diff = 0;
-      for (let i = 0; i < Math.min(k.length, cardName.length); i++) { if (k[i] !== cardName[i]) diff++; }
-      if (diff <= 2) return mkUrl(v);
-    }
+
+  // 3. rvCardsDB fallback (exact name match)
+  if (rvCardsDB) {
+    const url = rvCardImgByName(cardName);
+    if (url) return url;
   }
   return '';
 }
@@ -6478,7 +7178,6 @@ function renderCoachV2Tab(main) {
   // 2. Build unified threat list from killer_curves + threats_llm
   // Group curves by name similarity to threats
   const threatBriefs = [];
-
   // Start with killer curves as primary threats (they have sequences)
   kc.forEach((curve, i) => {
     // Find matching LLM threat by name overlap
@@ -7598,9 +8297,14 @@ function evSubmitEvent(e) {
 
 // === PROFILE TAB ===
 let pfDrawerOpen = false;
-let pfActiveDeck = 'EmSa'; // default Emerald-Sapphire
-let pfInkPickerOpen = false; // inline ink picker state
-let pfInkSel = []; // inks selected in profile ink picker
+// Default deck: always EmSa on load
+let pfActiveDeck = 'EmSa';
+let pfInkPickerOpen = false;
+let pfInkSel = DECK_INKS[pfActiveDeck] ? [...DECK_INKS[pfActiveDeck]] : [];
+// Ensure cross-tab sync on init
+selectedDeck = pfActiveDeck;
+coachDeck = pfActiveDeck;
+if (DECK_INKS[pfActiveDeck]) selectedInks = [...DECK_INKS[pfActiveDeck]];
 const DEMO_PLAYER = { nick: 'CLOUD', country: 'IT', decks: ['ESt','AmySt','AbSt'] };
 
 function renderProfileTab(main) {
@@ -7632,30 +8336,37 @@ function renderProfileTab(main) {
 
   // ── HEADER ──
   const gearSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+  const isDemo = localStorage.getItem('pf_demo') === '1';
+  const hasNudge = !saved.duelsNick || isDemo;
   const headerHtml = `<div class="pf-header">
     <div class="pf-avatar">${initials}</div>
     <div class="pf-identity">
       <div class="pf-nick">${nick}</div>
       <div class="pf-subtitle"><span class="plan-badge ${planCls}">${planLabel}</span>
         ${saved.country ? '<span>' + saved.country + '</span>' : ''}
-        <span style="color:var(--text2)">${currentFormat === 'infinity' ? 'Infinity' : 'Core'}</span>
       </div>
     </div>
+    <div class="pf-format-toggle">
+      <span class="${currentFormat !== 'infinity' ? 'active' : ''}" onclick="pfSetFormat('core')">Core</span>
+      <div class="pf-format-switch ${currentFormat === 'infinity' ? 'infinity' : ''}" onclick="pfToggleFormat()"></div>
+      <span class="${currentFormat === 'infinity' ? 'active' : ''}" onclick="pfSetFormat('infinity')">Infinity</span>
+    </div>
+    ${hasNudge ? '<button class="pf-info-btn" onclick="var n=document.getElementById(\'pf-nudge-tip\');if(n)n.classList.toggle(\'open\')" title="Setup profile">i</button>' : ''}
     <button class="pf-gear-btn" onclick="pfOpenDrawer()" title="Settings">${gearSvg}</button>
   </div>`;
 
-  // ── ONBOARDING NUDGE (if no nickname) ──
-  const isDemo = localStorage.getItem('pf_demo') === '1';
+  // ── ONBOARDING — collapsed into info expandable ──
   let nudgeHtml = '';
-  if (!saved.duelsNick) {
-    nudgeHtml = `<div class="pf-nudge" style="cursor:default">
-      <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2" style="width:20px;height:20px;flex-shrink:0"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span style="flex:1"><strong>Set up your profile</strong> — <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">link your nickname</a> or <a onclick="pfLoadDemo()" style="color:var(--gold);cursor:pointer;text-decoration:underline">try with demo player</a></span>
-    </div>`;
-  } else if (isDemo) {
-    nudgeHtml = `<div class="pf-nudge" style="cursor:default;border-color:var(--text2)">
-      <span style="font-size:0.82em;color:var(--text2)">Demo mode &mdash; viewing <strong>${saved.duelsNick}</strong>'s stats. <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Set your own nickname</a> or <a onclick="pfClearDemo()" style="color:var(--text2);cursor:pointer;text-decoration:underline">reset</a></span>
-    </div>`;
+  {
+    let nudgeInner = '';
+    if (!saved.duelsNick) {
+      nudgeInner = `<a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see personal stats, or <a onclick="pfLoadDemo()" style="color:var(--gold);cursor:pointer;text-decoration:underline">try demo player</a>.`;
+    } else if (isDemo) {
+      nudgeInner = `Demo mode — viewing <strong>${saved.duelsNick}</strong>. <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Set your own nickname</a> · <a onclick="pfClearDemo()" style="color:var(--text2);cursor:pointer;text-decoration:underline">reset</a>`;
+    }
+    if (nudgeInner) {
+      nudgeHtml = `<div class="pf-info-tip" id="pf-nudge-tip" style="margin:0 0 8px">${nudgeInner}</div>`;
+    }
   }
 
   const myNick = saved.duelsNick;
@@ -7672,80 +8383,74 @@ function renderProfileTab(main) {
       onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
   </div>`;
 
-  let studyHtml = `<div class="pf-kpi-card">
-    <div class="pf-kpi-title" style="flex-wrap:wrap;gap:8px">
-      <span>Deck Analysis</span>
-      ${deckModeHtml}
-    </div>`;
-
-  // === MODE-DEPENDENT CONTENT ===
+  // ── DECK SELECTOR INNER (used inside hero card) ──
+  let deckSelectorInner = '';
   if (myDeckMode === 'standard' || !hasDeck) {
-    // STANDARD MODE: ink picker to choose 2 colors → resolves to a standard deck
-    studyHtml += '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">';
+    // STANDARD MODE: ink picker
+    deckSelectorInner += '<div class="pf-hero-ink-row">';
     INK_LIST.forEach(ink => {
       const isSel = pfInkSel.includes(ink.id);
-      studyHtml += `<div class="ink-icon-wrap${isSel ? ' selected' : ''}" onclick="pfToggleInk('${ink.id}')" title="${ink.label}" style="width:28px;height:28px;cursor:pointer">${INK_SVGS[ink.id]}</div>`;
+      deckSelectorInner += `<div class="ink-icon-wrap${isSel ? ' selected' : ''}" onclick="pfToggleInk('${ink.id}')" title="${ink.label}" style="width:28px;height:28px;cursor:pointer">${INK_SVGS[ink.id]}</div>`;
     });
     if (pfInkSel.length === 2) {
       const key = [...pfInkSel].sort().join('+');
       const resolved = INK_PAIR_TO_DECK[key];
       if (resolved) {
-        studyHtml += `<span style="display:inline-flex;align-items:center;gap:6px;margin-left:4px">${deckImg(resolved, 32)}
-          <span style="font-size:0.84em;font-weight:600;color:var(--text1)">${DECK_NAMES[resolved] || resolved}</span></span>`;
         const isPinned = pins.includes(resolved);
         if (!isPinned && pins.length < 3) {
-          studyHtml += `<button class="pf-save-btn" style="padding:3px 10px;font-size:0.72em" onclick="pfPinAndSelect('${resolved}')">Pin</button>`;
+          deckSelectorInner += `<button class="pf-save-btn" style="padding:3px 10px;font-size:0.72em;margin-left:4px" onclick="pfPinAndSelect('${resolved}')">Pin</button>`;
         }
       }
     } else if (pfInkSel.length === 1) {
-      studyHtml += `<span style="font-size:0.78em;color:var(--text2);margin-left:4px">pick one more ink</span>`;
+      deckSelectorInner += `<span style="font-size:0.72em;color:var(--text2);margin-left:4px">pick one more</span>`;
     } else {
-      studyHtml += `<span style="font-size:0.78em;color:var(--text2);margin-left:4px">pick 2 inks</span>`;
+      deckSelectorInner += `<span style="font-size:0.72em;color:var(--text2);margin-left:4px">pick 2 inks</span>`;
     }
-    studyHtml += '</div>';
+    deckSelectorInner += '</div>';
   } else {
-    // MY DECK MODE: show active deck + dropdown to switch between saved decks
+    // MY DECK MODE
     const deckName = localStorage.getItem('lorcana_deck_name') || 'Unnamed';
     const deckCode = localStorage.getItem('lorcana_deck_code') || selectedDeck || '?';
     const cardCount = myDeckCards ? Object.values(myDeckCards).reduce((s,v)=>s+v,0) : 0;
-    studyHtml += `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px">
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;background:rgba(212,160,58,0.12);border:1px solid var(--gold);cursor:pointer" onclick="showDeckHistory()">
-        ${deckCode !== '?' ? deckImg(deckCode, 28) : ''}
+    deckSelectorInner += `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;background:rgba(212,160,58,0.12);border:1px solid var(--gold);cursor:pointer" onclick="showDeckHistory()">
+        ${deckCode !== '?' ? deckImg(deckCode, 24) : ''}
         <div style="min-width:0">
-          <div style="font-size:0.88em;font-weight:600;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${deckName}</div>
-          <div style="font-size:0.7em;color:var(--text2)">${cardCount} cards</div>
+          <div style="font-size:0.82em;font-weight:600;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${deckName}</div>
+          <div style="font-size:0.65em;color:var(--text2)">${cardCount} cards</div>
         </div>
-        <span style="font-size:0.7em;color:var(--text2)">&#9660;</span>
+        <span style="font-size:0.65em;color:var(--text2)">&#9660;</span>
       </div>
-      <span style="cursor:pointer;font-size:0.88em;color:var(--gold)" onclick="showDeckModal()" title="Edit deck list">&#9998; Edit</span>
-      <span style="cursor:pointer;color:var(--text2);font-size:0.82em" onclick="clearMyDeckAndRender()" title="Remove deck">&times; Remove</span>
-      <button class="pf-save-btn" style="padding:3px 10px;font-size:0.75em;background:var(--bg3);color:var(--text2);border:1px solid var(--border)" onclick="localStorage.removeItem('lorcana_deck_id');myDeckCards=null;showDeckModal()">+ New</button>
+      <span style="cursor:pointer;font-size:0.82em;color:var(--gold)" onclick="showDeckModal()">&#9998; Edit</span>
+      <span style="cursor:pointer;color:var(--text2);font-size:0.78em" onclick="clearMyDeckAndRender()">&times;</span>
     </div>`;
   }
 
-  // Pinned deck shortcuts (visible in both modes)
+  // Pinned shortcuts
+  let pinsInner = '';
   if (pins.length) {
-    studyHtml += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">';
-    studyHtml += '<span style="font-size:0.72em;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px">Pinned</span>';
+    pinsInner = '<div class="pf-hero-pins"><span class="pf-hero-pins-label">Pinned</span>';
     pins.forEach(code => {
       const isActive = activeDk === code;
-      studyHtml += `<button class="pf-deck-pill${isActive ? ' active' : ''}" onclick="pfSelectDeck('${code}')">
-        ${deckImg(code,24)}
+      pinsInner += `<button class="pf-deck-pill${isActive ? ' active' : ''}" onclick="pfSelectDeck('${code}')">
+        ${deckImg(code,22)}
         <span class="pf-deck-pill-x" onclick="event.stopPropagation();pfRemoveDeck('${code}')" title="Remove">&times;</span>
       </button>`;
     });
-    studyHtml += '</div>';
+    pinsInner += '</div>';
   }
-  studyHtml += '</div>';
 
-  // ── DECK OVERVIEW (KPI for selected deck in meta) ──
-  let overviewHtml = '';
+  // Legacy studyHtml — keep for compatibility, no longer emitted in assembly
+  const studyHtml = '';
+
+  // ── DECK OVERVIEW (KPI for selected deck in meta) — embedded into hero card ──
+  let heroKpiHtml = '';   // KPI strip + mu strip
+  let heroIdentityHtml = ''; // deck name / identity header
   if (activeDk) {
     const perfPeriod = DATA.meta && DATA.meta.period ? DATA.meta.period : '';
     const wr = (pd.wr || {})[activeDk];
     const ms = (pd.meta_share || {})[activeDk];
     const matrix = (pd.matrix || {})[activeDk];
-    // Count unique players for this deck across perimeters
     const searchPerims = currentFormat === 'infinity'
       ? ['infinity','infinity_top','infinity_pro']
       : ['set11','top','pro','friends_core'];
@@ -7755,35 +8460,37 @@ function renderProfileTab(main) {
       tp.filter(p => p.deck === activeDk).forEach(p => playerSet.add(p.name.toLowerCase()));
     });
     const playerCount = playerSet.size;
+    const fullName = DECK_NAMES[activeDk] || activeDk;
+
+    heroIdentityHtml = `<div class="pf-hero-deck-identity">
+      ${deckImg(activeDk, 32)}
+      <div style="min-width:0">
+        <div class="pf-hero-deck-name">${fullName}</div>
+        <div class="pf-hero-deck-code">${activeDk}${perfPeriod ? ' &middot; ' + perfPeriod : ''}</div>
+      </div>
+    </div>`;
 
     if (wr) {
       const wrVal = parseFloat(wr.wr.toFixed(1));
       const shareVal = ms ? parseFloat(ms.share.toFixed(1)) : 0;
-      const fullName = DECK_NAMES[activeDk] || activeDk;
-      overviewHtml = `<div class="pf-kpi-card">
-        <div class="pf-kpi-title" style="flex-wrap:wrap;gap:6px">
-          <span style="display:inline-flex;align-items:center;gap:6px">${deckImg(activeDk, 28)} <span style="font-weight:700;font-size:1.05em;letter-spacing:0.3px">${activeDk}</span></span>
-          ${perfPeriod ? `<span style="font-size:0.7em;color:var(--text2);font-weight:400">${perfPeriod}</span>` : ''}
+      heroKpiHtml = `<div class="pf-hero-kpi-strip">
+        <div class="pf-hero-kpi">
+          <div class="pf-hero-kpi-val" style="color:${wrColor(wrVal)}">${wrVal}%</div>
+          <div class="pf-hero-kpi-lbl">Win Rate</div>
         </div>
-        <div class="pf-overview-kpi-grid">
-          <div class="pf-overview-kpi">
-            <div class="pf-overview-kpi-val" style="color:${wrColor(wrVal)}">${wrVal}%</div>
-            <div class="pf-overview-kpi-lbl">Win Rate</div>
-          </div>
-          <div class="pf-overview-kpi">
-            <div class="pf-overview-kpi-val" style="color:var(--text)">${shareVal}%</div>
-            <div class="pf-overview-kpi-lbl">Meta Share</div>
-          </div>
-          <div class="pf-overview-kpi">
-            <div class="pf-overview-kpi-val" style="color:var(--text)">${wr.games.toLocaleString()}</div>
-            <div class="pf-overview-kpi-lbl">Games</div>
-          </div>
-          <div class="pf-overview-kpi">
-            <div class="pf-overview-kpi-val" style="color:var(--text)">${playerCount}</div>
-            <div class="pf-overview-kpi-lbl">Players</div>
-          </div>
-        </div>`;
-      // Best/worst matchup strip
+        <div class="pf-hero-kpi">
+          <div class="pf-hero-kpi-val">${shareVal}%</div>
+          <div class="pf-hero-kpi-lbl">Meta Share</div>
+        </div>
+        <div class="pf-hero-kpi">
+          <div class="pf-hero-kpi-val">${wr.games.toLocaleString()}</div>
+          <div class="pf-hero-kpi-lbl">Games</div>
+        </div>
+        <div class="pf-hero-kpi">
+          <div class="pf-hero-kpi-val">${playerCount}</div>
+          <div class="pf-hero-kpi-lbl">Players</div>
+        </div>
+      </div>`;
       if (matrix) {
         const mus = Object.entries(matrix)
           .filter(([_,v]) => v.t >= 5)
@@ -7792,100 +8499,312 @@ function renderProfileTab(main) {
         if (mus.length >= 2) {
           const best2 = mus.slice(0, 2);
           const worst2 = mus.slice(-2).reverse();
-          overviewHtml += `<div class="pf-overview-mu-strip">
-            <span style="color:var(--green)">Best: ${best2.map(m => `${deckImg(m.opp,16)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
-            <span style="color:var(--red)">Worst: ${worst2.map(m => `${deckImg(m.opp,16)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
+          heroKpiHtml += `<div class="pf-hero-mu-strip">
+            <span style="color:var(--green)">Best: ${best2.map(m => `${deckImg(m.opp,14)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
+            <span style="color:var(--red)">Worst: ${worst2.map(m => `${deckImg(m.opp,14)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
           </div>`;
         }
       }
-      overviewHtml += '</div>';
     }
-  }
-  if (!overviewHtml) {
-    overviewHtml = `<div class="pf-kpi-card"><div style="color:var(--text2);font-size:0.84em;padding:8px 0">Select a deck above to see its meta overview.</div></div>`;
+  } else {
+    heroIdentityHtml = `<div class="pf-hero-deck-identity" style="border-bottom:none;margin-bottom:0;padding-bottom:0">
+      <div style="color:var(--text2);font-size:0.82em">Select 2 inks to analyze a deck</div>
+    </div>`;
   }
 
-  // ── TECH CHOICES (IN/OUT cards vs standard decklist, cascade PRO→TOP→Community) ──
+  // Legacy overviewHtml — no longer emitted
+  const overviewHtml = '';
+
+  // ── TECH CARDS (IN only, merged across PRO→TOP→Community, each card labeled) ──
   let techHtml = '';
   if (activeDk) {
-    // Cascade: PRO → TOP → Community — pick first with data
-    const techCascade = currentFormat === 'infinity'
-      ? [{ key: 'infinity_pro', label: 'PRO' }, { key: 'infinity_top', label: 'TOP' }, { key: 'infinity', label: 'Community' }]
-      : [{ key: 'pro', label: 'PRO' }, { key: 'top', label: 'TOP' }, { key: 'set11', label: 'Community' }];
-    let deckTech = null, techSource = '', techCount = 0;
-    for (const opt of techCascade) {
-      const t = ((DATA.tech_tornado || {})[opt.key] || {})[activeDk];
-      if (t && t.items && t.items.length) {
-        deckTech = t; techSource = opt.label;
-        techCount = t.total_players || 0;
-        break;
-      }
+    // Merge IN cards from all perimeters, label each with its highest-priority source
+    const techLevels = currentFormat === 'infinity'
+      ? [{ key: 'infinity_pro', label: 'PRO', rank: 0 }, { key: 'infinity_top', label: 'TOP', rank: 1 }, { key: 'infinity', label: 'Community', rank: 2 }]
+      : [{ key: 'pro', label: 'PRO', rank: 0 }, { key: 'top', label: 'TOP', rank: 1 }, { key: 'set11', label: 'Community', rank: 2 }];
+    const merged = {}; // card → {card, adoption, avg_wr, confidence, label, rank}
+    for (const lvl of techLevels) {
+      const t = ((DATA.tech_tornado || {})[lvl.key] || {})[activeDk];
+      if (!t || !t.items) continue;
+      t.items.filter(i => i.type === 'in').forEach(item => {
+        if (!merged[item.card]) {
+          merged[item.card] = { ...item, label: lvl.label, rank: lvl.rank };
+        }
+        // Already seen at higher priority — skip
+      });
     }
+    // Sort: PRO first, then TOP, then Community. Within same rank, by adoption desc
+    const techCards = Object.values(merged)
+      .sort((a, b) => a.rank - b.rank || b.adoption - a.adoption)
+      .slice(0, 5);
 
-    // SVG icons for group labels
-    const svgPlus  = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
-    const svgMinus = `<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+    const labelColors = { PRO: 'var(--gold)', TOP: 'var(--sapphire)', Community: 'var(--text2)' };
 
-    // Build a single card tile
-    const renderTechCard = (item, isIn) => {
+    // Build a single card tile with source label
+    const renderTechCard = (item) => {
       const imgUrl  = rvCardsDB ? rvCardImgByName(item.card) : '';
-      const cls      = isIn ? 'tech-in' : 'tech-out';
       const zoomAttr = imgUrl ? ` data-zoom="${imgUrl}"` : '';
       const imgInner = imgUrl
         ? `<img src="${imgUrl}" alt="${item.card}" loading="lazy">`
         : `<div class="pf-tech-img-placeholder">${item.card}</div>`;
       const adoptionPill = `<span class="pf-tech-adoption">${item.adoption}%</span>`;
-      const wrPill = isIn
-        ? `<span class="pf-tech-wr" style="color:${wrColor(item.avg_wr)}">${item.avg_wr}% WR</span>`
-        : '';
-      // Confidence dots: 1=weak, 2=moderate, 3=strong
+      const wrPill = `<span class="pf-tech-wr" style="color:${wrColor(item.avg_wr)}">${item.avg_wr}% WR</span>`;
       const conf = item.confidence || 1;
       const dots = '<span class="pf-tech-conf" title="Confidence: ' + ['','Low','Medium','High'][conf] + '">'
         + '●'.repeat(conf) + '<span style="opacity:0.2">' + '●'.repeat(3-conf) + '</span></span>';
-      return `<div class="pf-tech-card ${cls}" onclick="pfZoomCard(this)"${zoomAttr}>
+      const lblColor = labelColors[item.label] || 'var(--text2)';
+      const srcLabel = `<span class="pf-tech-source-label" style="color:${lblColor}">${item.label}</span>`;
+      return `<div class="pf-tech-card tech-in" onclick="pfZoomCard(this)"${zoomAttr}>
         <div class="pf-tech-img-wrap">${imgInner}${adoptionPill}</div>
         <div class="pf-tech-name">${item.card}</div>
         ${wrPill}
+        ${srcLabel}
         ${dots}
       </div>`;
     };
 
-    const sourceBadge = techCount
-      ? `<span class="pf-tech-source-badge">${techCount} ${techSource} players</span>`
-      : `<span class="pf-tech-source-badge">${techSource}</span>`;
-
-    techHtml = `<div class="pf-kpi-card">
-      <div class="pf-kpi-title" style="margin-bottom:10px">
-        <span>Tech Choices <span class="pf-tech-subtitle">· vs Standard Decklist</span></span>
-        ${deckTech ? sourceBadge : ''}
-      </div>`;
-
-    if (deckTech) {
-      const ins  = deckTech.items.filter(i => i.type === 'in').sort((a,b) => b.adoption - a.adoption).slice(0, 5);
-      const outs = deckTech.items.filter(i => i.type === 'out').sort((a,b) => b.adoption - a.adoption).slice(0, 5);
-
-      if (ins.length || outs.length) {
-        // Single unified row: [+ Adding] card card card | [- Cutting] card card card
-        techHtml += `<div class="pf-tech-flow">`;
-        if (ins.length) {
-          techHtml += `<div class="pf-tech-group-label is-in">${svgPlus} Adding</div>`;
-          ins.forEach(item => { techHtml += renderTechCard(item, true); });
-        }
-        if (ins.length && outs.length) {
-          techHtml += `<div class="pf-tech-vsep"></div>`;
-        }
-        if (outs.length) {
-          techHtml += `<div class="pf-tech-group-label is-out">${svgMinus} Cutting</div>`;
-          outs.forEach(item => { techHtml += renderTechCard(item, false); });
-        }
-        techHtml += `</div>`;
-      } else {
-        techHtml += `<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No changes detected vs standard list.</div>`;
-      }
+    // techHtml is now just the inner content — wrapped in list panel card in assembly
+    if (techCards.length) {
+      techHtml = `<div class="pf-tech-flow">`;
+      techCards.forEach(item => { techHtml += renderTechCard(item); });
+      techHtml += `</div>`;
     } else {
-      techHtml += `<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No tech data available for ${DECK_NAMES[activeDk] || activeDk}.</div>`;
+      techHtml = `<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No tech cards detected — players are running the standard list.</div>`;
     }
-    techHtml += '</div>';
+  }
+
+  // ── META RADAR (clean: ink dots + deck + WR + vs you) ──
+  let radarHtml = '';
+  if (activeDk) {
+    const pfPerim = currentFormat === 'infinity' ? 'infinity' : 'set11';
+    const radarPd = DATA.perimeters[pfPerim] || {};
+    const radarWr = radarPd.wr || {};
+    const radarMs = radarPd.meta_share || {};
+    const radarMatrix = (radarPd.matrix || {})[activeDk] || {};
+    const radarAlerts = [];
+
+    // Type A — Dark Horse: low meta, high WR
+    Object.entries(radarWr).forEach(([dk, v]) => {
+      if (dk === activeDk) return;
+      const ms = (radarMs[dk] || {}).share || 0;
+      const wr = v.wr || 0;
+      if (ms <= 7 && wr >= 52 && v.games >= 30) {
+        // WR vs us from matrix
+        const muVsUs = radarMatrix[dk];
+        const vsUsWr = muVsUs && muVsUs.t >= 5 ? ((1 - muVsUs.w / muVsUs.t) * 100) : null;
+        radarAlerts.push({
+          deck: dk, wr, ms, vsUsWr,
+          line2: `${ms.toFixed(0)}% meta · ${v.games} games`,
+          priority: wr + (100 - ms) + (vsUsWr && vsUsWr > 50 ? vsUsWr * 0.5 : 0)
+        });
+      }
+    });
+
+    // Type B — Kryptonite: high WR vs YOUR deck (even if meta is normal)
+    Object.entries(radarMatrix).forEach(([opp, v]) => {
+      if (!v || v.t < 10) return;
+      const oppWr = (1 - v.w / v.t) * 100;
+      if (oppWr >= 55 && !radarAlerts.find(a => a.deck === opp)) {
+        const globalWr = (radarWr[opp] || {}).wr || 50;
+        const ms = (radarMs[opp] || {}).share || 0;
+        radarAlerts.push({
+          deck: opp, wr: globalWr, ms, vsUsWr: oppWr,
+          line2: `${ms.toFixed(0)}% meta · ${globalWr.toFixed(0)}% global WR`,
+          priority: oppWr * 1.3
+        });
+      }
+    });
+
+    radarAlerts.sort((a, b) => b.priority - a.priority);
+    const topAlerts = radarAlerts.slice(0, 2);
+
+    let radarInner = '';
+    if (topAlerts.length) {
+      topAlerts.forEach(a => {
+        const inks = DECK_INKS[a.deck] || [];
+        const inkDots = inks.map(i => `<span class="pf-radar-ink" style="background:var(--${i})"></span>`).join('');
+        // Two stat columns: WR (global) + vs you
+        let statsHtml = `<div class="pf-radar-stat">
+          <div class="pf-radar-stat-val" style="color:${wrColor(a.wr)}">${a.wr.toFixed(0)}%</div>
+          <div class="pf-radar-stat-lbl">WR</div>
+        </div>`;
+        if (a.vsUsWr !== null && a.vsUsWr !== undefined) {
+          statsHtml += `<div class="pf-radar-stat">
+            <div class="pf-radar-stat-val" style="color:${a.vsUsWr >= 55 ? 'var(--red)' : wrColor(100 - a.vsUsWr)}">${a.vsUsWr.toFixed(0)}%</div>
+            <div class="pf-radar-stat-lbl">vs ${activeDk}</div>
+          </div>`;
+        }
+        radarInner += `<div class="pf-radar-row">
+          <div class="pf-radar-inks">${inkDots}</div>
+          <div class="pf-radar-info">
+            <div class="pf-radar-name">${DECK_NAMES[a.deck] || a.deck}</div>
+            <div class="pf-radar-line2">${a.line2}</div>
+          </div>
+          <div class="pf-radar-stats">${statsHtml}</div>
+        </div>`;
+      });
+    } else {
+      radarInner = `<div class="pf-radar-empty">No threats for ${activeDk} right now.</div>`;
+    }
+
+    // radarHtml is now just the inner pf-radar list — wrapped in hero-radar card in assembly
+    radarHtml = `<div class="pf-radar">${radarInner}</div>`;
+  }
+
+  // ── STANDARD / CONSENSUS LIST ──
+  let stdListHtml = '';
+  if (activeDk) {
+    const consensusData = DATA.consensus || {};
+    const refDecklists = DATA.reference_decklists || {};
+    const std = consensusData[activeDk];
+    const refDeck = refDecklists[activeDk];
+
+    // Build the tech card name set for cross-highlighting
+    const techCardNames = new Set();
+    if (techHtml) {
+      // techHtml was built with rendered cards — re-derive from merged object
+      const techLevelsRef = currentFormat === 'infinity'
+        ? [{ key: 'infinity_pro' }, { key: 'infinity_top' }, { key: 'infinity' }]
+        : [{ key: 'pro' }, { key: 'top' }, { key: 'set11' }];
+      for (const lvl of techLevelsRef) {
+        const t = ((DATA.tech_tornado || {})[lvl.key] || {})[activeDk];
+        if (!t || !t.items) continue;
+        t.items.filter(i => i.type === 'in').forEach(item => { techCardNames.add(item.card); });
+      }
+    }
+
+    if (std) {
+      let sourceLabel = '';
+      let rows = '';
+      let totalCards = 0;
+
+      if (refDeck && refDeck.cards && refDeck.cards.length) {
+        // Reference decklist from a real tournament player
+        sourceLabel = `${refDeck.player ? refDeck.player.split(' ')[0] : 'Ref'} @ ${(refDeck.event || '').substring(0, 30)}`;
+        refDeck.cards.forEach(c => {
+          totalCards += c.qty;
+          const isTech = techCardNames.has(c.name);
+          const techBadge = isTech ? `<span class="pf-std-tech-badge is-in">tech</span>` : '';
+          rows += `<div class="pf-std-row">
+            <span class="pf-std-qty">${c.qty}</span>
+            <span class="pf-std-name">${c.name}</span>
+            ${techBadge}
+          </div>`;
+        });
+      } else {
+        // Consensus average
+        sourceLabel = 'consensus avg';
+        const sorted = Object.entries(std).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+        sorted.forEach(([name, qty]) => {
+          const q = Math.round(qty);
+          totalCards += q;
+          const isTech = techCardNames.has(name);
+          const techBadge = isTech ? `<span class="pf-std-tech-badge is-in">tech</span>` : '';
+          rows += `<div class="pf-std-row">
+            <span class="pf-std-qty">${q}</span>
+            <span class="pf-std-name">${name}</span>
+            ${techBadge}
+          </div>`;
+        });
+      }
+
+      stdListHtml = `<div class="pf-std-card">
+        <div class="pf-std-title">
+          <span>Standard List</span>
+          <span class="pf-std-source">${sourceLabel}</span>
+        </div>
+        <div class="pf-std-list">${rows}</div>
+        <div class="pf-std-total">${totalCards} cards</div>
+      </div>`;
+    } else {
+      stdListHtml = `<div class="pf-std-card">
+        <div class="pf-std-title"><span>Standard List</span></div>
+        <div style="color:var(--text2);font-size:0.82em;padding:12px 0">No consensus data available for ${activeDk}.</div>
+      </div>`;
+    }
+  }
+
+  // ── BEST PLAYS v2 (real game highlights) ──
+  const BP_CAT_COLORS = { wipe: '#e85d75', lore: '#3FB950', combo: '#7B3FA0', early: '#D4A03A', tempo: '#2471A3' };
+  let tipsHtml = '';
+  if (activeDk) {
+    const bpSource = currentFormat === 'infinity' ? (DATA.best_plays_infinity || DATA.best_plays || {}) : (DATA.best_plays || {});
+    const bp = bpSource[activeDk] || [];
+    if (bp.length) {
+      const perfPeriod = DATA.meta && DATA.meta.period ? DATA.meta.period : '';
+      tipsHtml = `<div class="pf-kpi-card">
+        <div class="pf-kpi-title" style="margin-bottom:10px">
+          <span>Best Plays</span>
+          <span style="font-size:0.85em;font-weight:400;color:var(--text2)">${perfPeriod || 'Last 2 days'}</span>
+        </div><div class="bp2-list">`;
+
+      bp.forEach((m, idx) => {
+        const catColor = BP_CAT_COLORS[m.catKey] || '#D4A03A';
+        const tileId = 'bp2_' + idx;
+
+        // Card thumbnails
+        const cardsHtml = m.cards.slice(0, 3).map(c => {
+          const imgUrl = rvCardsDB ? rvCardImgByName(c.card) : '';
+          const short = c.card.split(' - ')[0];
+          return imgUrl
+            ? `<img class="bp2-card-thumb" src="${imgUrl}" alt="${short}" title="${c.card}">`
+            : `<span style="font-size:0.65em;color:var(--text2);max-width:36px;text-align:center;line-height:1.2">${short}</span>`;
+        }).join('');
+
+        // Compact effect chips
+        let effects = '';
+        if (m.kills.length) effects += `<span class="bp2-effect kills">&#9760; ${m.kills.length} kill${m.kills.length > 1 ? 's' : ''}</span>`;
+        if (m.bounced.length) effects += `<span class="bp2-effect bounce">&#8617; ${m.bounced.length}</span>`;
+        if (m.abilities.length) effects += `<span class="bp2-effect combo">&#9733; ${m.abilities.length}</span>`;
+
+        // Expanded: context
+        const ctxCards = (m.context || []).map(c => `<strong>${c.split(' - ')[0]}</strong>`).join(', ');
+        const ctxHtml = ctxCards ? `<div class="bp2-context"><span style="opacity:0.6">&#9650;</span><span class="bp2-context-text">Board: ${ctxCards}</span></div>` : '';
+
+        // Expanded: cards played (larger)
+        const playsHtml = m.cards.map((c, i) => {
+          const imgUrl = rvCardsDB ? rvCardImgByName(c.card) : '';
+          const short = c.card.split(' - ')[0];
+          const imgTag = imgUrl
+            ? `<img class="bp2-play-img" src="${imgUrl}" alt="${short}">`
+            : `<div style="width:52px;height:73px;border-radius:4px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.6em;color:var(--text2);padding:4px">${short}</div>`;
+          const plus = i < m.cards.length - 1 ? '<span style="color:var(--text2);font-size:0.85em;font-weight:700;align-self:center;margin-top:-20px;opacity:0.5">+</span>' : '';
+          return `<div class="bp2-play-card" title="${c.card}">${imgTag}<span class="bp2-play-cost">${c.cost}</span><span class="bp2-play-name">${short}</span></div>${plus}`;
+        }).join('');
+
+        // Expanded: effect chips
+        let chipsHtml = '';
+        if (m.kills.length) {
+          const killNames = m.kills.map(k => `<span class="bp2-killed-name">&#9760; ${k.name}</span>`).join('');
+          chipsHtml += `<div class="bp2-effect-chip kill"><span>&#9760;</span><div>${m.kills.length} kill${m.kills.length > 1 ? 's' : ''}${killNames}</div></div>`;
+        }
+        if (m.lore >= 3) chipsHtml += `<div class="bp2-effect-chip lore"><span>&#11089;</span> +${m.lore} lore</div>`;
+        m.abilities.forEach(ab => { chipsHtml += `<div class="bp2-effect-chip ability"><span>&#9733;</span> ${ab}</div>`; });
+        m.bounced.forEach(b => { chipsHtml += `<div class="bp2-effect-chip bounce"><span>&#8617;</span> Bounced: ${b}</div>`; });
+
+        const vsTag = m.vs ? `<span style="font-size:0.68em;color:var(--text2);margin-left:4px">vs ${m.vs}</span>` : '';
+
+        tipsHtml += `<div class="bp2-tile" id="${tileId}" style="--cat-color:${catColor}" onclick="(function(id){var t=document.getElementById(id);var w=t.classList.contains('open');document.querySelectorAll('.bp2-tile.open').forEach(function(e){e.classList.remove('open')});if(!w)t.classList.add('open')})('${tileId}')">
+          <div class="bp2-compact">
+            <div class="bp2-cat">${m.category.replace(' ', '<br>')}</div>
+            <div class="bp2-turn-chip"><div class="bp2-turn-num">T${m.turn}</div><div class="bp2-ink-label">${m.ink}&#128167;</div></div>
+            <div class="bp2-cards">${cardsHtml}</div>
+            <div class="bp2-summary">
+              <div class="bp2-headline">${m.headline}${vsTag}</div>
+              <div class="bp2-tagline">${effects}</div>
+            </div>
+            <svg class="bp2-chevron" width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 5l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="bp2-expanded"><div class="bp2-exp-inner">
+            ${ctxHtml}
+            <div class="bp2-play-label">Cards played</div>
+            <div class="bp2-plays-row">${playsHtml}</div>
+            <div style="margin-bottom:8px"><div class="bp2-play-label">Effects</div><div class="bp2-effects-list">${chipsHtml}</div></div>
+          </div></div>
+        </div>`;
+      });
+      tipsHtml += '</div></div>';
+    }
   }
 
   // ── COACH CORNER (always visible) ──
@@ -8000,19 +8919,164 @@ function renderProfileTab(main) {
     </div>
   </div>`;
 
-  // ── ASSEMBLE ──
+  // ── META DECK PANEL ──
+  let metaDeckHtml = '';
+  if (activeDk && DATA.meta_deck) {
+    const mdSrc = currentFormat === 'infinity'
+      ? (DATA.meta_deck_infinity || DATA.meta_deck || {})
+      : (DATA.meta_deck || {});
+    const md = mdSrc[activeDk];
+    if (md && md.final_deck) {
+      const cov = md.coverage || {};
+      const covPct = cov.coverage_pct || 0;
+      const covClass = covPct >= 90 ? 'high' : covPct >= 75 ? 'mid' : 'low';
+
+      // Changes chips
+      let cutsHtml = '';
+      if (md.cuts && md.cuts.length) {
+        cutsHtml = md.cuts.map(c =>
+          `<span class="pf-md-chip cut">-${c.qty} ${(c.card||'').split(' - ')[0]}</span>`
+        ).join('');
+      }
+      let addsHtml = '';
+      if (md.adds && md.adds.length) {
+        addsHtml = md.adds.map(a => {
+          const cls = a.is_tech ? 'tech' : 'add';
+          return `<span class="pf-md-chip ${cls}">+${a.qty} ${(a.card||'').split(' - ')[0]}${a.is_tech ? ' ★' : ''}</span>`;
+        }).join('');
+      }
+
+      // Card list
+      const entries = Object.entries(md.final_deck).sort((a,b) => b[1] - a[1]);
+      const listHtml = entries.map(([card, qty]) => {
+        const isTech = md.adds && md.adds.some(a => a.card === card && a.is_tech);
+        const techBadge = isTech ? '<span class="pf-std-tech-badge is-in">TECH</span>' : '';
+        return `<div class="pf-std-row">
+          <span class="pf-std-qty">${qty}</span>
+          <span class="pf-std-name">${card}</span>
+          ${techBadge}
+        </div>`;
+      }).join('');
+
+      // Mana curve
+      const mc = md.mana_curve || {};
+      const maxMC = Math.max(...Object.values(mc), 1);
+      const manaHtml = Object.entries(mc).sort((a,b) => a[0]-b[0]).map(([cost, count]) => {
+        const h = Math.max(3, Math.round(count / maxMC * 36));
+        return `<div class="pf-md-mana-bar" style="height:${h}px"><span class="pf-md-mana-label">${cost}</span></div>`;
+      }).join('');
+
+      // Uncovered curves
+      let uncovHtml = '';
+      if (cov.uncovered && cov.uncovered.length) {
+        uncovHtml = `<div style="font-size:0.7em;color:var(--text2);margin-top:8px">
+          <strong>Gaps:</strong> ${cov.uncovered.slice(0,3).map(u =>
+            `vs ${u.opp} (${u.freq_pct}%)`
+          ).join(', ')}
+        </div>`;
+      }
+
+      metaDeckHtml = `<div class="pf-meta-deck">
+        <div class="pf-md-header">
+          <span class="pf-md-title">Meta Deck</span>
+          <span class="pf-md-coverage ${covClass}">KC Coverage ${covPct}%</span>
+        </div>
+        ${cutsHtml || addsHtml ? `<div class="pf-md-changes">
+          ${cutsHtml ? `<div class="pf-md-change-group"><div class="pf-md-change-label">Cuts</div>${cutsHtml}</div>` : ''}
+          ${addsHtml ? `<div class="pf-md-change-group"><div class="pf-md-change-label">Adds</div>${addsHtml}</div>` : ''}
+        </div>` : ''}
+        <div class="pf-md-list">${listHtml}</div>
+        <div class="pf-std-total">${md.total_cards || 60}/60 cards</div>
+        <div class="pf-md-mana" style="padding-bottom:14px">${manaHtml}</div>
+        ${uncovHtml}
+        <div class="pf-md-copy">
+          <button class="pf-md-copy-btn" onclick="pfCopyMetaDeck(this)">Copy Deck</button>
+          <textarea class="pf-md-import-data" style="display:none">${(md.import_text||'').replace(/</g,'&lt;')}</textarea>
+        </div>
+      </div>`;
+    }
+  }
+
+  // ── ASSEMBLE (redesigned layout) ──
+  // Row 1: User header
+  // Row 2: Hero — Deck Selector card (left) + Meta Radar card (right)
+  // Row 3: List Panel — Standard List (left) + Tech Cards (right)
+  // Row 3b: Meta Deck
+  // Row 4: Best Plays
+  // Row 5: Coach Corner
+
+  // Build the mode toggle strip (Standard / My Deck)
+  const deckModeToggle = `<div class="lab-base-seg" style="margin:0">
+    <button class="lab-base-btn${myDeckMode==='standard' || !hasDeck ?' active':''}" style="padding:3px 9px;font-size:0.7em" onclick="myDeckMode='standard';pfInkSel=[];render()">Standard</button>
+    <button class="lab-base-btn${myDeckMode==='custom'?' active':''}" style="padding:3px 9px;font-size:0.7em"
+      onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
+  </div>`;
+
+  // Hero deck card (left panel of hero row)
+  const heroDeckCard = `<div class="pf-hero-deck">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <span class="pf-kpi-title" style="margin:0">Deck</span>
+      ${deckModeToggle}
+    </div>
+    ${heroIdentityHtml}
+    ${deckSelectorInner}
+    ${pinsInner}
+    ${heroKpiHtml}
+  </div>`;
+
+  // Hero radar card (right panel of hero row)
+  const heroRadarCard = activeDk ? `<div class="pf-hero-radar">
+    <div class="pf-hero-radar-head">
+      <span class="pf-hero-radar-title">Meta Radar</span>
+      <div class="pf-hero-radar-live-row">
+        <span class="pf-radar-live"></span>
+        <span style="font-size:0.7em;color:var(--text2)">today</span>
+      </div>
+    </div>
+    <div class="pf-hero-radar-snap">Decks to watch against <strong style="color:var(--gold)">${activeDk}</strong> today — dark horses and kryptonite.</div>
+    ${radarHtml || '<div class="pf-radar-empty">Select a deck to see threats.</div>'}
+  </div>` : `<div class="pf-hero-radar" style="align-items:center;justify-content:center;min-height:120px">
+    <div style="color:var(--text2);font-size:0.82em;text-align:center">Select a deck to<br>see meta threats</div>
+  </div>`;
+
+  // Tech card panel title (right side of list panel)
+  const techCardPanel = `<div class="pf-std-card">
+    <div class="pf-std-title" style="margin-bottom:0">
+      <span>Tech Cards</span>
+      <button class="pf-info-btn" onclick="event.stopPropagation();var t=this.nextElementSibling;if(t)t.classList.toggle('open')" title="What is this?">i</button>
+    </div>
+    <div class="pf-info-tip" style="margin-top:6px;margin-bottom:8px">Non-standard cards used by winning players (WR ≥ 52%, 15+ games). <strong>Adoption %</strong> = how many winners run it. Source: <span style="color:var(--gold)">PRO</span> &gt; <span style="color:var(--sapphire)">TOP</span> &gt; Community. Green badge on Standard List marks these cards.</div>
+    ${techHtml || '<div style="color:var(--text2);font-size:0.82em;padding:8px 0">Select a deck first.</div>'}
+  </div>`;
+
   main.innerHTML = `<div class="pf-dash">
     ${headerHtml}
     ${nudgeHtml}
-    ${studyHtml}
-    ${overviewHtml}
-    ${techHtml}
+    <div class="pf-hero-row">
+      ${heroDeckCard}
+      ${heroRadarCard}
+    </div>
+    ${stdListHtml || tipsHtml ? `<div class="pf-list-panel">
+      ${stdListHtml || '<div></div>'}
+      ${techCardPanel}
+    </div>` : ''}
+    ${metaDeckHtml}
+    ${tipsHtml}
     ${coachHtml}
   </div>
   ${drawerHtml}`;
 }
 
 // ── Card zoom: tap on mobile → full-screen overlay; hover on desktop → floating tooltip ──
+function pfCopyMetaDeck(btn) {
+  const ta = btn.parentElement.querySelector('.pf-md-import-data');
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Deck', 1500);
+  });
+}
+
 function pfGetOrCreateOverlay() {
   let ov = document.getElementById('pf-card-zoom-overlay');
   if (!ov) {
@@ -8197,6 +9261,21 @@ function pfClearDemo() {
 
 // === TEAM TRAINING TAB ===
 let ttSelectedPlayer = null; // null = overview
+let ttInboxFilter = '7d';   // today | 7d | 30d | all
+
+// Helper: severity config
+function ttSevConfig(type) {
+  if (type === 'danger') return { cls: 'critical', icon: '!', label: 'Critical', dot: 'var(--red)' };
+  if (type === 'warning') return { cls: 'warning', icon: '~', label: 'Warning', dot: 'var(--yellow)' };
+  return { cls: 'info', icon: 'i', label: 'Info', dot: '#58a6ff' };
+}
+
+// Helper: player avatar color from WR
+function ttAvatarStyle(wr) {
+  if (wr >= 55) return 'background:rgba(63,185,80,0.18);color:var(--green);border-color:rgba(63,185,80,0.4)';
+  if (wr <= 45) return 'background:rgba(248,81,73,0.18);color:var(--red);border-color:rgba(248,81,73,0.4)';
+  return 'background:rgba(210,153,34,0.18);color:var(--yellow);border-color:rgba(210,153,34,0.4)';
+}
 
 function renderTeamTab(main) {
   const team = DATA.team;
@@ -8210,9 +9289,12 @@ function renderTeamTab(main) {
   const players = team.players;
   const ov = team.overview || {};
 
-  // Sidebar
-  let sidebar = '<div class="tt-sidebar"><h3>Team</h3>';
+  // ── Sidebar: one occurrence of player list ──
+  let sidebar = '<div class="tt-sidebar">';
+  sidebar += '<div class="tt-sidebar-label">Views</div>';
   sidebar += `<button class="tt-overview-btn${ttSelectedPlayer === null ? ' active' : ''}" onclick="ttSelectedPlayer=null;renderTeamTab(document.getElementById('main-content'))">Overview</button>`;
+  sidebar += '<hr class="tt-sidebar-divider">';
+  sidebar += '<div class="tt-sidebar-label">Players</div>';
   players.forEach(p => {
     const active = ttSelectedPlayer === p.name ? ' active' : '';
     const dotColor = p.wr >= 55 ? 'var(--green)' : p.wr <= 45 ? 'var(--red)' : 'var(--yellow)';
@@ -8241,85 +9323,199 @@ function renderTeamTab(main) {
 
   // Init coaching tool
   if (typeof tcInit === 'function') tcInit('tc-container');
+  // Init swipe-to-archive (touch devices)
+  ttInitSwipe();
 }
 
 function ttRenderOverview(players, ov) {
   let html = '';
 
-  // KPI row
+  // ── KPI strip ──
   const bestP = ov.best_player;
   const worstP = ov.worst_player;
   html += '<div class="tt-kpi-row">';
   html += `<div class="tt-kpi"><div class="tt-kpi-val">${ov.player_count || 0}</div><div class="tt-kpi-lbl">Players</div></div>`;
   html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:${wrColor(ov.avg_wr||50)}">${ov.avg_wr||0}%</div><div class="tt-kpi-lbl">Avg WR</div></div>`;
   html += `<div class="tt-kpi"><div class="tt-kpi-val">${ov.total_games || 0}</div><div class="tt-kpi-lbl">Games</div></div>`;
-  if (bestP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--green)">${bestP.name}</div><div class="tt-kpi-lbl">Best ${bestP.wr}%</div></div>`;
-  if (worstP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--red)">${worstP.name}</div><div class="tt-kpi-lbl">Warning ${worstP.wr}%</div></div>`;
+  if (bestP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--green);font-size:1em">${bestP.name}</div><div class="tt-kpi-lbl">Best ${bestP.wr}%</div></div>`;
+  if (worstP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--red);font-size:1em">${worstP.name}</div><div class="tt-kpi-lbl">Needs work ${worstP.wr}%</div></div>`;
   html += '</div>';
 
-  // Alerts
-  const allAlerts = [];
+  // ── Player roster cards (one clean view, replaces redundant table) ──
+  html += '<div class="tt-roster">';
   players.forEach(p => {
-    (p.alerts || []).forEach(a => allAlerts.push({...a, player: p.name}));
-  });
-  (ov.alerts || []).forEach(a => allAlerts.push({...a, player: 'TEAM'}));
-
-  if (allAlerts.length) {
-    html += '<div class="tt-alerts">';
-    allAlerts.forEach(a => {
-      const cls = a.type === 'danger' ? 'danger' : 'warning';
-      const onclick = a.player !== 'TEAM' ? `onclick="ttSelectedPlayer='${a.player.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))"` : '';
-      html += `<div class="tt-alert ${cls}" ${onclick}>
-        <span class="tt-alert-player">${a.player}</span>
-        <span>${a.msg}</span>
-      </div>`;
-    });
-    html += '</div>';
-  }
-
-  // Comparison table
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:12px">Player Comparison</h3>';
-  html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="tt-comp-table"><thead><tr>';
-  html += '<th>Player</th><th>Deck</th><th>WR</th><th>OTP</th><th>OTD</th><th>Gap</th><th>Games</th><th>Trend</th>';
-  html += '</tr></thead><tbody>';
-  players.forEach(p => {
-    const inks = DECK_INKS[p.deck] || [];
-    const dots = inks.map(i => `<span class="ink-dot" style="background:${INK_COLORS[i]};width:8px;height:8px;display:inline-block;border-radius:50%;vertical-align:middle"></span>`).join('');
-    const gapColor = p.otp_otd_gap > 10 ? 'var(--yellow)' : 'var(--text2)';
-    // Trend from daily array
-    let trendIcon = '=';
-    let trendColor = 'var(--text2)';
+    const initials = p.name.split(/[^a-zA-Z0-9]/).filter(Boolean).map(w => w[0].toUpperCase()).join('').slice(0, 2);
+    const topAlert = (p.alerts || []).find(a => a.type === 'danger') || (p.alerts || [])[0];
+    const wr = p.wr;
+    const dotColor = wr >= 55 ? 'var(--green)' : wr <= 45 ? 'var(--red)' : 'var(--yellow)';
+    let trendIcon = ''; let trendColor = 'var(--text2)';
     if (p.daily && p.daily.length >= 2) {
       const last = p.daily[p.daily.length - 1].wr;
       const prev = p.daily[p.daily.length - 2].wr;
-      if (last > prev + 3) { trendIcon = '▲'; trendColor = 'var(--green)'; }
-      else if (last < prev - 3) { trendIcon = '▼'; trendColor = 'var(--red)'; }
+      if (last > prev + 3) { trendIcon = ' ▲'; trendColor = 'var(--green)'; }
+      else if (last < prev - 3) { trendIcon = ' ▼'; trendColor = 'var(--red)'; }
     }
-    html += `<tr onclick="ttSelectedPlayer='${p.name.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))">
-      <td class="tt-name-cell">${p.name}<span class="tt-role">${p.role||''}</span></td>
-      <td>${p.deck ? deckImg(p.deck,26) : '?'}</td>
-      <td style="color:${wrColor(p.wr)};font-weight:700">${p.wr}%</td>
-      <td style="color:${wrColor(p.otp_wr)}">${p.otp_wr}%</td>
-      <td style="color:${wrColor(p.otd_wr)}">${p.otd_wr}%</td>
-      <td style="color:${gapColor}">${p.otp_otd_gap > 0 ? '+' : ''}${p.otp_otd_gap}pp</td>
-      <td>${p.games}</td>
-      <td style="color:${trendColor};font-weight:700">${trendIcon}</td>
-    </tr>`;
+    html += `<div class="tt-roster-card" onclick="ttSelectedPlayer='${p.name.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))">
+      <div class="tt-rc-top">
+        <div class="tt-rc-avatar" style="${ttAvatarStyle(wr)}">${initials}</div>
+        <div class="tt-rc-info">
+          <div class="tt-rc-name">${p.name}</div>
+          <div class="tt-rc-role">${p.role || 'player'} &middot; ${p.deck ? p.deck : '?'}</div>
+        </div>
+        <div class="tt-rc-wr" style="color:${dotColor}">${wr}%<span style="color:${trendColor};font-size:0.7em">${trendIcon}</span></div>
+      </div>
+      <div class="tt-rc-stats">
+        <div><span>${p.games}g</span> played</div>
+        <div>OTP <span style="color:${wrColor(p.otp_wr)}">${p.otp_wr}%</span></div>
+        <div>OTD <span style="color:${wrColor(p.otd_wr)}">${p.otd_wr}%</span></div>
+      </div>
+      ${topAlert ? `<div class="tt-rc-alert-peek ${topAlert.type === 'danger' ? 'danger' : 'warning'}">
+        <span>${topAlert.type === 'danger' ? '!' : '~'}</span>
+        <span>${topAlert.msg}</span>
+      </div>` : `<div class="tt-rc-alert-peek ok"><span>&#10003;</span><span>No active alerts</span></div>`}
+    </div>`;
   });
-  html += '</tbody></table></div></div>';
+  html += '</div>';
 
-  // Weakness Heatmap
+  // ── Coaching Inbox ──
+  const allAlerts = [];
+  players.forEach(p => {
+    (p.alerts || []).forEach(a => allAlerts.push({ ...a, player: p.name, isTeam: false }));
+  });
+  (ov.alerts || []).forEach(a => allAlerts.push({ ...a, player: 'TEAM', isTeam: true }));
+
+  // Assign stable hash IDs to alerts for localStorage tracking
+  function ttAlertHash(a) {
+    const raw = (a.player || '') + '|' + (a.type || '') + '|' + (a.msg || '');
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) { h = ((h << 5) - h) + raw.charCodeAt(i); h |= 0; }
+    return 'al_' + Math.abs(h).toString(36);
+  }
+  const archivedSet = new Set(JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]'));
+
+  // Time filter: since alerts lack timestamps, 'today'/'7d'/'30d' show all non-archived
+  // (when timestamps are added, filter by a.date here)
+  const activeAlerts = allAlerts.filter(a => !archivedSet.has(ttAlertHash(a)));
+  const archivedAlerts = allAlerts.filter(a => archivedSet.has(ttAlertHash(a)));
+
+  const criticalAlerts = activeAlerts.filter(a => a.type === 'danger');
+  const warningAlerts  = activeAlerts.filter(a => a.type === 'warning');
+
+  const totalCrit = criticalAlerts.length;
+  const badgeCls = totalCrit > 0 ? '' : warningAlerts.length > 0 ? ' warn' : ' ok';
+  const badgeNum = totalCrit > 0 ? totalCrit : warningAlerts.length > 0 ? warningAlerts.length : '&#10003;';
+
+  html += `<div class="tt-inbox">
+    <div class="tt-inbox-head">
+      <div class="tt-inbox-title">
+        Coaching Inbox
+        <span class="tt-inbox-badge${badgeCls}">${badgeNum}</span>
+      </div>
+      <div class="tt-time-filter">
+        ${['today','7d','30d','all'].map(f =>
+          `<button class="tt-tf-btn${ttInboxFilter===f?' active':''}" onclick="ttInboxFilter='${f}';renderTeamTab(document.getElementById('main-content'))">${f==='today'?'Today':f==='all'?'All':f}</button>`
+        ).join('')}
+      </div>
+    </div>
+    <div class="tt-inbox-body">`;
+
+  const renderGroup = (alerts, sevType, label) => {
+    if (!alerts.length) return '';
+    const sev = ttSevConfig(sevType === 'danger' ? 'danger' : 'warning');
+    let g = `<div class="tt-inbox-group">
+      <div class="tt-inbox-group-label">
+        <span class="tt-sev-dot" style="background:${sev.dot}"></span>
+        ${label} &middot; ${alerts.length} alert${alerts.length > 1 ? 's' : ''}
+      </div>`;
+    alerts.forEach(a => {
+      const s = ttSevConfig(a.type);
+      const playerTagCls = a.isTeam ? 'team' : 'player';
+      const playerLabel = a.isTeam ? 'TEAM' : a.player;
+      const clickable = !a.isTeam;
+      const onclick = clickable ? `onclick="ttSelectedPlayer='${a.player.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))"` : '';
+      const alertId = ttAlertHash(a);
+      const archiveIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v1.5H2zM3.5 5.5l1 8h7l1-8"/><path d="M6.5 8h3"/></svg>`;
+      g += `<div class="tt-inbox-item-wrap" data-alert-id="${alertId}">
+        <div class="tt-inbox-item" ${onclick} ${clickable ? 'title="Open player profile"' : ''}>
+          <div class="tt-sev-icon ${s.cls}">${s.icon}</div>
+          <div class="tt-inbox-content">
+            <div class="tt-inbox-who">
+              <span class="tt-inbox-player-tag ${playerTagCls}">${playerLabel}</span>
+            </div>
+            <div class="tt-inbox-msg">${a.msg}${a.players && a.players.length ? ` <span style="color:var(--text2);font-size:0.9em">(${a.players.join(', ')})</span>` : ''}</div>
+          </div>
+          ${clickable ? '<div class="tt-inbox-arrow" style="margin-right:28px">›</div>' : ''}
+        </div>
+        <div class="tt-archive-reveal" onclick="ttArchiveAlert('${alertId}')" title="Archive">${archiveIcon}Archive</div>
+        <button class="tt-archive-btn-desk" onclick="event.stopPropagation();ttArchiveAlert('${alertId}')" title="Archive alert">${archiveIcon} Archive</button>
+      </div>`;
+    });
+    g += '</div>';
+    return g;
+  };
+
+  const critHtml = renderGroup(criticalAlerts, 'danger', 'Critical');
+  const warnHtml = renderGroup(warningAlerts, 'warning', 'Warning');
+
+  if (critHtml || warnHtml) {
+    html += critHtml + warnHtml;
+  } else {
+    html += '<div class="tt-inbox-empty">No alerts for the selected period. Team is performing well.</div>';
+  }
+
+  // ── Archive section ──
+  if (archivedAlerts.length > 0) {
+    const archOpenKey = 'tt_arch_open';
+    const archOpen = localStorage.getItem(archOpenKey) === '1';
+    html += `<div class="tt-inbox-archived${archOpen ? ' tt-archived-open' : ''}" id="tt-arch-section">
+      <button class="tt-archived-head" onclick="(function(){var el=document.getElementById('tt-arch-section');el.classList.toggle('tt-archived-open');localStorage.setItem('tt_arch_open',el.classList.contains('tt-archived-open')?'1':'0')})()">
+        <span class="tt-archived-title">
+          Archive
+          <span class="tt-archived-count">${archivedAlerts.length}</span>
+        </span>
+        <span class="tt-archived-chevron">▼</span>
+      </button>
+      <div class="tt-archived-body">`;
+    archivedAlerts.forEach(a => {
+      const s = ttSevConfig(a.type);
+      const playerTagCls = a.isTeam ? 'team' : 'player';
+      const playerLabel = a.isTeam ? 'TEAM' : a.player;
+      const alertId = ttAlertHash(a);
+      html += `<div class="tt-archived-item">
+        <div class="tt-sev-icon ${s.cls}">${s.icon}</div>
+        <div class="tt-archived-content">
+          <div class="tt-inbox-who">
+            <span class="tt-inbox-player-tag ${playerTagCls}">${playerLabel}</span>
+          </div>
+          <div class="tt-inbox-msg">${a.msg}</div>
+        </div>
+        <button class="tt-archived-del" onclick="ttDeleteArchivedAlert('${alertId}')" title="Delete permanently">&times;</button>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div></div>'; // .tt-inbox-body + .tt-inbox
+
+  // ── Weakness Heatmap (collapsible) ──
   const allOpps = new Set();
   players.forEach(p => Object.keys(p.matchups || {}).forEach(o => allOpps.add(o)));
   const opps = [...allOpps].sort();
 
   if (opps.length > 0) {
-    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:12px">Heatmap Weakness</h3>';
-    html += '<div class="tt-heatmap"><table><thead><tr><th></th>';
+    const hmKey = 'tt_hm_open';
+    // Default open; only collapse if user explicitly closed it ('0')
+    const hmOpen = localStorage.getItem(hmKey) !== '0';
+    html += `<div class="tt-collapsible${hmOpen ? ' open' : ''}" id="tt-hm-coll">
+      <button class="tt-coll-head" onclick="(function(){var el=document.getElementById('tt-hm-coll');el.classList.toggle('open');localStorage.setItem('tt_hm_open',el.classList.contains('open')?'1':'0')})()">
+        <span class="tt-coll-title">Weakness Heatmap</span>
+        <span class="tt-coll-chevron">▼</span>
+      </button>
+      <div class="tt-coll-body">
+        <div class="tt-heatmap"><table><thead><tr><th></th>`;
     opps.forEach(o => {
-      const inks = DECK_INKS[o] || [];
-      const dots = inks.map(i => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${INK_COLORS[i]};vertical-align:middle"></span>`).join('');
-      html += `<th>${dots} ${o}</th>`;
+      const dots = (DECK_INKS[o] || []).map(i => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${INK_COLORS[i]};vertical-align:middle"></span>`).join('');
+      html += `<th>${dots}<br><span style="font-size:0.8em">${o}</span></th>`;
     });
     html += '</tr></thead><tbody>';
     players.forEach(p => {
@@ -8336,53 +9532,120 @@ function ttRenderOverview(players, ov) {
       });
       html += '</tr>';
     });
-    html += '</tbody></table></div></div>';
+    html += '</tbody></table></div></div></div>';
   }
 
   return html;
 }
 
+// ── Archive helpers ──
+function ttArchiveAlert(alertId) {
+  const arr = JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]');
+  if (!arr.includes(alertId)) arr.push(alertId);
+  localStorage.setItem('tt_archived_alerts', JSON.stringify(arr));
+  // Animate the wrap out, then re-render
+  const wrap = document.querySelector(`.tt-inbox-item-wrap[data-alert-id="${alertId}"]`);
+  if (wrap) {
+    wrap.classList.add('archiving');
+    setTimeout(() => renderTeamTab(document.getElementById('main-content')), 320);
+  } else {
+    renderTeamTab(document.getElementById('main-content'));
+  }
+}
+function ttDeleteArchivedAlert(alertId) {
+  const arr = JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]');
+  const idx = arr.indexOf(alertId);
+  if (idx !== -1) arr.splice(idx, 1);
+  localStorage.setItem('tt_archived_alerts', JSON.stringify(arr));
+  renderTeamTab(document.getElementById('main-content'));
+}
+
+// ── Swipe-to-archive touch handler (attached after render) ──
+function ttInitSwipe() {
+  document.querySelectorAll('.tt-inbox-item-wrap').forEach(wrap => {
+    if (wrap._swipeInit) return;
+    wrap._swipeInit = true;
+    let startX = 0, startY = 0, dx = 0, dragging = false;
+    const item = wrap.querySelector('.tt-inbox-item');
+    const THRESHOLD = 72; // px to reveal archive area
+
+    wrap.addEventListener('touchstart', e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      dx = 0; dragging = false;
+      item.classList.add('swiping');
+    }, { passive: true });
+
+    wrap.addEventListener('touchmove', e => {
+      const cx = e.touches[0].clientX;
+      const cy = e.touches[0].clientY;
+      if (!dragging) {
+        // Only swipe if horizontal intent is dominant
+        if (Math.abs(cx - startX) < Math.abs(cy - startY)) { item.classList.remove('swiping'); return; }
+        dragging = true;
+      }
+      dx = Math.min(0, cx - startX); // only left swipe
+      item.style.transform = `translateX(${dx}px)`;
+      e.preventDefault();
+    }, { passive: false });
+
+    wrap.addEventListener('touchend', () => {
+      item.classList.remove('swiping');
+      if (dx < -THRESHOLD) {
+        // Commit archive
+        const alertId = wrap.dataset.alertId;
+        item.style.transform = `translateX(-100%)`;
+        item.style.transition = 'transform 0.2s ease';
+        setTimeout(() => ttArchiveAlert(alertId), 200);
+      } else {
+        // Snap back
+        item.style.transform = '';
+      }
+      dx = 0; dragging = false;
+    });
+  });
+}
+
 function ttRenderProfile(player, allPlayers) {
   let html = '';
 
-  // Header
-  const inks = DECK_INKS[player.deck] || [];
-  const dots = inks.map(i => `<span class="ink-dot" style="background:${INK_COLORS[i]}"></span>`).join('');
+  // ── Profile header ──
+  const wr = player.wr;
+  const dotColor = wr >= 55 ? 'var(--green)' : wr <= 45 ? 'var(--red)' : 'var(--yellow)';
   html += `<div class="tt-profile-header">
-    <button class="tt-back-btn" onclick="ttSelectedPlayer=null;renderTeamTab(document.getElementById('main-content'))">◀ Team</button>
+    <button class="tt-back-btn" onclick="ttSelectedPlayer=null;renderTeamTab(document.getElementById('main-content'))">&#8592; Team</button>
     <span class="tt-ph-name">${player.name}</span>
-    <span class="tt-ph-deck">${player.deck ? deckImg(player.deck,32) : '?'}</span>
+    ${player.deck ? `<span>${deckImg(player.deck, 30)}</span>` : ''}
     <span style="flex:1"></span>
-    <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(player.wr)}">${player.wr}%</div><div class="tt-ph-lbl">WR</div></div>
+    <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(wr)}">${wr}%</div><div class="tt-ph-lbl">WR</div></div>
     <div class="tt-ph-stat"><div class="tt-ph-val">${player.games}</div><div class="tt-ph-lbl">Games</div></div>
     <div class="tt-ph-stat"><div class="tt-ph-val">${player.mmr}</div><div class="tt-ph-lbl">MMR</div></div>
     <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(player.otp_wr)}">${player.otp_wr}%</div><div class="tt-ph-lbl">OTP</div></div>
     <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(player.otd_wr)}">${player.otd_wr}%</div><div class="tt-ph-lbl">OTD</div></div>
   </div>`;
 
-  // Alerts
+  // ── Player alerts (severity-styled, not a flat list) ──
   if (player.alerts && player.alerts.length) {
-    html += '<div class="tt-alerts">';
+    html += '<div class="tt-profile-alerts">';
     player.alerts.forEach(a => {
-      html += `<div class="tt-alert ${a.type}"><span>${a.msg}</span></div>`;
+      const icon = a.type === 'danger' ? '!' : '~';
+      html += `<div class="tt-pal ${a.type === 'danger' ? 'danger' : 'warning'}">
+        <span class="tt-pal-icon">${icon}</span>
+        <span class="tt-pal-text">${a.msg}</span>
+      </div>`;
     });
     html += '</div>';
   }
 
-  // Matchup Lollipop chart (WR per opponent, sorted worst to best)
+  // ── Matchup lollipop chart ──
   const mus = Object.entries(player.matchups || {}).sort((a,b) => a[1].wr - b[1].wr);
   if (mus.length) {
-    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:12px">Matchup by Opponent</h3>';
+    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Matchup by Opponent</h3>';
     html += '<div class="lollipop-chart">';
     mus.forEach(([opp, s]) => {
-      const wr = s.wr;
-      const pct = Math.max(2, Math.min(98, wr));
-      const colorClass = wr >= 55 ? 'green' : wr <= 45 ? 'red' : 'gray';
-      const stemLeft = wr >= 50 ? '50%' : pct + '%';
-      const stemWidth = Math.abs(wr - 50) + '%';
-      const stemStyle = wr >= 50
-        ? `left:50%;width:${wr-50}%`
-        : `left:${pct}%;width:${50-wr}%`;
+      const pct = Math.max(2, Math.min(98, s.wr));
+      const colorClass = s.wr >= 55 ? 'green' : s.wr <= 45 ? 'red' : 'gray';
+      const stemStyle = s.wr >= 50 ? `left:50%;width:${s.wr-50}%` : `left:${pct}%;width:${50-s.wr}%`;
       html += `<div class="lp-row">
         <span class="lp-label">${deckImg(opp,24)}</span>
         <div class="lp-track">
@@ -8390,21 +9653,15 @@ function ttRenderProfile(player, allPlayers) {
           <div class="lp-stem lp-stem-${colorClass}" style="${stemStyle}"></div>
           <div class="lp-dot lp-${colorClass}" style="left:${pct}%"></div>
         </div>
-        <span class="lp-value" style="color:${wrColor(wr)}">${wr}% <span style="color:var(--text2);font-weight:400;font-size:0.85em">(${s.games}g)</span></span>
+        <span class="lp-value" style="color:${wrColor(s.wr)}">${s.wr}% <span style="color:var(--text2);font-weight:400;font-size:0.85em">(${s.games}g)</span></span>
       </div>`;
     });
     html += '</div></div>';
   }
 
-  // OTP/OTD Breakdown per matchup (top 5)
-  const topMu = Object.entries(player.matchups || {})
-    .filter(([,s]) => s.games >= 3)
-    .sort((a,b) => b[1].games - a[1].games)
-    .slice(0, 6);
-
-  // Daily trend
+  // ── Daily trend ──
   if (player.daily && player.daily.length > 0) {
-    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:12px">Trend Giornaliero</h3>';
+    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Daily Trend</h3>';
     html += '<div style="display:flex;gap:8px;align-items:flex-end;height:60px">';
     const maxG = Math.max(...player.daily.map(d => d.games));
     player.daily.forEach(d => {
@@ -8419,80 +9676,65 @@ function ttRenderProfile(player, allPlayers) {
     html += '</div></div>';
   }
 
-  // Session Prep (auto-generated)
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:12px">Session Agenda</h3>';
+  // ── Session Agenda ──
+  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Session Agenda</h3>';
   let agenda = [];
-
-  // Priority 1: worst matchup
   if (player.worst_matchup) {
     const wmu = player.matchups[player.worst_matchup];
-    agenda.push(`<strong>CRITICAL MATCHUP:</strong> vs ${player.worst_matchup} — WR ${wmu.wr}% (${wmu.games}g). Focus on this matchup.`);
+    agenda.push(`<strong>Critical matchup:</strong> vs ${player.worst_matchup} — WR ${wmu.wr}% (${wmu.games}g). Prioritize this matchup.`);
   }
-
-  // Priority 2: OTP/OTD gap
   if (player.otp_otd_gap > 15) {
-    agenda.push(`<strong>OTP/OTD GAP:</strong> ${player.otp_otd_gap}pp. Player struggles OTD (${player.otd_wr}%). Work on defensive openings.`);
+    agenda.push(`<strong>OTP/OTD gap:</strong> ${player.otp_otd_gap}pp. Struggles OTD (${player.otd_wr}%). Work on defensive openings.`);
   }
-
-  // Priority 3: overall WR
   if (player.wr < 50) {
-    agenda.push(`<strong>WR BELOW 50%:</strong> ${player.wr}% overall across ${player.games} matches. Strategic review needed.`);
+    agenda.push(`<strong>WR below 50%:</strong> ${player.wr}% across ${player.games} matches. Strategic review needed.`);
   }
-
-  // Priority 4: best matchup — reinforce
   if (player.best_matchup) {
     const bmu = player.matchups[player.best_matchup];
-    agenda.push(`<strong>STRENGTH:</strong> vs ${player.best_matchup} — WR ${bmu.wr}% (${bmu.games}g). Maintain this level.`);
+    agenda.push(`<strong>Strength:</strong> vs ${player.best_matchup} — WR ${bmu.wr}% (${bmu.games}g). Maintain this.`);
   }
+  if (agenda.length === 0) agenda.push('No issues detected. Keep current form.');
 
-  if (agenda.length === 0) {
-    agenda.push('No issues detected. Keep current form.');
-  }
-
-  html += '<ol style="margin:0;padding-left:20px;font-size:0.88em;line-height:1.7">';
+  html += '<ol style="margin:0;padding-left:20px;font-size:0.87em;line-height:1.7">';
   agenda.forEach(a => html += `<li style="margin-bottom:6px">${a}</li>`);
   html += '</ol>';
-
-  // Copy button
-  const agendaText = agenda.map((a,i) => `${i+1}. ${a.replace(/<[^>]+>/g, '')}`).join('\\n');
-  html += `<button style="margin-top:10px;padding:6px 16px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;font-size:0.78em;cursor:pointer" onclick="navigator.clipboard.writeText(\`Agenda ${player.name} (${player.deck})\\n${agendaText.replace(/`/g,"'")}\`);this.textContent='Copied!';">Copy to Discord</button>`;
+  const agendaText = agenda.map((a,i) => `${i+1}. ${a.replace(/<[^>]+>/g,'')}`).join('\\n');
+  html += `<button style="margin-top:12px;padding:6px 16px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;font-size:0.78em;cursor:pointer;min-height:36px" onclick="navigator.clipboard.writeText(\`Agenda ${player.name} (${player.deck})\\n${agendaText.replace(/\`/g,"'")}\`);this.textContent='Copied!';">Copy to Discord</button>`;
   html += '</div>';
 
-  // Notes
+  // ── Coach Notes ──
   const notesKey = 'tt_notes_' + player.name;
   const savedNotes = localStorage.getItem(notesKey) || '';
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:8px">Coach Notes</h3>';
-  html += `<textarea class="tt-notes" placeholder="Notes on ${player.name}..." onchange="localStorage.setItem('${notesKey}',this.value)">${savedNotes}</textarea>`;
+  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Coach Notes</h3>';
+  html += `<textarea class="tt-notes" placeholder="Private notes on ${player.name}..." onchange="localStorage.setItem('${notesKey}',this.value)">${savedNotes}</textarea>`;
   html += '</div>';
 
-  // Coach Diary (structured entries visible to player in Profile tab)
+  // ── Coach Diary ──
   const diaryKey = 'coach_diary_' + player.name;
   const diaryEntries = JSON.parse(localStorage.getItem(diaryKey) || '[]');
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.9em;margin-bottom:8px">Coach Diary <span style="font-size:0.75em;color:var(--text2);font-weight:400">visible to player in Profile</span></h3>';
-  // Add entry form
-  html += `<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-    <select id="diary-tag-${player.name}" style="padding:5px 8px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:6px;font-size:0.82em">
+  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Coach Diary <span style="font-size:0.82em;color:var(--text2);font-weight:400;text-transform:none;letter-spacing:0">visible to player in Profile</span></h3>';
+  html += `<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+    <select id="diary-tag-${player.name}" style="padding:6px 10px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.82em;min-height:36px">
       <option value="note">Note</option>
       <option value="tip">Tip</option>
       <option value="alert">Alert</option>
     </select>
-    <input id="diary-text-${player.name}" type="text" class="ev-input" placeholder="Write a diary entry..." style="flex:1;min-width:150px">
-    <button class="pf-save-btn" style="padding:5px 14px;font-size:0.82em" onclick="ttAddDiary('${player.name}')">Post</button>
+    <input id="diary-text-${player.name}" type="text" class="ev-input" placeholder="Write a diary entry..." style="flex:1;min-width:140px;min-height:36px">
+    <button class="pf-save-btn" style="padding:6px 14px;font-size:0.82em;min-height:36px" onclick="ttAddDiary('${player.name}')">Post</button>
   </div>`;
-  // Existing entries
   if (diaryEntries.length) {
     diaryEntries.slice().reverse().forEach((e, i) => {
       const realIdx = diaryEntries.length - 1 - i;
       const tagColor = e.tag === 'alert' ? 'var(--red)' : e.tag === 'tip' ? 'var(--green)' : 'var(--gold)';
-      html += `<div style="display:flex;align-items:start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:0.72em;padding:2px 8px;border-radius:10px;background:${tagColor}22;color:${tagColor};text-transform:uppercase;font-weight:600;white-space:nowrap;margin-top:1px">${e.tag}</span>
+      html += `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:0.7em;padding:2px 8px;border-radius:10px;background:${tagColor}22;color:${tagColor};text-transform:uppercase;font-weight:600;white-space:nowrap;margin-top:2px">${e.tag}</span>
         <span style="flex:1;font-size:0.84em;line-height:1.5">${e.text}</span>
-        <span style="font-size:0.7em;color:var(--text2);white-space:nowrap">${e.date}</span>
-        <button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.8em;padding:0 4px" onclick="ttDelDiary('${player.name}',${realIdx})" title="Delete">&times;</button>
+        <span style="font-size:0.7em;color:var(--text2);white-space:nowrap;margin-top:2px">${e.date}</span>
+        <button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1em;padding:0 4px;min-height:24px;line-height:1" onclick="ttDelDiary('${player.name}',${realIdx})" title="Delete">&times;</button>
       </div>`;
     });
   } else {
-    html += '<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No diary entries yet. Posts here appear in the player\'s Profile tab.</div>';
+    html += '<div style="color:var(--text2);font-size:0.84em;padding:6px 0">No diary entries yet. Posts here appear in the player\'s Profile tab.</div>';
   }
   html += '</div>';
 

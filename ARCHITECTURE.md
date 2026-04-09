@@ -1,6 +1,6 @@
 # Lorcana Monitor — Architettura Produzione
 
-**Versione:** 4.0 | **Data:** 02 Aprile 2026
+**Versione:** 5.0 | **Data:** 09 Aprile 2026
 
 ---
 
@@ -32,15 +32,17 @@ Dati sorgente:
   decks_db/                                  # Decklist tornei
 ```
 
-**Stato migrazione (02 Apr 2026):**
-- 136K match importati in PostgreSQL (scripts/import_matches.py)
-- 2822 carte in tabella `cards` (da cards_db.json), 192 consensus cards, 14 reference decklists
+**Stato migrazione (09 Apr 2026):**
+- 200K+ match in PostgreSQL, import automatico ogni 2h (~1s/run con skip cache)
+- 2822 carte in tabella `cards` con image_path completi (thumbnail via cards.duels.ink)
+- 192 consensus cards, 14 reference decklists, 1047 matchup reports
 - Auth JWT completa, HTTPS via nginx + Let's Encrypt su metamonitor.app
 - Rate limiting Redis + nginx, fail2ban, UFW attivo
-- Backup pg_dump giornaliero (locale), offsite da configurare
-- Dashboard HTML senza dati embedded, fetch da API
+- Backup pg_dump giornaliero, maintenance settimanale (turns retention 90gg)
+- Dashboard HTML alleggerito (418 KB, no blob embedded), fetch da API
+- Dashboard blob assemblato da PG (snapshot_assembler.py, 0.8s, indipendente da daily_routine)
 
-**Migrazione indipendenza da analisidef (piano 6 fasi) — COMPLETATA 02 Apr 2026:**
+**Migrazione indipendenza da analisidef — COMPLETATA 09 Apr 2026:**
 - [x] Fase 0: Tabelle dati statici (cards, consensus_lists, reference_decklists, matchup_reports) + servizi
 - [x] Fase 1: Tech tornado da PostgreSQL (query JSONB CARD_PLAYED + consensus)
 - [x] Fase 2: Mulligans da PostgreSQL (query JSONB INITIAL_HAND + MULLIGAN)
@@ -48,13 +50,28 @@ Dati sorgente:
 - [x] Fase 4: Leaderboard da duels.ink API diretta (leaderboard_service.py, cache Redis 1h)
 - [x] Fase 5: /api/v1/dashboard-data serve da daily_snapshots (perimeter='full') in PostgreSQL
 - [x] Fase 6: dashboard_bridge.py rimosso, nessun fallback a file JSON, API 100% da PostgreSQL
+- [x] Fase A: Import match automatico ogni 2h (skip cache, ON CONFLICT DO NOTHING)
+- [x] Fase B-C: Meta stats e player stats live da PG (query <150ms, no materialized views necessarie)
+- [x] Fase D: Tech tornado da PG (già completata)
+- [x] Fase E: Dashboard blob assembler da PG (snapshot_assembler.py, 21 sezioni, 5.3 MB)
 
-**Resta in analisidef:** solo `lorcana_monitor.py` (intercetta partite live, salva JSON in /matches/)
-**Import scripts** usano ancora ANALISIDEF_OUTPUT_DIR/DAILY_DIR per importare dati in PG (non dipendenza runtime)
+**Dipendenze residue da analisidef (solo import, non runtime):**
+- `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile**
+- `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (analyzer 12K LOC) — **Phase F**
+- `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **futuro Phase G**
 
-**Residui da migrare:**
-- Frontend HTML monolite (non split in moduli JS separati)
-- Workers pronti ma non ancora in cron (usano ancora scripts/ manuali)
+**Frontend:** sviluppo in analisidef, sync manuale in App_tool (no più copia diretta)
+
+**Cron App_tool (UTC):**
+```
+*/2h       import_matches.py          → match JSON → PG (~1s)
+05:30      import_matchup_reports.py   → matchup reports da dashboard_data.json
+05:35      assemble_snapshot.py        → blob dashboard da PG (0.8s)
+Mar 05:30  import_killer_curves.py     → KC da analisidef/output
+Dom 02:00  maintenance.sh              → drop turns >90gg, VACUUM
+03:00      backup.sh                   → pg_dump giornaliero
+*/5min     healthcheck.sh              → monitoring
+```
 
 ---
 
