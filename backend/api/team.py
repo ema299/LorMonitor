@@ -1,11 +1,11 @@
 """Team coaching — replay upload, viewer, roster management.
-Requires: team tier or above.
+TODO: Re-enable JWT auth (require_tier) when frontend login is implemented.
+Currently protected only by nginx basic auth.
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db, require_tier
-from backend.models.user import User
+from backend.deps import get_db
 from backend.models.team import TeamReplay, TeamRoster
 from backend.services import replay_service
 
@@ -16,7 +16,6 @@ router = APIRouter()
 async def upload_replay(
     file: UploadFile = File(...),
     player_override: str = Query(None, description="Override auto-matched player name"),
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Upload a .replay.gz file from duels.ink. Parses and stores compact coaching data."""
@@ -87,7 +86,6 @@ async def upload_replay(
 @router.get("/replay/list")
 def list_replays(
     player: str = Query(None, description="Filter by player name"),
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """List uploaded replays, optionally filtered by player."""
@@ -114,7 +112,6 @@ def list_replays(
 @router.get("/replay/{game_id}")
 def get_replay(
     game_id: str,
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Get full replay data for the coaching viewer."""
@@ -126,7 +123,6 @@ def get_replay(
 
 @router.get("/roster")
 def get_roster(
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Get team roster."""
@@ -139,7 +135,6 @@ def player_stats(
     name: str,
     game_format: str = Query("core"),
     days: int = Query(30),
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Get WR stats for a specific team player."""
@@ -151,7 +146,6 @@ def player_stats(
 def team_overview(
     game_format: str = Query("core"),
     days: int = Query(30),
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Get aggregated stats for all roster players."""
@@ -165,7 +159,6 @@ def team_overview(
 def team_weaknesses(
     game_format: str = Query("core"),
     days: int = Query(30),
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Find worst matchups across the team."""
@@ -178,7 +171,6 @@ def team_weaknesses(
 @router.put("/roster")
 def update_roster(
     players: list[dict],
-    user: User = Depends(require_tier("team")),
     db: Session = Depends(get_db),
 ):
     """Replace team roster. Input: [{"name": "CLOUD", "role": "grinder"}, ...]"""

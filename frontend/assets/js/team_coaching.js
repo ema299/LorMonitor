@@ -114,6 +114,7 @@ async function tcLoadReplay(gameId) {
       <button class="tc-btn tc-btn-speed" onclick="tcCycleSpeed()" id="tc-btn-speed">0.5x</button>
       <input type="range" class="tc-slider" id="tc-slider" min="0" max="${snaps.length-1}" value="0" oninput="tcGoTo(+this.value)">
       <span class="tc-step-num" id="tc-step-num">1/${snaps.length}</span>
+      <button class="tc-btn tc-btn-wb" onclick="tcToggleWhiteboard()" id="tc-btn-wb" title="Whiteboard">&#9998;</button>
     </div>
     <div class="tc-action-bar" id="tc-action-bar">Start</div>
     <div class="tc-body">
@@ -130,7 +131,19 @@ async function tcLoadReplay(gameId) {
         <div class="tc-field tc-field-our" id="tc-field-our"></div>
         <div class="tc-field-label">${ourName}</div>
       </div>
-      <div class="tc-events" id="tc-events"><h4>Events</h4></div>
+      <div class="tc-side-panel">
+        <div class="tc-ink-panel" id="tc-ink-panel">
+          <div class="tc-ink-section">
+            <div class="tc-ink-label">${oppName} Ink <span id="tc-ink-opp-n"></span></div>
+            <div class="tc-ink-cards" id="tc-ink-opp"></div>
+          </div>
+          <div class="tc-ink-section">
+            <div class="tc-ink-label">${ourName} Ink <span id="tc-ink-our-n"></span></div>
+            <div class="tc-ink-cards" id="tc-ink-our"></div>
+          </div>
+        </div>
+        <div class="tc-events" id="tc-events"><h4>Events</h4></div>
+      </div>
     </div>
     <div class="tc-hand-panel" id="tc-hand-panel">
       <div class="tc-hand-label">Hand <span id="tc-hand-n"></span></div>
@@ -203,14 +216,27 @@ async function tcApplySnap(idx, skipAnim) {
 
   // Combat arrows — ONLY for ATTACK actions (old DOM has attacker + defender)
   if (!skipAnim && prev && snap.action_type === 'ATTACK' && !tcAbort) {
-    let atkName = null, atkFieldId = null, defFieldId = null, defSideCurr = null, defSidePrev = null;
+    let atkIid = null, atkFieldId = null, defFieldId = null, defSideCurr = null, defSidePrev = null;
     for (const [fid, curr, prevC] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
-      const newlyExerted = curr.find(c => {
-        const pc = prevC.find(p => p.name === c.name);
+      // 1) Newly exerted = clear attacker
+      let attacker = curr.find(c => {
+        const pc = prevC.find(p => p.iid === c.iid);
         return c.exerted && pc && !pc.exerted;
       });
-      if (newlyExerted) {
-        atkName = newlyExerted.name;
+      // 2) Fallback: card that died or took damage while already exerted (mutual kill)
+      if (!attacker) {
+        const currIids = curr.map(c => c.iid);
+        const diedExerted = prevC.find(c => c.exerted && !currIids.includes(c.iid));
+        if (diedExerted) attacker = diedExerted;
+      }
+      if (!attacker) {
+        attacker = curr.find(c => {
+          const pc = prevC.find(p => p.iid === c.iid);
+          return pc && pc.exerted && c.damage > pc.damage;
+        });
+      }
+      if (attacker) {
+        atkIid = attacker.iid;
         atkFieldId = fid;
         defFieldId = fid === 'tc-field-our' ? 'tc-field-opp' : 'tc-field-our';
         defSideCurr = fid === 'tc-field-our' ? allOpp : allOur;
@@ -218,22 +244,19 @@ async function tcApplySnap(idx, skipAnim) {
         break;
       }
     }
-    if (atkName && defFieldId) {
-      // Attacker is on old DOM (not yet exerted visually, but positioned correctly)
-      const srcEl = document.querySelector(`#${atkFieldId} [data-name="${atkName}"]`);
-      // Defender: card that took damage or died on opposite side
-      let defName = null, dmgAmount = 0;
+    if (atkIid && defFieldId) {
+      const srcEl = document.querySelector(`#${atkFieldId} [data-iid="${atkIid}"]`);
+      let defIid = null, dmgAmount = 0;
       for (const c of defSideCurr) {
-        const pc = defSidePrev.find(p => p.name === c.name);
-        if (pc && c.damage > pc.damage) { defName = c.name; dmgAmount = c.damage - pc.damage; break; }
+        const pc = defSidePrev.find(p => p.iid === c.iid);
+        if (pc && c.damage > pc.damage) { defIid = c.iid; dmgAmount = c.damage - pc.damage; break; }
       }
-      if (!defName) {
-        const currNames = defSideCurr.map(c => c.name);
-        const died = defSidePrev.find(c => !currNames.includes(c.name));
-        if (died) defName = died.name;
+      if (!defIid) {
+        const currIids = defSideCurr.map(c => c.iid);
+        const died = defSidePrev.find(c => !currIids.includes(c.iid));
+        if (died) defIid = died.iid;
       }
-      // Target is on old DOM (still exists, even if it will die after board update)
-      const tgtEl = defName ? document.querySelector(`#${defFieldId} [data-name="${defName}"]`) : null;
+      const tgtEl = defIid ? document.querySelector(`#${defFieldId} [data-iid="${defIid}"]`) : null;
       if (srcEl && tgtEl && !tcAbort) {
         await tcDrawArrow(srcEl, tgtEl, '#ef4444', dmgAmount ? '-' + dmgAmount : '\u2694');
       }
@@ -241,38 +264,89 @@ async function tcApplySnap(idx, skipAnim) {
   }
 
   // Damage transfer (boost/ability): card heals AND another card takes damage or dies in same snapshot
+  // If a BOOST happened recently, the boosted card is the real source (e.g. Cheshire Cat)
   if (!skipAnim && prev && snap.action_type !== 'ATTACK' && !tcAbort) {
-    // Find card that lost damage (healed)
     for (const [srcFid, srcCurr, srcPrev] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
       const healed = srcCurr.find(c => {
-        const pc = srcPrev.find(p => p.name === c.name);
+        const pc = srcPrev.find(p => p.iid === c.iid);
         return pc && c.damage < pc.damage;
       });
       if (!healed) continue;
-      const healPc = srcPrev.find(p => p.name === healed.name);
+      const healPc = srcPrev.find(p => p.iid === healed.iid);
       const dmgMoved = healPc.damage - healed.damage;
-      // Find target that took damage or died (either side)
-      for (const [tgtFid, tgtCurr, tgtPrev] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
-        let tgtName = null;
-        for (const c of tgtCurr) {
-          if (c.name === healed.name) continue;
-          const pc = tgtPrev.find(p => p.name === c.name);
-          if (pc && c.damage > pc.damage) { tgtName = c.name; break; }
+
+      // Find target that took damage or died
+      let tgtIid = null, tgtFid = null;
+      for (const [fid, tCurr, tPrev] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
+        for (const c of tCurr) {
+          if (c.iid === healed.iid) continue;
+          const pc = tPrev.find(p => p.iid === c.iid);
+          if (pc && c.damage > pc.damage) { tgtIid = c.iid; tgtFid = fid; break; }
         }
-        if (!tgtName) {
-          const currNames = tgtCurr.map(c => c.name);
-          const died = tgtPrev.find(c => c.name !== healed.name && !currNames.includes(c.name));
-          if (died) tgtName = died.name;
+        if (!tgtIid) {
+          const currIids = tCurr.map(c => c.iid);
+          const died = tPrev.find(c => c.iid !== healed.iid && !currIids.includes(c.iid));
+          if (died) { tgtIid = died.iid; tgtFid = fid; }
         }
-        if (tgtName) {
-          const srcEl = document.querySelector(`#${srcFid} [data-name="${healed.name}"]`);
-          const tgtEl = document.querySelector(`#${tgtFid} [data-name="${tgtName}"]`);
-          if (srcEl && tgtEl) await tcDrawArrow(srcEl, tgtEl, '#f59e0b', '-' + dmgMoved);
-          break;
+        if (tgtIid) break;
+      }
+
+      if (tgtIid) {
+        // Check if a BOOST happened in recent snapshots — use boosted card as arrow source
+        let arrowSrcFid = srcFid, arrowSrcIid = healed.iid;
+        const snaps = tcReplayData?.snapshots || [];
+        for (let back = idx - 1; back >= Math.max(0, idx - 5); back--) {
+          if (snaps[back]?.action_type === 'BOOST') {
+            // Find which card was boosted: card on same side as healed, different from healed
+            const boostSnap = snaps[back];
+            const boostPrev = back > 0 ? snaps[back - 1] : null;
+            // The boosted card is typically on the same side, not the healed card
+            // We can't know exactly, so use all cards on healed's side as candidates
+            // The boosted card likely didn't change stats but is the "caster"
+            const sameSide = srcCurr.filter(c => c.iid !== healed.iid);
+            if (sameSide.length > 0) {
+              // Pick the card that's not the healed one and not the target
+              const booster = sameSide.find(c => c.iid !== tgtIid) || sameSide[0];
+              arrowSrcIid = booster.iid;
+            }
+            break;
+          }
+          if (snaps[back]?.action_type === 'ATTACK' || snaps[back]?.action_type === 'END_TURN') break;
         }
+
+        const srcEl = document.querySelector(`#${arrowSrcFid} [data-iid="${arrowSrcIid}"]`);
+        const tgtEl = document.querySelector(`#${tgtFid} [data-iid="${tgtIid}"]`);
+        if (srcEl && tgtEl) await tcDrawArrow(srcEl, tgtEl, '#f59e0b', '-' + dmgMoved);
       }
       break;
     }
+  }
+
+  // Ability/response effects: card takes damage or dies with no clear source
+  // (no attack exert, no heal/transfer, no spell) — show effect highlight
+  if (!skipAnim && prev && !tcAbort &&
+      (snap.action_type === 'RESPOND_TO_PROMPT' || snap.action_type === 'ACTIVATE_ABILITY') &&
+      !document.querySelector('.tc-spell-overlay')) {
+    let hadArrow = false; // damage transfer above may have drawn one
+    for (const [fid, curr, prevC] of [['tc-field-our', allOur, allPrevOur], ['tc-field-opp', allOpp, allPrevOpp]]) {
+      // Cards that took damage
+      for (const c of curr) {
+        const pc = prevC.find(p => p.iid === c.iid);
+        if (pc && c.damage > pc.damage) {
+          const el = document.querySelector(`#${fid} [data-iid="${c.iid}"]`);
+          if (el) { el.classList.add('tc-ability-hit'); hadArrow = true; }
+        }
+      }
+      // Cards that died
+      const currIids = curr.map(c => c.iid);
+      for (const pc of prevC) {
+        if (!currIids.includes(pc.iid)) {
+          const el = document.querySelector(`#${fid} [data-iid="${pc.iid}"]`);
+          if (el) { el.classList.add('tc-ability-hit'); hadArrow = true; }
+        }
+      }
+    }
+    if (hadArrow) await new Promise(r => setTimeout(r, 400));
   }
 
   // ── NOW update board (death animations + innerHTML swap) ── parallel both sides
@@ -283,6 +357,9 @@ async function tcApplySnap(idx, skipAnim) {
 
   // Events log
   tcUpdateEvents(snap, prev);
+
+  // Inkwell
+  tcUpdateInkwell(snap);
 
   // Hand
   tcUpdateHand(snap.hand || [], prev ? (prev.hand || []) : []);
@@ -301,33 +378,33 @@ function tcUpdateEvents(snap, prev) {
 
   let events = [];
 
-  // Detect plays (new cards on board)
+  // Detect plays (new cards on board) — match by iid
   for (const side of ['our','opp']) {
-    const prevNames = prevBoard[side].map(c=>c.name);
-    const prevCopy = [...prevNames];
+    const prevIids = prevBoard[side].map(c=>c.iid);
+    const prevCopy = [...prevIids];
     for (const c of board[side]) {
-      const pi = prevCopy.indexOf(c.name);
+      const pi = prevCopy.indexOf(c.iid);
       if (pi >= 0) { prevCopy.splice(pi, 1); }
       else { events.push({icon:'\u25b6', cls:'rv-ep-play', txt:`<b>${tcSn(c.name)}</b> played (${c.cost||'?'})`}); }
     }
     // Deaths
-    const currNames = board[side].map(c=>c.name);
-    const currCopy = [...currNames];
+    const currIids = board[side].map(c=>c.iid);
+    const currCopy = [...currIids];
     for (const c of prevBoard[side]) {
-      const ci = currCopy.indexOf(c.name);
+      const ci = currCopy.indexOf(c.iid);
       if (ci >= 0) { currCopy.splice(ci, 1); }
       else { events.push({icon:'\u2620', cls:'rv-ep-dead', txt:`<b>${tcSn(c.name)}</b> destroyed`}); }
     }
     // Damage changes
     for (const c of board[side]) {
-      const pc = prevBoard[side].find(p=>p.name===c.name);
+      const pc = prevBoard[side].find(p=>p.iid===c.iid);
       if (pc && c.damage > pc.damage) {
         events.push({icon:'\ud83d\udca5', cls:'rv-ep-dead', txt:`<b>${tcSn(c.name)}</b> -${c.damage-pc.damage} (${c.damage} total)`});
       }
     }
     // Exert (quest)
     for (const c of board[side]) {
-      const pc = prevBoard[side].find(p=>p.name===c.name && !p.exerted);
+      const pc = prevBoard[side].find(p=>p.iid===c.iid && !p.exerted);
       if (pc && c.exerted && at === 'QUEST') {
         const loreDiff = lore[side] - prevLore[side];
         events.push({icon:'\u2b50', cls:'rv-ep-quest', txt:`<b>${tcSn(c.name)}</b> +${loreDiff||'?'} lore`});
@@ -390,23 +467,23 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
-  // 1. Animate deaths BEFORE replacing DOM
+  // 1. Animate deaths BEFORE replacing DOM — match by iid
   if (!skipAnim) {
-    const currNames = cards.map(c => c.name);
-    const currCopy = [...currNames];
+    const currIids = cards.map(c => c.iid);
+    const currCopy = [...currIids];
     for (const pc of prevCards) {
-      const ci = currCopy.indexOf(pc.name);
+      const ci = currCopy.indexOf(pc.iid);
       if (ci >= 0) { currCopy.splice(ci, 1); }
       else {
-        const deadEl = el.querySelector(`[data-name="${pc.name}"]`);
+        const deadEl = el.querySelector(`[data-iid="${pc.iid}"]`);
         if (deadEl) deadEl.classList.add('tc-dying');
       }
     }
     // Also flash damage changes on existing DOM before swap
     for (const c of cards) {
-      const pc = prevCards.find(p => p.name === c.name);
+      const pc = prevCards.find(p => p.iid === c.iid);
       if (pc && c.damage > pc.damage) {
-        const dmgEl = el.querySelector(`[data-name="${c.name}"] .rv-dmg`);
+        const dmgEl = el.querySelector(`[data-iid="${c.iid}"] .rv-dmg`);
         if (dmgEl) dmgEl.classList.add('tc-dmg-flash');
       }
     }
@@ -416,10 +493,10 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
     }
   }
 
-  // 2. Build card HTML
-  const prevNames = prevCards.map(c => c.name);
+  // 2. Build card HTML — use data-iid for unique identification
+  const prevIids = prevCards.map(c => c.iid);
   const newHtml = cards.map(c => {
-    const isNew = !prevNames.includes(c.name) || cards.filter(x=>x.name===c.name).length > prevNames.filter(x=>x===c.name).length;
+    const isNew = !prevIids.includes(c.iid);
     const db = (rvCardsDB||{})[c.name] || {};
     const imgUrl = rvCardImg ? rvCardImg(db) : '';
     const isCh = (db.type||'').toLowerCase().includes('character');
@@ -427,7 +504,7 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
     const {b,s} = (typeof rvSn === 'function') ? rvSn(c.name) : {b:c.name.split(' - ')[0], s:''};
     const dmg = c.damage || 0;
     const will = parseInt(db.will) || 0;
-    const pc = prevCards.find(p => p.name === c.name);
+    const pc = prevCards.find(p => p.iid === c.iid);
     const dmgChanged = !skipAnim && pc && c.damage > pc.damage;
 
     let cls = 'rv-mc';
@@ -438,7 +515,7 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
     const dmgHtml = isCh && dmg > 0 ? `<div class="rv-dmg${dmgCls}">-${dmg}</div>` : '';
     const style = imgUrl ? `background-image:url(${imgUrl});background-size:cover;background-position:center 15%` : '';
 
-    return `<div class="${cls}" style="${style}" data-name="${c.name}" title="${c.name}">
+    return `<div class="${cls}" style="${style}" data-iid="${c.iid}" data-name="${c.name}" title="${c.name}">
       <div class="rv-cost">${db.cost||'?'}</div>${dmgHtml}
       <div class="rv-ovl"><div class="rv-cn2">${b}</div>${s?`<div style="font-size:0.45rem;color:rgba(255,255,255,0.6)">${s}</div>`:''}
       ${isCh?`<div class="rv-stats">${db.str?'<span>\u2694'+db.str+'</span>':''}${db.will?`<span>\ud83d\udee1${dmg>0?(will-dmg)+'/'+will:will}</span>`:''}${db.lore?'<span>\u2b50'+db.lore+'</span>':''}</div>`:''}</div></div>`;
@@ -493,18 +570,18 @@ async function tcShowSpellOverlay(snap, prev) {
     for (const [side, fieldId] of [['our','tc-field-our'],['opp','tc-field-opp']]) {
       // Damage targets
       for (const c of currBoard[side]) {
-        const pc = prevBoard[side].find(p => p.name === c.name);
+        const pc = prevBoard[side].find(p => p.iid === c.iid);
         if (pc && c.damage > pc.damage) {
-          const tgtEl = document.querySelector(`#${fieldId} [data-name="${c.name}"]`);
+          const tgtEl = document.querySelector(`#${fieldId} [data-iid="${c.iid}"]`);
           if (spellEl && tgtEl) await tcDrawArrow(spellEl, tgtEl, '#a855f7', '-' + (c.damage - pc.damage));
         }
       }
       // Removal targets (card was in prev but not in curr)
-      const currNames = currBoard[side].map(c => c.name);
+      const currIids = currBoard[side].map(c => c.iid);
       for (const pc of prevBoard[side]) {
-        if (!currNames.includes(pc.name)) {
-          const tgtEl = document.querySelector(`#${fieldId} [data-name="${pc.name}"]`);
-          if (spellEl && tgtEl) await tcDrawArrow(spellEl, tgtEl, '#a855f7', '💀');
+        if (!currIids.includes(pc.iid)) {
+          const tgtEl = document.querySelector(`#${fieldId} [data-iid="${pc.iid}"]`);
+          if (spellEl && tgtEl) await tcDrawArrow(spellEl, tgtEl, '#a855f7', '\ud83d\udc80');
         }
       }
     }
@@ -534,6 +611,39 @@ async function tcDrawArrow(srcEl, tgtEl, color, midLabel) {
   await new Promise(r => setTimeout(r, 500));
   srcEl.style.boxShadow = ''; tgtEl.style.boxShadow = '';
   svg.remove();
+}
+
+// ═══ INKWELL PANEL ═══
+function tcUpdateInkwell(snap) {
+  const inkwell = snap.inkwell || {our:[], opp:[]};
+  const ink = snap.ink || {our:0, opp:0};
+
+  for (const side of ['our', 'opp']) {
+    const el = document.getElementById('tc-ink-' + side);
+    const nEl = document.getElementById('tc-ink-' + side + '-n');
+    if (!el) continue;
+
+    const cards = inkwell[side] || [];
+    const available = cards.filter(c => !c.exerted).length;
+    const total = cards.length || ink[side] || 0;
+    if (nEl) nEl.textContent = `(${available}/${total})`;
+
+    el.innerHTML = cards.map(c => {
+      const name = c.name;
+      const cls = c.exerted ? 'tc-ink-card tc-ink-exerted' : 'tc-ink-card';
+      if (!name) {
+        // Opponent hidden card
+        return `<div class="${cls}" title="Hidden ink"><div class="tc-ink-hidden">?</div></div>`;
+      }
+      const db = (rvCardsDB||{})[name] || {};
+      const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+      const short = name.split(' - ')[0];
+      return `<div class="${cls}" title="${name}${c.exerted?' (used)':' (available)'}">
+        ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+        <div class="tc-ink-name" ${img?'style="display:none"':''}>${short}</div>
+      </div>`;
+    }).join('');
+  }
 }
 
 // ═══ HAND PANEL ═══
@@ -595,6 +705,476 @@ function tcCycleSpeed() {
   if (btn) btn.textContent = labels[(i + 1) % labels.length];
 }
 
+// ═══ WHITEBOARD (COACHING SANDBOX) ═══
+let wbOpen = false;
+let wbDeckCards = []; // {name, qty, remaining} from selected decklist
+// Board state cloned from current snapshot — each zone is array of {name, iid, ...}
+let wbOurField = [];
+let wbOppField = [];
+let wbHand = [];
+let wbInk = [];
+let wbDiscard = [];
+
+function tcToggleWhiteboard() {
+  wbOpen = !wbOpen;
+  const btn = document.getElementById('tc-btn-wb');
+  if (btn) btn.classList.toggle('tc-btn-active', wbOpen);
+
+  let panel = document.getElementById('tc-whiteboard');
+  if (!wbOpen) {
+    if (panel) panel.remove();
+    return;
+  }
+
+  // Pause replay
+  tcStop();
+
+  // Clone current board state
+  const snaps = tcReplayData?.snapshots || [];
+  const snap = snaps[tcSnapIdx] || {};
+  const board = snap.board || {our:[], opp:[]};
+  const items = snap.items || {our:[], opp:[]};
+  wbOurField = [...board.our, ...items.our].map(c => ({...c}));
+  wbOppField = [...board.opp, ...items.opp].map(c => ({...c}));
+  wbHand = (snap.hand || []).map(name => ({name}));
+  wbInk = ((snap.inkwell || {}).our || []).map(c => ({...c}));
+  wbDiscard = [];
+  wbDeckCards = [];
+
+  // Create whiteboard overlay
+  const wrap = document.querySelector('.tc-wrap');
+  if (!wrap) return;
+
+  panel = document.createElement('div');
+  panel.id = 'tc-whiteboard';
+  panel.className = 'wb-panel';
+
+  const p = tcReplayData.player_names || {};
+  const persp = tcReplayData.perspective || 1;
+  const ourName = p[String(persp)] || 'You';
+  const oppName = p[String(persp===1?2:1)] || 'Opponent';
+
+  panel.innerHTML = `
+    <div class="wb-header">
+      <span class="wb-title">&#9998; Whiteboard — T${snap.turn || '?'}</span>
+      <select id="wb-deck-select" onchange="wbLoadDeck(this.value)">
+        <option value="">— Add from decklist —</option>
+      </select>
+      <button class="tc-btn" onclick="wbClearArrows()" title="Clear arrows">&#x2215;</button>
+      <button class="tc-btn" onclick="wbReset()" title="Reset to snapshot">&#x21ba;</button>
+      <button class="tc-btn" onclick="tcToggleWhiteboard()" title="Close">&#x2715;</button>
+    </div>
+    <div class="wb-board">
+      <div class="wb-zone">
+        <div class="wb-zone-label">${oppName}</div>
+        <div class="wb-zone-cards" id="wb-opp-field"></div>
+      </div>
+      <div class="wb-midline">
+        <span class="tc-cnt">&#x2b50; <input type="number" class="wb-counter" id="wb-lore-opp" value="${(snap.lore||{}).opp||0}" min="0" max="20" title="Opp lore"></span>
+        <span class="tc-cnt">&#x1f4a7; <input type="number" class="wb-counter" id="wb-ink-opp" value="${(snap.ink||{}).opp||0}" min="0" max="15" title="Opp ink"></span>
+        <span class="tc-mid-sep"></span>
+        <span class="tc-cnt">&#x1f4a7; <input type="number" class="wb-counter" id="wb-ink-our" value="${(snap.ink||{}).our||0}" min="0" max="15" title="Our ink"></span>
+        <span class="tc-cnt">&#x2b50; <input type="number" class="wb-counter" id="wb-lore-our" value="${(snap.lore||{}).our||0}" min="0" max="20" title="Our lore"></span>
+      </div>
+      <div class="wb-zone">
+        <div class="wb-zone-label">${ourName}</div>
+        <div class="wb-zone-cards" id="wb-our-field"></div>
+      </div>
+      <div class="wb-zone wb-zone-hand">
+        <div class="wb-zone-label">Hand <span id="wb-hand-n"></span></div>
+        <div class="wb-zone-cards" id="wb-hand"></div>
+      </div>
+      <div class="wb-zone wb-zone-ink">
+        <div class="wb-zone-label">Ink <span id="wb-ink-n"></span></div>
+        <div class="wb-zone-cards wb-zone-small" id="wb-ink-zone"></div>
+      </div>
+      <div class="wb-zone wb-zone-discard" style="display:none" id="wb-discard-zone-wrap">
+        <div class="wb-zone-label">Discard <span id="wb-discard-n"></span></div>
+        <div class="wb-zone-cards wb-zone-small" id="wb-discard-zone"></div>
+      </div>
+    </div>
+    <div class="wb-deck" id="wb-deck" style="display:none">
+      <div class="wb-deck-label">Decklist <span id="wb-deck-count"></span></div>
+      <div class="wb-deck-cards" id="wb-deck-cards"></div>
+    </div>`;
+  wrap.appendChild(panel);
+
+  wbLoadDeckList();
+  wbRenderAll();
+  wbInitArrows();
+}
+
+function wbReset() {
+  const snaps = tcReplayData?.snapshots || [];
+  const snap = snaps[tcSnapIdx] || {};
+  const board = snap.board || {our:[], opp:[]};
+  const items = snap.items || {our:[], opp:[]};
+  wbOurField = [...board.our, ...items.our].map(c => ({...c}));
+  wbOppField = [...board.opp, ...items.opp].map(c => ({...c}));
+  wbHand = (snap.hand || []).map(name => ({name}));
+  wbInk = ((snap.inkwell || {}).our || []).map(c => ({...c}));
+  wbDiscard = [];
+  // Reset deck remaining counts
+  if (wbDeckCards.length) {
+    wbDeckCards.forEach(c => c.remaining = c.qty);
+    wbSubtractOnBoard();
+  }
+  wbRenderAll();
+}
+
+function wbRenderAll() {
+  wbRenderZone('wb-our-field', wbOurField, 'our-field');
+  wbRenderZone('wb-opp-field', wbOppField, 'opp-field');
+  wbRenderHandZone();
+  wbRenderSmallZone('wb-ink-zone', wbInk, 'ink', 'wb-ink-n');
+  wbRenderSmallZone('wb-discard-zone', wbDiscard, 'discard', 'wb-discard-n');
+  const discWrap = document.getElementById('wb-discard-zone-wrap');
+  if (discWrap) discWrap.style.display = wbDiscard.length ? '' : 'none';
+  wbRenderDeck();
+
+  // Ensure all zone containers have data-wb-zone for drop detection
+  const zoneMap = {'wb-our-field':'our-field','wb-opp-field':'opp-field','wb-hand':'hand','wb-ink-zone':'ink','wb-discard-zone':'discard'};
+  for (const [id, zone] of Object.entries(zoneMap)) {
+    const el = document.getElementById(id);
+    if (el) el.dataset.wbZone = zone;
+  }
+}
+
+function wbDragAttrs(zone, idx) {
+  // draggable=false — we handle drag manually to avoid conflict with dblclick
+  return `data-wb-zone="${zone}" data-wb-idx="${idx}" onmousedown="wbCardMouseDown(event,this,'${zone}',${idx})"`;
+}
+
+// ── Left-click interactions ──
+// Hold + move → drag card to another zone
+// Double click → toggle exert/ready (no visual effects)
+let _wbLastClickTime = 0;
+let _wbLastClickZone = '';
+let _wbLastClickIdx = -1;
+
+function wbCardMouseDown(e, el, zone, idx) {
+  if (e.button !== 0) return;
+  e.preventDefault();
+
+  // Double click: second mousedown within 350ms on same card
+  const now = Date.now();
+  if (now - _wbLastClickTime < 350 && _wbLastClickZone === zone && _wbLastClickIdx === idx) {
+    _wbLastClickTime = 0;
+    wbToggleExert(zone, idx);
+    return;
+  }
+  _wbLastClickTime = now;
+  _wbLastClickZone = zone;
+  _wbLastClickIdx = idx;
+
+  // Drag: hold button + move 12px
+  const startX = e.clientX, startY = e.clientY;
+  let dragging = false;
+
+  const onMove = ev => {
+    if (!dragging && Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 12) {
+      dragging = true;
+      _wbLastClickTime = 0; // cancel double-click
+      el.classList.add('wb-dragging');
+    }
+    if (dragging) {
+      // Highlight drop zone under cursor
+      document.querySelectorAll('.wb-zone-cards').forEach(z => z.classList.remove('wb-drop-hover'));
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      const dropZone = under?.closest('.wb-zone-cards');
+      if (dropZone && dropZone.dataset.wbZone !== zone) {
+        dropZone.classList.add('wb-drop-hover');
+      }
+    }
+  };
+
+  const onUp = ev => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    el.classList.remove('wb-dragging');
+    document.querySelectorAll('.wb-zone-cards').forEach(z => z.classList.remove('wb-drop-hover'));
+    if (dragging) {
+      const under = document.elementFromPoint(ev.clientX, ev.clientY);
+      const dropZone = under?.closest('.wb-zone-cards');
+      if (dropZone && dropZone.dataset.wbZone && dropZone.dataset.wbZone !== zone) {
+        wbMoveCard(zone, idx, dropZone.dataset.wbZone);
+      }
+    }
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// ── Right-click drag → draw arrow ──
+let wbArrowSvgs = [];
+let wbArrowDragging = false;
+let wbArrowStartX = 0, wbArrowStartY = 0;
+let wbArrowPreview = null;
+
+function wbInitArrows() {
+  const board = document.querySelector('.wb-board');
+  if (!board) return;
+  board.style.position = 'relative';
+
+  board.addEventListener('contextmenu', e => e.preventDefault());
+
+  board.addEventListener('mousedown', e => {
+    if (e.button !== 2) return; // right button only
+    const bR = board.getBoundingClientRect();
+    wbArrowStartX = e.clientX - bR.left;
+    wbArrowStartY = e.clientY - bR.top;
+    wbArrowDragging = true;
+
+    // Create preview SVG
+    wbArrowPreview = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    wbArrowPreview.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:45;width:100%;height:100%;overflow:visible';
+    wbArrowPreview.innerHTML = `<defs><marker id="wb-ah-preview" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ef4444" fill-opacity="0.5"/></marker></defs><line id="wb-arrow-line" x1="${wbArrowStartX}" y1="${wbArrowStartY}" x2="${wbArrowStartX}" y2="${wbArrowStartY}" stroke="#ef4444" stroke-width="3" stroke-opacity="0.4" stroke-dasharray="6 4" marker-end="url(#wb-ah-preview)"/>`;
+    board.appendChild(wbArrowPreview);
+  });
+
+  board.addEventListener('mousemove', e => {
+    if (!wbArrowDragging || !wbArrowPreview) return;
+    const bR = board.getBoundingClientRect();
+    const line = wbArrowPreview.getElementById('wb-arrow-line');
+    if (line) {
+      line.setAttribute('x2', e.clientX - bR.left);
+      line.setAttribute('y2', e.clientY - bR.top);
+    }
+  });
+
+  board.addEventListener('mouseup', e => {
+    if (e.button !== 2 || !wbArrowDragging) return;
+    wbArrowDragging = false;
+
+    const bR = board.getBoundingClientRect();
+    const endX = e.clientX - bR.left;
+    const endY = e.clientY - bR.top;
+    const dist = Math.sqrt((endX - wbArrowStartX)**2 + (endY - wbArrowStartY)**2);
+
+    // Remove preview
+    if (wbArrowPreview) { wbArrowPreview.remove(); wbArrowPreview = null; }
+
+    // Only draw if dragged a minimum distance
+    if (dist < 20) return;
+
+    // Draw persistent arrow
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.classList.add('wb-arrow-svg');
+    svg.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:40;width:100%;height:100%;overflow:visible';
+    const markerId = 'wb-ah-' + Date.now();
+    svg.innerHTML = `<defs><marker id="${markerId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#ef4444"/></marker></defs><line x1="${wbArrowStartX}" y1="${wbArrowStartY}" x2="${endX}" y2="${endY}" stroke="#ef4444" stroke-width="3" stroke-opacity="0.8" marker-end="url(#${markerId})"/>`;
+    board.appendChild(svg);
+    wbArrowSvgs.push(svg);
+  });
+}
+
+function wbClearArrows() {
+  for (const svg of wbArrowSvgs) svg.remove();
+  wbArrowSvgs = [];
+}
+
+// ── Double-click to toggle exert/ready ──
+function wbToggleExert(zone, idx) {
+  const cards = wbGetZone(zone);
+  if (!cards || !cards[idx]) return;
+  if (cards[idx].exerted !== undefined) {
+    cards[idx].exerted = !cards[idx].exerted;
+    wbRenderAll();
+  }
+}
+
+function wbRenderZone(containerId, cards, zone) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.dataset.wbZone = zone;
+  el.innerHTML = cards.map((c, i) => {
+    const db = (rvCardsDB||{})[c.name] || {};
+    const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+    const isCh = (db.type||'').toLowerCase().includes('character');
+    const inkC = (typeof RV_IC !== 'undefined' ? RV_IC : {})[(db.ink||'').trim()] || '';
+    const {b,s} = (typeof rvSn === 'function') ? rvSn(c.name) : {b:c.name.split(' - ')[0], s:''};
+    const dmg = c.damage || 0;
+    const will = parseInt(db.will) || 0;
+    const style = img ? `background-image:url(${img});background-size:cover;background-position:center 15%` : '';
+
+    let cls = 'rv-mc wb-board-card';
+    if (inkC) cls += ' rv-ink-' + inkC;
+    if (c.exerted) cls += ' rv-exerted';
+
+    return `<div class="${cls}" style="${style}" title="${c.name}" ${wbDragAttrs(zone, i)}>
+      <div class="rv-cost">${db.cost||'?'}</div>
+      ${isCh && dmg > 0 ? `<div class="rv-dmg">-${dmg}</div>` : ''}
+      <div class="rv-ovl"><div class="rv-cn2">${b}</div>${s?`<div style="font-size:0.45rem;color:rgba(255,255,255,0.6)">${s}</div>`:''}
+      ${isCh?`<div class="rv-stats">${db.str?'<span>&#x2694;'+db.str+'</span>':''}${db.will?`<span>&#x1f6e1;${dmg>0?(will-dmg)+'/'+will:will}</span>`:''}${db.lore?'<span>&#x2b50;'+db.lore+'</span>':''}</div>`:''}</div></div>`;
+  }).join('') || '<div class="wb-empty-zone"></div>';
+}
+
+function wbRenderHandZone() {
+  const el = document.getElementById('wb-hand');
+  const n = document.getElementById('wb-hand-n');
+  if (!el) return;
+  el.dataset.wbZone = 'hand';
+  if (n) n.textContent = `(${wbHand.length})`;
+  el.innerHTML = wbHand.map((c, i) => {
+    const db = (rvCardsDB||{})[c.name] || {};
+    const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+    const short = c.name.split(' - ')[0];
+    return `<div class="tc-hc wb-hand-card" title="${c.name}" ${wbDragAttrs('hand', i)}>
+      ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+      <div class="tc-hc-name" ${img?'style="display:none"':''}>${short}</div>
+    </div>`;
+  }).join('') || '<div class="wb-empty-zone"></div>';
+}
+
+function wbRenderSmallZone(containerId, cards, zone, countId) {
+  const el = document.getElementById(containerId);
+  const n = document.getElementById(countId);
+  if (!el) return;
+  el.dataset.wbZone = zone;
+  if (n) n.textContent = `(${cards.length})`;
+  el.innerHTML = cards.map((c, i) => {
+    const db = (rvCardsDB||{})[c.name||''] || {};
+    const img = c.name ? ((typeof rvCardImg === 'function') ? rvCardImg(db) : '') : '';
+    const short = (c.name || '?').split(' - ')[0];
+    return `<div class="tc-ink-card wb-small-card${c.exerted?' tc-ink-exerted':''}" title="${c.name||'hidden'}" ${wbDragAttrs(zone, i)}>
+      ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+      <div class="tc-ink-name" ${img?'style="display:none"':''}>${short}</div>
+    </div>`;
+  }).join('');
+}
+
+function wbGetZone(zone) {
+  if (zone === 'our-field') return wbOurField;
+  if (zone === 'opp-field') return wbOppField;
+  if (zone === 'hand') return wbHand;
+  if (zone === 'ink') return wbInk;
+  if (zone === 'discard') return wbDiscard;
+  return null;
+}
+
+function wbMoveCard(fromZone, idx, toZone) {
+  if (fromZone === toZone) return;
+
+  // Special case: dragging from deck
+  if (fromZone === 'deck') {
+    const card = wbDeckCards[idx];
+    if (!card || card.remaining <= 0) return;
+    card.remaining--;
+    const dst = wbGetZone(toZone);
+    if (!dst) return;
+    dst.push({ name: card.name, damage: 0, exerted: false });
+    wbRenderAll();
+    return;
+  }
+
+  const src = wbGetZone(fromZone);
+  const dst = wbGetZone(toZone);
+  if (!src || !dst || idx < 0 || idx >= src.length) return;
+  const card = src.splice(idx, 1)[0];
+  // Ensure card has needed fields for board zones
+  if (toZone === 'our-field' || toZone === 'opp-field') {
+    if (!card.damage) card.damage = 0;
+    if (card.exerted === undefined) card.exerted = false;
+  }
+  dst.push(card);
+
+  // If moved to discard and card is in deck list, update remaining
+  if (wbDeckCards.length) wbSubtractOnBoard();
+  wbRenderAll();
+}
+
+async function wbLoadDeckList() {
+  const select = document.getElementById('wb-deck-select');
+  if (!select) return;
+  try {
+    const user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : '';
+    let decks = [];
+    if (user) {
+      const resp = await fetch(`/api/decks?user=${encodeURIComponent(user)}`);
+      const data = await resp.json();
+      decks = data.decks || [];
+    }
+    if (!decks.length) {
+      const resp = await fetch('/api/decks?user=cloud');
+      const data = await resp.json();
+      decks = data.decks || [];
+    }
+    for (const d of decks) {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify(d.cards || {});
+      opt.textContent = `${d.name} (${d.deckCode}) — ${d.total || 0} cards`;
+      select.appendChild(opt);
+    }
+  } catch (e) { console.warn('Failed to load decks:', e); }
+}
+
+function wbLoadDeck(cardsJson) {
+  const deckEl = document.getElementById('wb-deck');
+  if (!cardsJson) { wbDeckCards = []; if (deckEl) deckEl.style.display = 'none'; return; }
+
+  let cards;
+  try { cards = JSON.parse(cardsJson); } catch (e) { return; }
+
+  wbDeckCards = Object.entries(cards).map(([name, qty]) => ({
+    name, qty: parseInt(qty), remaining: parseInt(qty)
+  })).sort((a, b) => {
+    const da = (rvCardsDB || {})[a.name] || {};
+    const dbb = (rvCardsDB || {})[b.name] || {};
+    return (parseInt(da.cost) || 0) - (parseInt(dbb.cost) || 0) || a.name.localeCompare(b.name);
+  });
+
+  // Subtract cards already on board/hand/ink/discard
+  wbSubtractOnBoard();
+  if (deckEl) deckEl.style.display = '';
+  wbRenderDeck();
+}
+
+function wbSubtractOnBoard() {
+  // Count cards in all zones
+  const onBoard = {};
+  for (const zones of [wbOurField, wbOppField, wbHand, wbInk, wbDiscard]) {
+    for (const c of zones) {
+      if (c.name) onBoard[c.name] = (onBoard[c.name] || 0) + 1;
+    }
+  }
+  for (const dc of wbDeckCards) {
+    dc.remaining = Math.max(0, dc.qty - (onBoard[dc.name] || 0));
+  }
+}
+
+function wbRenderDeck() {
+  const el = document.getElementById('wb-deck-cards');
+  const countEl = document.getElementById('wb-deck-count');
+  if (!el) return;
+
+  const totalRemaining = wbDeckCards.reduce((s, c) => s + c.remaining, 0);
+  if (countEl) countEl.textContent = `(${totalRemaining} remaining)`;
+
+  el.innerHTML = wbDeckCards.map((c, i) => {
+    const db = (rvCardsDB || {})[c.name] || {};
+    const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+    const short = c.name.split(' - ')[0];
+    const dimmed = c.remaining <= 0;
+    const cls = 'wb-card' + (dimmed ? ' wb-card-empty' : '');
+
+    const mdown = dimmed ? '' : `onmousedown="wbCardMouseDown(event,this,'deck',${i})"`;
+    return `<div class="${cls}" onclick="${dimmed ? '' : `wbAddFromDeck(${i})`}" ${mdown} title="${c.name} (${c.remaining}/${c.qty})">
+      ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
+      <div class="wb-card-name" ${img ? 'style="display:none"' : ''}>${short}</div>
+      <div class="wb-card-qty">${c.remaining}</div>
+    </div>`;
+  }).join('');
+}
+
+function wbAddFromDeck(deckIdx) {
+  const card = wbDeckCards[deckIdx];
+  if (!card || card.remaining <= 0) return;
+  card.remaining--;
+  wbHand.push({ name: card.name });
+  wbRenderAll();
+}
+
 // ═══ CSS ═══
 (function() {
   if (document.getElementById('tc-css')) return;
@@ -627,9 +1207,23 @@ function tcCycleSpeed() {
     .tc-action-bar{padding:6px 14px;font-size:.8em;color:var(--gold);font-weight:600;background:rgba(212,160,58,.06);border-bottom:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .3s}
 
     .tc-body{display:grid;grid-template-columns:1fr 200px;min-height:280px}
-    .tc-events{background:var(--bg3);border-left:1px solid var(--border);padding:8px;overflow-y:auto;max-height:400px;display:flex;flex-direction:column;gap:2px}
+    .tc-side-panel{background:var(--bg3);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;max-height:500px}
+    .tc-events{padding:8px;display:flex;flex-direction:column;gap:2px;flex:1}
     .tc-events h4{font-size:.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px}
-    @media(max-width:900px){.tc-body{grid-template-columns:1fr}.tc-events{max-height:150px;border-left:none;border-top:1px solid var(--border)}}
+
+    .tc-ink-panel{padding:8px;border-bottom:1px solid var(--border)}
+    .tc-ink-section{margin-bottom:6px}
+    .tc-ink-section:last-child{margin-bottom:0}
+    .tc-ink-label{font-size:.68em;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .tc-ink-label span{color:var(--gold);font-weight:700}
+    .tc-ink-cards{display:flex;gap:3px;flex-wrap:wrap}
+    .tc-ink-card{width:32px;height:44px;border-radius:4px;overflow:hidden;background:var(--bg);border:1px solid rgba(212,160,58,.4);flex-shrink:0;position:relative;transition:opacity .2s}
+    .tc-ink-card img{width:100%;height:100%;object-fit:cover}
+    .tc-ink-name{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.38em;padding:2px;height:100%;color:var(--text2);word-break:break-word}
+    .tc-ink-exerted{opacity:.35;border-color:var(--border)}
+    .tc-ink-hidden{display:flex;align-items:center;justify-content:center;height:100%;font-size:.7em;color:var(--text2);font-weight:600}
+
+    @media(max-width:900px){.tc-body{grid-template-columns:1fr}.tc-side-panel{max-height:250px;border-left:none;border-top:1px solid var(--border)}}
     .tc-board-wrap{padding:12px 14px}
     .tc-field{display:flex;gap:6px;flex-wrap:wrap;min-height:80px;align-items:flex-start;padding:8px 0;transition:opacity .2s}
     .tc-field-label{font-size:.68em;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
@@ -645,6 +1239,54 @@ function tcCycleSpeed() {
     @keyframes tcDie{0%{opacity:1;transform:scale(1) rotate(0deg)}20%{opacity:.9;transform:scale(1.08);filter:brightness(1.4) saturate(2)}100%{opacity:0;transform:scale(.4) rotate(8deg);filter:grayscale(1) brightness(.5)}}
     @keyframes tcDmgFlash{0%{transform:scale(1);box-shadow:none}30%{transform:scale(1.6);background:#ef4444;box-shadow:0 0 16px 4px #ef4444;color:#fff}100%{transform:scale(1);box-shadow:none}}
     .tc-new-glow{box-shadow:0 0 12px 3px var(--gold) !important;border-color:var(--gold) !important}
+    .tc-ability-hit{animation:tcAbilityHit .5s ease both !important}
+    @keyframes tcAbilityHit{0%{box-shadow:none;filter:brightness(1)}30%{box-shadow:0 0 20px 6px #a855f7;filter:brightness(1.4)}100%{box-shadow:none;filter:brightness(1)}}
+
+    .tc-btn-wb{font-size:1em !important;padding:4px 8px !important}
+    .tc-btn-active{background:var(--gold) !important;color:var(--bg) !important}
+
+    .wb-panel{border-top:2px solid var(--gold);background:var(--bg2);animation:tcFadeIn .25s ease}
+    .wb-header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border)}
+    .wb-title{font-weight:600;font-size:.85em;color:var(--gold)}
+    .wb-header select{flex:1;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:.8em}
+
+    .wb-board{padding:10px 14px}
+    .wb-zone{margin-bottom:6px}
+    .wb-zone-label{font-size:.68em;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+    .wb-zone-cards{display:flex;gap:6px;flex-wrap:wrap;min-height:70px;align-items:flex-start;padding:6px;border-radius:8px;background:rgba(255,255,255,.03);border:1px dashed var(--border)}
+    .wb-zone-small{min-height:44px;gap:3px}
+    .wb-zone-small .tc-ink-card{cursor:pointer}
+    .wb-zone-small .tc-ink-card:hover{opacity:1;border-color:var(--gold)}
+    .wb-zone-hand{border-top:1px solid var(--border);padding-top:8px;margin-top:4px}
+    .wb-zone-hand .wb-zone-cards{min-height:60px}
+    .wb-zone-ink{margin-top:4px}
+    .wb-zone-discard{margin-top:4px}
+    .wb-midline{display:flex;align-items:center;gap:12px;justify-content:center;padding:2px 0;margin:2px 0}
+    .wb-board-card{cursor:pointer;transition:transform .15s}
+    .wb-board-card:hover{transform:translateY(-3px);box-shadow:0 0 10px rgba(239,68,68,.4)}
+    .wb-hand-card{cursor:pointer}
+    .wb-hand-card:hover{transform:translateY(-3px);box-shadow:0 0 10px rgba(76,175,80,.4) !important}
+    .wb-small-card{cursor:pointer !important}
+    .wb-empty-zone{min-height:30px}
+    .wb-dragging{opacity:.3;transform:scale(.95)}
+    .wb-drag-ghost{position:fixed;z-index:999;pointer-events:none;opacity:.85;transform:rotate(3deg);filter:drop-shadow(0 4px 12px rgba(0,0,0,.5))}
+    .wb-drop-hover{background:rgba(212,160,58,.12) !important;border-color:var(--gold) !important;border-style:solid !important}
+    .wb-arrow-svg{pointer-events:none}
+    .wb-counter{width:32px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;text-align:center;font-size:.75em;font-weight:600;padding:1px 2px;-moz-appearance:textfield}
+    .wb-counter::-webkit-inner-spin-button,.wb-counter::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+
+    .wb-deck{padding:10px 14px;border-top:1px solid var(--border)}
+    .wb-deck-label{font-size:.7em;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .wb-deck-label span{color:var(--gold)}
+    .wb-deck-cards{display:flex;gap:3px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}
+    .wb-deck-cards::-webkit-scrollbar{height:4px}
+    .wb-deck-cards::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .wb-card{width:52px;height:72px;border-radius:5px;overflow:hidden;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;position:relative;cursor:pointer;transition:transform .15s,opacity .2s}
+    .wb-card:hover{transform:translateY(-3px);border-color:var(--gold)}
+    .wb-card img{width:100%;height:100%;object-fit:cover}
+    .wb-card-name{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.42em;padding:2px;height:100%;color:var(--text2);word-break:break-word}
+    .wb-card-qty{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.75);color:#fff;font-size:.55em;font-weight:700;min-width:14px;height:14px;border-radius:7px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+    .wb-card-empty{opacity:.25;cursor:default;pointer-events:none}
     @keyframes tcDrawArrow{from{stroke-dashoffset:1000}to{stroke-dashoffset:0}}
     @keyframes tcCombatPulse{0%{transform:scale(0);opacity:0}50%{transform:scale(1.2)}100%{transform:scale(1);opacity:1}}
 

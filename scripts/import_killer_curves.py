@@ -49,6 +49,9 @@ def import_killer_curves(dry_run: bool = False):
             print(f"  SKIP {f.name}: missing deck codes")
             continue
 
+        # Detect format from filename: _inf.json → infinity, else core
+        game_format = 'infinity' if f.stem.endswith('_inf') else 'core'
+
         try:
             generated_at = date.fromisoformat(date_str) if date_str else date.today()
         except ValueError:
@@ -56,7 +59,7 @@ def import_killer_curves(dry_run: bool = False):
 
         rows.append({
             'generated_at': generated_at,
-            'game_format': 'core',
+            'game_format': game_format,
             'our_deck': our_deck,
             'opp_deck': opp_deck,
             'curves': json.dumps(curves),

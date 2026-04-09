@@ -5,6 +5,35 @@ import json
 from typing import Optional
 
 
+def _validate_replay(data: dict):
+    """Pre-flight checks on raw replay data. Only blocks truly unprocessable
+    files. Incomplete replays (disconnect, no game end) are accepted —
+    if we can build snapshots, we show them."""
+    errors = []
+
+    # Hard requirements — without these we can't build anything
+    if not data.get("gameId"):
+        errors.append("Missing gameId")
+    if "playerNames" not in data or not data["playerNames"]:
+        errors.append("Missing playerNames")
+
+    bs = data.get("baseSnapshot")
+    if not bs or not isinstance(bs, dict):
+        errors.append("Missing or invalid baseSnapshot")
+    else:
+        if not bs.get("myPlayer") or not isinstance(bs["myPlayer"], dict):
+            errors.append("baseSnapshot missing myPlayer")
+        if not bs.get("opponent") or not isinstance(bs["opponent"], dict):
+            errors.append("baseSnapshot missing opponent")
+
+    frames = data.get("frames")
+    if not frames or not isinstance(frames, list):
+        errors.append("Missing or empty frames")
+
+    if errors:
+        raise ValueError(f"Invalid replay: {'; '.join(errors)}")
+
+
 def parse_replay_gz(file_bytes: bytes) -> dict:
     """Decompress .replay.gz and build frame-by-frame snapshots.
 
@@ -23,6 +52,8 @@ def parse_replay_gz(file_bytes: bytes) -> dict:
 
     if data.get("format") != "duels-replay-v1":
         raise ValueError(f"Unsupported format: {data.get('format')}")
+
+    _validate_replay(data)
 
     perspective = data.get("perspective", 1)
     bs = data.get("baseSnapshot", {})
@@ -91,6 +122,7 @@ def _snapshot(state: dict, turn: int, action_type: str, label: str, perspective:
             cards.append({
                 "name": c.get("fullName", c.get("name", "")),
                 "id": c.get("id", ""),
+                "iid": c.get("instanceId", ""),
                 "cost": c.get("cost", 0),
                 "damage": c.get("damage", 0),
                 "exerted": c.get("exerted", False),
@@ -102,6 +134,20 @@ def _snapshot(state: dict, turn: int, action_type: str, label: str, perspective:
 
     def extract_hand(hand_list):
         return [c.get("fullName", c.get("name", "")) for c in (hand_list or []) if isinstance(c, dict)]
+
+    def extract_inkwell(inkwell_list):
+        """Extract ink cards with name and exerted status."""
+        cards = []
+        for c in (inkwell_list or []):
+            if not isinstance(c, dict):
+                continue
+            hidden = c.get("hidden", False)
+            cards.append({
+                "name": c.get("fullName", c.get("name", "")) if not hidden else None,
+                "cost": c.get("cost", 0) if not hidden else None,
+                "exerted": c.get("exerted", False),
+            })
+        return cards
 
     return {
         "turn": turn,
@@ -124,6 +170,10 @@ def _snapshot(state: dict, turn: int, action_type: str, label: str, perspective:
         "ink": {
             "our": len(mp.get("inkwell", [])),
             "opp": len(opp.get("inkwell", [])),
+        },
+        "inkwell": {
+            "our": extract_inkwell(mp.get("inkwell", [])),
+            "opp": extract_inkwell(opp.get("inkwell", [])),
         },
     }
 
