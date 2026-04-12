@@ -79,16 +79,28 @@ def parse_replay_gz(file_bytes: bytes) -> dict:
 
     for frame in frames:
         patches = frame.get("patch", [])
+        action_type = frame.get("actionType", "")
+        turn = frame.get("turnNumber", 0)
+        player = frame.get("player", 0)
+
+        # Analyze patches against the pre-apply state to extract the card names,
+        # singer, target, ink spent and lore gained. Must run BEFORE _apply_patch
+        # so the state still reflects what the patch is about to change.
+        meta = _analyze_frame(patches, action_type, state, perspective, player)
+
         for p in patches:
             if isinstance(p, dict):
                 _apply_patch(state, p)
 
-        action_type = frame.get("actionType", "")
-        turn = frame.get("turnNumber", 0)
-        player = frame.get("player", 0)
-        label = _make_label(action_type, turn, player, perspective, state)
+        label = _make_label(action_type, turn, player, perspective, meta)
 
-        snapshots.append(_snapshot(state, turn, action_type, label, perspective))
+        snap = _snapshot(state, turn, action_type, label, perspective)
+        # Enrich snapshot with structured action metadata so the frontend can
+        # render detailed event log / animations without re-diffing the board.
+        for k, v in meta.items():
+            if v is not None and v != '':
+                snap[k] = v
+        snapshots.append(snap)
 
     # Build hand_at_turn from snapshots
     hand_at_turn = {}
@@ -178,23 +190,311 @@ def _snapshot(state: dict, turn: int, action_type: str, label: str, perspective:
     }
 
 
-def _make_label(action_type: str, turn: int, player: int, perspective: int, state: dict) -> str:
-    """Human-readable label for an action."""
+def _get_card_name(v) -> str:
+    """Build fullName 'Name - Title' from a card dict in a patch/state."""
+    if not isinstance(v, dict):
+        return ''
+    if v.get('fullName'):
+        return v['fullName']
+    n = v.get('name', '')
+    t = v.get('title', '')
+    if n and t and t not in n:
+        return f"{n} - {t}"
+    return n
+
+
+def _get_at(state: dict, path_parts):
+    """Navigate nested state by a list of path segments. Returns None on miss."""
+    cur = state
+    for p in path_parts:
+        if cur is None:
+            return None
+        if isinstance(cur, list):
+            try:
+                cur = cur[int(p)]
+            except (ValueError, IndexError):
+                return None
+        elif isinstance(cur, dict):
+            cur = cur.get(p)
+        else:
+            return None
+    return cur
+
+
+def _analyze_frame(patches, action_type, state, perspective, player):
+    """Inspect a frame's JSON patches to extract card-level metadata.
+
+    Must be called BEFORE the patches are applied — the state argument
+    must reflect the pre-frame snapshot, so we can still read the cards
+    that a 'remove' operation is about to delete or read instanceIds
+    of cards referenced by an activeChallenge.
+    """
+    meta = {}
+    side = 'myPlayer' if player == perspective else 'opponent'
+
+    ink_spent = 0
+    field_adds = []      # (owner_side, 'field'|'items', idx, value)
+    field_removes = []   # (owner_side, 'field'|'items', idx)
+    discard_adds = []    # (owner_side, idx, value)
+    exerted_true = []    # (owner_side, 'field'|'items', idx)
+    lore_updates = {}    # owner_side -> new_value
+    damage_updates = []  # (owner_side, idx, new_value)
+    prompt_source_card = None
+    active_challenge = None
+    waiting_for_opp = None
+    inkwell_add = None   # first add-to-inkwell value
+
+    for p in patches:
+        if not isinstance(p, dict):
+            continue
+        op = p.get('op', '')
+        path = (p.get('path') or '').strip('/')
+        val = p.get('value')
+        if not path:
+            continue
+        parts = path.split('/')
+
+        # Ink spent: covers both `inkwell/N/exerted` and `inkwell/N/card/exerted`
+        if op == 'replace' and 'inkwell' in parts and parts[-1] == 'exerted' and val is True:
+            ink_spent += 1
+
+        # Field / items / discard changes
+        if op == 'add' and len(parts) == 3 and parts[1] in ('field', 'items'):
+            field_adds.append((parts[0], parts[1], parts[2], val))
+        elif op == 'remove' and len(parts) == 3 and parts[1] in ('field', 'items'):
+            field_removes.append((parts[0], parts[1], parts[2]))
+        elif op == 'add' and len(parts) == 3 and parts[1] == 'discard':
+            discard_adds.append((parts[0], parts[2], val))
+
+        # Characters/items becoming exerted (quest, singer, attack, ability)
+        if (op == 'replace' and len(parts) >= 4
+                and parts[1] in ('field', 'items')
+                and parts[-1] == 'exerted' and val is True):
+            exerted_true.append((parts[0], parts[1], parts[2]))
+
+        # Lore update
+        if op == 'replace' and len(parts) == 2 and parts[1] == 'lore':
+            lore_updates[parts[0]] = val
+
+        # Damage update
+        if (op == 'replace' and len(parts) >= 4
+                and parts[1] == 'field' and parts[-1] == 'damage'):
+            damage_updates.append((parts[0], parts[2], val))
+
+        # Prompt / challenge / waiting state
+        if op == 'replace' and path == 'promptSourceCard':
+            prompt_source_card = val
+        elif op == 'replace' and path == 'activeChallenge':
+            active_challenge = val
+        elif op == 'replace' and path == 'waitingForOpponent':
+            waiting_for_opp = val
+
+        # Inkwell add (for ADD_TO_INK)
+        if op == 'add' and len(parts) >= 3 and parts[1] == 'inkwell' and inkwell_add is None:
+            inkwell_add = val
+
+    meta['ink_spent'] = ink_spent
+
+    if action_type == 'PLAY_CARD':
+        # 1) Character / item: first add to field or items
+        if field_adds:
+            owner_f, zone_f, idx_f, v = field_adds[0]
+            played = _get_card_name(v)
+            meta['played_card'] = played
+            meta['played_card_cost'] = (v.get('cost') if isinstance(v, dict) else 0) or 0
+            if zone_f == 'items':
+                meta['is_item'] = True
+            # Shift: find a removed card on the same side+zone whose base name matches
+            base_played = played.split(' - ')[0] if ' - ' in played else played
+            for owner_r, zone_r, idx_r in field_removes:
+                if owner_r != owner_f or zone_r != zone_f:
+                    continue
+                rem = _get_at(state, [owner_r, zone_r, idx_r])
+                rem_name = _get_card_name(rem)
+                if not rem_name:
+                    continue
+                rem_base = rem_name.split(' - ')[0] if ' - ' in rem_name else rem_name
+                if rem_base and rem_base == base_played:
+                    meta['is_shift'] = True
+                    meta['shift_base'] = rem_name
+                    break
+        # 2) Song / non-persistent action: no field add, only promptSourceCard
+        elif prompt_source_card:
+            meta['played_card'] = _get_card_name(prompt_source_card)
+            meta['played_card_cost'] = (
+                prompt_source_card.get('cost') if isinstance(prompt_source_card, dict) else 0
+            ) or 0
+            meta['is_song'] = True
+            # Singer = a character on the same side that just became exerted
+            for owner_e, zone_e, idx_e in exerted_true:
+                if owner_e != side or zone_e != 'field':
+                    continue
+                ch = _get_at(state, [owner_e, zone_e, idx_e])
+                nm = _get_card_name(ch)
+                if nm:
+                    meta['singer'] = nm
+                    break
+
+    elif action_type == 'QUEST':
+        for owner_e, zone_e, idx_e in exerted_true:
+            if owner_e != side or zone_e != 'field':
+                continue
+            ch = _get_at(state, [owner_e, zone_e, idx_e])
+            nm = _get_card_name(ch)
+            if nm:
+                meta['quest_card'] = nm
+                break
+        if side in lore_updates:
+            before = _get_at(state, [side, 'lore']) or 0
+            meta['lore_gained'] = max(0, int(lore_updates[side] or 0) - int(before))
+
+    elif action_type == 'ATTACK':
+        if isinstance(active_challenge, dict):
+            atk_id = active_challenge.get('attackerInstanceId')
+            def_id = active_challenge.get('defenderInstanceId')
+            for s in ('myPlayer', 'opponent'):
+                field_list = _get_at(state, [s, 'field']) or []
+                for c in field_list:
+                    if not isinstance(c, dict):
+                        continue
+                    if c.get('instanceId') == atk_id:
+                        meta['attacker'] = _get_card_name(c)
+                    if c.get('instanceId') == def_id:
+                        meta['defender'] = _get_card_name(c)
+        # Damage delivered to defender side (not attacker's counter-damage)
+        defender_side = 'myPlayer' if side == 'opponent' else 'opponent'
+        for owner_d, idx_d, amt in damage_updates:
+            if owner_d == defender_side and meta.get('defender'):
+                meta['damage_dealt'] = amt
+                break
+        # Defender killed if it appears in a discard add
+        if meta.get('defender'):
+            for owner_x, idx_x, v in discard_adds:
+                if _get_card_name(v) == meta['defender']:
+                    meta['defender_killed'] = True
+                    break
+
+    elif action_type == 'ACTIVATE_ABILITY':
+        # 1) Source = first card that got exerted (item or character)
+        for owner_e, zone_e, idx_e in exerted_true:
+            src = _get_at(state, [owner_e, zone_e, idx_e])
+            nm = _get_card_name(src)
+            if nm:
+                meta['ability_card'] = nm
+                break
+        # 2) Fallback: the card that self-banishes (remove from field/items)
+        #    This covers abilities that banish their own source card (e.g. Guidebook's Boost 2).
+        if not meta.get('ability_card'):
+            for owner_r, zone_r, idx_r in field_removes:
+                if owner_r != side:
+                    continue
+                src = _get_at(state, [owner_r, zone_r, idx_r])
+                nm = _get_card_name(src)
+                if nm:
+                    meta['ability_card'] = nm
+                    break
+        if isinstance(waiting_for_opp, dict):
+            name = waiting_for_opp.get('cardName')
+            if name:
+                meta['ability_name'] = name
+            src = waiting_for_opp.get('sourceCard')
+            if not meta.get('ability_card') and isinstance(src, dict):
+                meta['ability_card'] = _get_card_name(src)
+        if not meta.get('ability_card') and isinstance(prompt_source_card, dict):
+            meta['ability_card'] = _get_card_name(prompt_source_card)
+
+    elif action_type == 'ADD_TO_INK':
+        if isinstance(inkwell_add, dict):
+            card = inkwell_add.get('card') if isinstance(inkwell_add.get('card'), dict) else inkwell_add
+            nm = _get_card_name(card)
+            if nm:
+                meta['inked_card'] = nm
+
+    elif action_type == 'RESPOND_TO_PROMPT':
+        if isinstance(prompt_source_card, dict):
+            meta['ability_card'] = _get_card_name(prompt_source_card)
+        if isinstance(waiting_for_opp, dict):
+            name = waiting_for_opp.get('cardName')
+            if name:
+                meta['ability_name'] = name
+        if discard_adds:
+            owner_x, idx_x, v = discard_adds[0]
+            nm = _get_card_name(v)
+            if nm:
+                meta['response_card_to_discard'] = nm
+
+    return meta
+
+
+def _make_label(action_type: str, turn: int, player: int, perspective: int, meta: dict) -> str:
+    """Human-readable label describing exactly what the frame does.
+
+    Uses metadata extracted from the frame's patches (card names, singer,
+    target, ink spent, lore gained). Falls back to a generic label only
+    when no actionable context is available.
+    """
     who = "You" if player == perspective else "Opp"
-    labels = {
-        "CHOOSE_STARTING_PLAYER": "Coin toss",
-        "MULLIGAN": f"T{turn} {who} Mulligan",
-        "END_TURN": f"T{turn} {who} End turn",
-        "ADD_TO_INK": f"T{turn} {who} Ink",
-        "PLAY_CARD": f"T{turn} {who} Play",
-        "QUEST": f"T{turn} {who} Quest",
-        "ATTACK": f"T{turn} {who} Attack",
-        "ACTIVATE_ABILITY": f"T{turn} {who} Ability",
-        "RESPOND_TO_PROMPT": f"T{turn} {who} Response",
-        "BOOST": f"T{turn} {who} Boost",
-        "GAME_FINISH": "Game Over",
-    }
-    return labels.get(action_type, f"T{turn} {who} {action_type}")
+    base = f"T{turn} {who}"
+    ink = f" ({meta.get('ink_spent', 0)}💧)" if meta.get('ink_spent') else ''
+
+    if action_type == 'CHOOSE_STARTING_PLAYER':
+        return "Coin toss"
+    if action_type == 'GAME_FINISH':
+        return "Game Over"
+    if action_type == 'MULLIGAN':
+        return f"{base} Mulligan"
+    if action_type == 'END_TURN':
+        return f"{base} End turn"
+    if action_type == 'BOOST':
+        return f"{base} Boost"
+
+    if action_type == 'PLAY_CARD':
+        card = meta.get('played_card', '')
+        if not card:
+            return f"{base} Play"
+        if meta.get('is_song'):
+            singer = meta.get('singer')
+            suffix = f" (sung by {singer})" if singer else ""
+            return f"{base} Song {card}{suffix}"
+        if meta.get('is_shift'):
+            return f"{base} Shift {card} onto {meta.get('shift_base', '?')}{ink}"
+        return f"{base} Play {card}{ink}"
+
+    if action_type == 'QUEST':
+        q = meta.get('quest_card', '')
+        lore = meta.get('lore_gained')
+        lore_suffix = f" (+{lore}⭐)" if lore else ''
+        return f"{base} Quest {q}{lore_suffix}" if q else f"{base} Quest"
+
+    if action_type == 'ATTACK':
+        atk = meta.get('attacker', '?')
+        dfn = meta.get('defender', '?')
+        dmg = meta.get('damage_dealt')
+        dmg_suffix = f" (-{dmg})" if dmg else ''
+        kill = ' ☠' if meta.get('defender_killed') else ''
+        return f"{base} Attack {atk} → {dfn}{dmg_suffix}{kill}"
+
+    if action_type == 'ACTIVATE_ABILITY':
+        card = meta.get('ability_card', '')
+        name = meta.get('ability_name', '')
+        if card and name:
+            return f"{base} Ability {card}: {name}"
+        if card:
+            return f"{base} Ability {card}"
+        return f"{base} Ability"
+
+    if action_type == 'ADD_TO_INK':
+        card = meta.get('inked_card', '')
+        return f"{base} Ink {card}" if card else f"{base} Ink"
+
+    if action_type == 'RESPOND_TO_PROMPT':
+        card = meta.get('ability_card', '')
+        name = meta.get('ability_name', '')
+        if card:
+            return f"{base} Respond ({card}{': '+name if name else ''})"
+        return f"{base} Respond"
+
+    return f"{base} {action_type}"
 
 
 def _apply_patch(obj: dict, patch: dict):
