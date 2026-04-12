@@ -351,11 +351,33 @@ async function tcApplySnap(idx, skipAnim) {
     if (hadArrow) await new Promise(r => setTimeout(r, 400));
   }
 
+  // ── Hand-out: animate the played/inked card leaving the hand BEFORE
+  //    the field/hand swap, so the eye follows a clear sequence:
+  //    1. card drops from hand (this step, ~280ms)
+  //    2. card appears on field / ink (next step)
+  //    3. any drawn card slides in from the top
+  if (!skipAnim && prev && !tcAbort) {
+    const leavingCard = snap.played_card || snap.inked_card;
+    if (leavingCard) {
+      const handEl = document.getElementById('tc-hand-cards');
+      if (handEl) {
+        const leavingEl = handEl.querySelector(`.tc-hc[data-name="${leavingCard}"]:not(.tc-hc-leaving)`);
+        if (leavingEl) {
+          leavingEl.classList.add('tc-hc-leaving');
+          await new Promise(r => setTimeout(r, 260));
+        }
+      }
+    }
+  }
+
   // ── NOW update board (death animations + innerHTML swap) ── parallel both sides
   await Promise.all([
     tcUpdateField('tc-field-our', allOur, allPrevOur, skipAnim),
     tcUpdateField('tc-field-opp', allOpp, allPrevOpp, skipAnim)
   ]);
+
+  // Small breath after field settles — lets the pop-in finish before numbers jump
+  if (!skipAnim && !tcAbort) await new Promise(r => setTimeout(r, 120));
 
   // Events log
   tcUpdateEvents(snap, prev);
@@ -363,8 +385,15 @@ async function tcApplySnap(idx, skipAnim) {
   // Inkwell
   tcUpdateInkwell(snap);
 
-  // Hand
+  // Hand (staggered draw-in for multiple new cards)
   tcUpdateHand(snap.hand || [], prev ? (prev.hand || []) : []);
+  if (!skipAnim) {
+    const handEl = document.getElementById('tc-hand-cards');
+    if (handEl) {
+      const newCards = handEl.querySelectorAll('.tc-hc-new');
+      newCards.forEach((el, i) => { el.style.animationDelay = (i * 70) + 'ms'; });
+    }
+  }
   } finally { _tcApplyLock = false; }
 }
 
@@ -663,7 +692,7 @@ function tcUpdateHand(hand, prevHand) {
     const db = (rvCardsDB||{})[name] || {};
     const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
     const short = name.split(' - ')[0];
-    return `<div class="tc-hc${isNew?' tc-hc-new':''}" title="${name}">
+    return `<div class="tc-hc${isNew?' tc-hc-new':''}" data-name="${name}" title="${name}">
       ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
       <div class="tc-hc-name" ${img?'style="display:none"':''}>${short}</div>
     </div>`;
@@ -693,8 +722,13 @@ async function tcPlayTick() {
   await tcApplySnap(tcSnapIdx + 1, false);
   tcAnimating = false;
   if (!tcPlaying) return;
-  // Post-animation pause: gives user time to read the board state
-  const pause = Math.max(200, 600 / tcSpeed);
+  // Post-animation pause: gives user time to read the board state.
+  // Longer on meaningful actions so the eye can follow the sub-sequence
+  // (hand out → card appear → draw in), shorter on End turn / mulligan.
+  const snap = snaps[tcSnapIdx];
+  const quiet = ['END_TURN', 'MULLIGAN', 'CHOOSE_STARTING_PLAYER', 'INITIAL'].includes(snap?.action_type);
+  const base = quiet ? 400 : 850;
+  const pause = Math.max(200, base / tcSpeed);
   tcPlayTimer = setTimeout(tcPlayTick, pause);
 }
 
@@ -1299,7 +1333,10 @@ function wbAddFromDeck(deckIdx) {
     .tc-hc:hover{transform:translateY(-3px)}
     .tc-hc img{width:100%;height:100%;object-fit:cover}
     .tc-hc-name{display:flex;align-items:center;justify-content:center;text-align:center;font-size:.45em;padding:3px;height:100%;color:var(--text2);word-break:break-word}
-    .tc-hc-new{animation:tcPlay .4s ease both}
+    .tc-hc-new{animation:tcDrawIn .45s cubic-bezier(.22,1,.36,1) both}
+    .tc-hc-leaving{animation:tcHandLeave .28s ease-in forwards !important;pointer-events:none}
+    @keyframes tcDrawIn{0%{opacity:0;transform:translateY(-24px) scale(.7);filter:brightness(1.4)}60%{opacity:1;transform:translateY(2px) scale(1.05)}100%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1)}}
+    @keyframes tcHandLeave{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(.55);filter:brightness(1.2)}}
 
     .tc-spell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50;animation:tcFadeIn .25s ease;transition:opacity .3s ease;border-radius:8px}
     .tc-spell-card{text-align:center;animation:tcSpellPop .3s cubic-bezier(.34,1.56,.64,1) both}
