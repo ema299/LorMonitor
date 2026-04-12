@@ -72,6 +72,8 @@ async function tcLoadReplayList(playerFilter) {
         <strong>${r.player||'?'}</strong> vs ${r.opponent} \u2014 T${r.turns}
         <span style="color:var(--text2);font-size:0.8em;margin-left:auto">${(r.created_at||'').split('T')[0]}</span>
       </div>`).join('');
+    // Auto-load first replay
+    if (list.length && list[0].game_id) tcLoadReplay(list[0].game_id);
   } catch (err) { el.innerHTML = `<div style="color:var(--red);font-size:0.85em">Error: ${err.message}</div>`; }
 }
 

@@ -34,44 +34,63 @@ Dati sorgente:
 
 **Stato migrazione (09 Apr 2026):**
 - 200K+ match in PostgreSQL, import automatico ogni 2h (~1s/run con skip cache)
-- 2822 carte in tabella `cards` con image_path completi (thumbnail via cards.duels.ink)
+- 2822 carte in tabella `cards` con image_path completi (thumbnail via cards.duels.ink). 163 carte dual ink con entrambi i colori (es. `"amethyst/sapphire"`), aggiornate settimanalmente via `static_importer.py` (merge duels.ink cache)
 - 192 consensus cards, 14 reference decklists, 1047 matchup reports
 - Auth JWT completa, HTTPS via nginx + Let's Encrypt su metamonitor.app
 - Rate limiting Redis + nginx, fail2ban, UFW attivo
 - Backup pg_dump giornaliero, maintenance settimanale (turns retention 90gg)
 - Dashboard HTML alleggerito (418 KB, no blob embedded), fetch da API
-- Dashboard blob assemblato da PG (snapshot_assembler.py, 0.8s, indipendente da daily_routine)
+- Dashboard blob assemblato **live** da PG (snapshot_assembler.py, cache 2h + stale-while-revalidate + warm-up allo startup, no blob statico)
+- Matchup reports: tutti i 12 tipi importati (incl. killer_curves, threats_llm, card_scores, pro_mulligans)
 
-**Migrazione indipendenza da analisidef — COMPLETATA 09 Apr 2026:**
+**Migrazione serving/runtime da analisidef — COMPLETATA 09 Apr 2026:**
 - [x] Fase 0: Tabelle dati statici (cards, consensus_lists, reference_decklists, matchup_reports) + servizi
 - [x] Fase 1: Tech tornado da PostgreSQL (query JSONB CARD_PLAYED + consensus)
 - [x] Fase 2: Mulligans da PostgreSQL (query JSONB INITIAL_HAND + MULLIGAN)
 - [x] Fase 3: Playbook + Optimizer da PostgreSQL (961 report importati da dashboard_data.json → matchup_reports)
-- [x] Fase 4: Leaderboard da duels.ink API diretta (leaderboard_service.py, cache Redis 1h)
-- [x] Fase 5: /api/v1/dashboard-data serve da daily_snapshots (perimeter='full') in PostgreSQL
+- [x] Fase 4: Leaderboard da duels.ink API diretta (leaderboard_service.py, cache Redis 1h, queue IDs: core-bo1, core-bo3, infinity-bo1-beta, infinity-bo3-beta)
+- [x] Fase 5: /api/v1/dashboard-data assembla blob live da PG (snapshot_assembler, cache 2h stale-while-revalidate)
 - [x] Fase 6: dashboard_bridge.py rimosso, nessun fallback a file JSON, API 100% da PostgreSQL
 - [x] Fase A: Import match automatico ogni 2h (skip cache, ON CONFLICT DO NOTHING)
 - [x] Fase B-C: Meta stats e player stats live da PG (query <150ms, no materialized views necessarie)
 - [x] Fase D: Tech tornado da PG (già completata)
-- [x] Fase E: Dashboard blob assembler da PG (snapshot_assembler.py, 21 sezioni, 5.3 MB)
+- [x] Fase E: Dashboard blob assemblato live da PG (snapshot_assembler.py, 21 sezioni, ~8 MB, cache 2h stale-while-revalidate)
 
-**Dipendenze residue da analisidef (solo import, non runtime):**
+**Parametri chiave (aggiornati 10 Apr 2026):**
+- **DAYS = 3** — finestra analisi Monitor/Profile/Tech (era 2)
+- **TOP_N = 100, PRO_N = 50** — leaderboard thresholds (era 70/30)
+- **PRO = solo leaderboard top 50** — rimossa lista hardcoded, solo duels.ink API live
+- **Queue IDs duels.ink**: `core-bo1`, `core-bo3` (aggiornati da `core-set11-*-beta`), `infinity-bo1-beta`, `infinity-bo3-beta`
+- **Cache dashboard: TTL 2h** + stale-while-revalidate (serve vecchio, ricostruisce in background) + warm-up allo startup
+- **Matchup trend**: 7gg finestra, formato `{perim: {deck: {opp: {current_wr, delta, recent_games}}}}`, ultimi 3gg vs 3gg precedenti
+- **Monitor "Best Format Players"**: sezione top_players filtrata solo a nomi presenti nella leaderboard duels.ink
+- **player_lookup**: `{core: {player: {deck: {w,l,mmr}}}, infinity: {...}}` — stats personali per "My Stats" in Profile, split per formato, nessun filtro leaderboard, stessa finestra DAYS=3
+
+**Profile tab (aggiornato 10 Apr 2026):**
+- **Select Your Deck** (box gold): ink picker 6 colonne con label, toggle Standard/My Deck, sezione "Saved Decks" con card per deck pinnato, sezione "My Stats" collapsibile con tutti i deck giocati (icona, WR bar, peggior matchup), click per selezionare
+- **Meta Radar** (box rosso): deck identity banner, KPI strip (WR, Share, Games, Players del meta), Best/Worst matchups in box separati, sezione "Threats to watch"
+- My Stats usa `DATA.player_lookup[formato][nick]` — coerente col formato Core/Infinity selezionato
+
+**Dipendenze residue da analisidef (bridge temporaneo, non runtime):**
 - `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile**
-- `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (analyzer 12K LOC) — **Phase F**
+- `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (12 tipi, analyzer 12K LOC) — **Phase F**
 - `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **futuro Phase G**
 
-**Frontend:** sviluppo in analisidef, sync manuale in App_tool (no più copia diretta)
+**Eliminato:** `import_snapshot.py` e `assemble_snapshot.py` via cron — l'API serve il blob live.
+
+**Frontend:** il file di produzione vive in `App_tool/frontend/dashboard.html`. Rimane ancora monolitico, ma non e' piu' un symlink e non deve dipendere da sync manuali da analisidef.
 
 **Cron App_tool (UTC):**
 ```
 */2h       import_matches.py          → match JSON → PG (~1s)
-05:30      import_matchup_reports.py   → matchup reports da dashboard_data.json
-05:35      assemble_snapshot.py        → blob dashboard da PG (0.8s)
+05:30      import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
 Mar 05:30  import_killer_curves.py     → KC da analisidef/output
 Dom 02:00  maintenance.sh              → drop turns >90gg, VACUUM
 03:00      backup.sh                   → pg_dump giornaliero
+Dom 04:45  static_importer.py          → cards DB refresh (duels.ink cache merge, dual ink corretti)
 */5min     healthcheck.sh              → monitoring
 ```
+**Nota:** `assemble_snapshot.py` via cron rimosso. L'API assembla il blob on-demand con cache 2h + warm-up allo startup.
 
 ---
 
@@ -679,13 +698,13 @@ Gira di notte quando nessuno usa l'app. Se servisse, si sposta su un worker sepa
 
 ---
 
-## 6.4 Pipeline dati — Snapshot da analisidef (01 Apr 2026)
+## 6.4 Pipeline dati — Bridge temporaneo da analisidef
 
 La cartella `pipeline/` contiene una **copia statica** di tutti i moduli Python che generano i dati per la dashboard. Questi file vengono da `analisidef/` e sono sotto git solo come backup versionato.
 
-**⚠️ STATO: la produzione gira ancora da `analisidef/`. La copia in `pipeline/` non e' usata da App_tool.**
+**⚠️ STATO:** la produzione utenti gira in `App_tool`. `analisidef` resta solo come producer transitorio di alcuni output batch (matchup reports, killer curves). La copia in `pipeline/` non e' usata da App_tool a runtime.
 
-### Flusso dati attuale (aggiornato 02 Apr 2026)
+### Flusso dati attuale (aggiornato 10 Apr 2026)
 
 ```
 Match JSON (duels.ink)
@@ -701,20 +720,25 @@ analisidef/daily/daily_routine.py       ← cron 07:01, orchestratore
        ↓
   analisidef/daily/output/dashboard_data.json   (9 MB, dati completi)
        ↓
-  App_tool/backend/api/dashboard.py             → GET /api/v1/dashboard-data (serve JSON)
-  App_tool/backend/services/dashboard_bridge.py → playbook, mulligans, optimizer, tech tornado
-  App_tool/backend/services/cache.py            → Redis cache (60s TTL, fallback dict)
-       ↓
-  App_tool/frontend/dashboard.html              (fetch da API, NO dati embedded)
+  scripts/import_matchup_reports.py             → PG matchup_reports
 
-PostgreSQL (136K match):
-  scripts/import_matches.py             → bulk import JSON → matches table
-  scripts/import_killer_curves.py       → killer_curves table
-  backend/workers/match_importer.py     → import incrementale (cron ready)
-  backend/workers/daily_pipeline.py     → orchestratore: import + refresh views
-  backend/workers/llm_worker.py         → import killer curves da file JSON
-  backend/workers/backup_worker.py      → pg_dump + GPG + cleanup
-```
+run_kc_production.sh (analisidef, batch LLM)
+  ↓
+  killer_curves_*.json
+  ↓
+  scripts/import_killer_curves.py               → PG killer_curves
+
+/matches/*.json
+  ↓
+  scripts/import_matches.py                     → PG matches
+
+PostgreSQL
+  ↓
+  App_tool/backend/api/dashboard.py             → GET /api/v1/dashboard-data
+  App_tool/backend/services/snapshot_assembler.py → blob live da PG
+  App_tool/backend/services/cache.py            → cache 2h + stale-while-revalidate
+  ↓
+  App_tool/frontend/dashboard.html              → fetch da API, NO dati embedded
 ```
 
 ### Mappa file pipeline/ (31 file, ~15K LOC)
@@ -757,13 +781,14 @@ PostgreSQL (136K match):
 | root | `build_replay_v2.py` | 137 | Replay builder v2 |
 | root | `audit_replay.py` | 694 | Audit qualita' replay |
 
-### Piano futuro (non bloccante)
+### Piano futuro
 
 Quando App_tool sara' completamente indipendente da analisidef:
-1. I moduli `pipeline/lib/` verranno importati direttamente da `backend/workers/`
-2. `daily_routine.py` verra' spezzato in worker separati (match_importer, daily_pipeline, etc.)
-3. L'output andra' direttamente in PostgreSQL, non piu' in dashboard_data.json
-4. La cartella `pipeline/` diventera' il codice attivo, non piu' uno snapshot
+1. Gli analyzer necessari verranno portati in codice attivo dentro App_tool
+2. I job saranno schedulati da worker/cron di App_tool, non da analisidef
+3. L'output andra' direttamente in PostgreSQL, non piu' in `dashboard_data.json`
+4. La cartella `pipeline/` restera' archivio/versioned snapshot oppure verra' rimossa
+5. `analisidef` potra' restare solo come reference read-only, non come dipendenza operativa
 
 ---
 
@@ -2923,11 +2948,11 @@ MODIFICARE: frontend/index.html         # Bottone tab Profile
 
 #### M4 — Frontend SPA Completa
 
-**Obiettivo:** rompere la dipendenza dal `dashboard.html` monolitico di analisidef.
+**Obiettivo:** rompere la dipendenza dal `dashboard.html` monolitico.
 Ogni tab diventa un modulo JS separato che chiama le API di App_tool.
 
-**Oggi:** `frontend/dashboard.html` e' un symlink a analisidef. Il JS monolitico
-(7,554 LOC) contiene tutto: Monitor, Coach, Lab, Team, Profile.
+**Oggi:** `frontend/dashboard.html` vive gia' in App_tool, ma resta un file monolitico
+che contiene gran parte di Monitor, Coach, Lab, Team, Profile.
 
 **Target:** 7 moduli JS indipendenti, ciascuno chiama le API backend.
 
@@ -2991,13 +3016,13 @@ const wr = meta.decks.find(d => d.code === 'AmAm').wr;
 
 #### M5 — Cutover (spegnimento analisidef)
 
-**Obiettivo:** App_tool e' completamente autonomo. analisidef spenta.
+**Obiettivo:** App_tool e' completamente autonomo. analisidef non e' piu' necessaria per aggiornare dati applicativi.
 
 **Prerequisiti:**
 - [M1] lib/ funzionante con output identico
 - [M2] Worker cron testato per almeno 7 giorni in parallelo
 - [M3] Profile API operativo
-- [M4] Frontend SPA che non dipende da dashboard.html symlink
+- [M4] Frontend che non dipende da monolite legacy o da sync esterni
 
 **Checklist cutover:**
 
@@ -3016,14 +3041,13 @@ CUTOVER DAY:
      # 5   7 * * *   generate_and_send.py
 
   2. Verificare che App_tool cron funziona da solo:
-     - daily_pipeline.py genera dashboard_data.json ✓
-     - killer_curves_batch.py genera curve ✓
+     - worker analyzer genera matchup_reports in PG ✓
+     - worker killer curves genera/importa curve ✓
      - match_importer.py importa match ✓
 
-  3. Rimuovere symlink:
-     rm frontend/dashboard.html  # non piu' necessario
+  3. Verificare che frontend produzione usa solo asset/code in App_tool
 
-  4. Aggiornare nginx per servire solo frontend/ statico
+  4. Aggiornare nginx se necessario per servire solo frontend/ statico
 
   5. Monitorare per 48h
 
@@ -3037,10 +3061,10 @@ POST-CUTOVER:
 **Cosa resta attivo di analisidef:**
 - `lorcana_monitor.py` — cattura match da duels.ink → `/matches/`. **Non si tocca.**
   App_tool lo importa via `match_importer.py` cron 06:30.
-- I file JSON in `output/` restano come archivio storico.
+- Eventuali file JSON storici restano solo come archivio/reference, non come input richiesto dal prodotto.
 
 **Cosa viene spento:**
-- `daily_routine.py` cron → sostituito da `daily_pipeline.py`
+- `daily_routine.py` cron → sostituito da job App_tool
 - `run_all_killer_curves.sh` cron → sostituito da `killer_curves_batch.py`
 - `serve_dashboard.py` (porta 8060) → non piu' necessario
 - `generate_and_send.py` → da migrare o riscrivere

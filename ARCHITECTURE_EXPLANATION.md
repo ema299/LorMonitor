@@ -437,34 +437,38 @@ Il GDPR e' la legge europea sulla privacy. Se un utente europeo usa il tuo servi
 
 ## Frontend — Cosa Vede l'Utente
 
-### Oggi (aggiornato 30 Mar 2026)
-La dashboard e' un file HTML (288K) generato da analisidef con tutti i dati incorporati.
-Viene servita da App_tool via symlink. Funziona, la conosci, ci stai lavorando sopra.
+### Oggi (aggiornato 10 Apr 2026)
+La dashboard di produzione vive in `App_tool/frontend/dashboard.html`.
+Non ha piu' il blob dati incorporato: carica i dati dalle API di App_tool, che a loro volta leggono PostgreSQL.
 
-Tab in sviluppo attivo su analisidef:
-- **Profile**: login, collegamento a duels.ink e lorcanito per i nickname
-- **Community Video**: video degli streamer che collaborano, School of Lorcana
-- **Community Tornei**: link ai tornei (tcg.ravensburgerplay.com)
+Questo significa:
+- il file frontend e' ancora grande e monolitico
+- ma il runtime vero dell'app e' gia' in App_tool
+- analisidef non serve piu' la dashboard agli utenti
 
-### Strategia di transizione (NON costruire la SPA adesso)
+### Strategia di transizione frontend
 
-Finche' sviluppi attivamente dashboard.html in analisidef, costruire una SPA
-in parallelo significherebbe fare doppio lavoro. La strategia e':
+La strategia corretta adesso non e' "tenere il frontend in analisidef", ma:
+- usare `App_tool` come unico frontend pubblico
+- continuare a migliorare il file monolitico se serve velocita'
+- spezzarlo in moduli solo quando il costo di manutenzione del monolite supera il beneficio
+
+In pratica:
 
 ```
-FASE ATTUALE — Dashboard cresce in analisidef, backend cresce in App_tool
-  analisidef: sviluppo tab Profile, Community, tornei
-  App_tool:   API, auth, DB, sicurezza, import dati
+FASE ATTUALE — Prodotto in App_tool, alcuni batch ancora in analisidef
+  App_tool:   frontend pubblico, API, auth, DB, sicurezza, import dati
+  analisidef: producer temporaneo di alcuni output analitici
 
-QUANDO la dashboard e' STABILE (non ci lavori ogni giorno):
-  1. Copia dashboard.html in App_tool (snapshot statico, gia' pianificato)
-  2. Adatta il JS per chiamare le API invece di dashboard_data.json
-  3. Aggiungi schermata login davanti
-  4. Le API per profile/community/tornei saranno gia' pronte nel backend
+PROSSIMO PASSO:
+  1. Tenere dashboard.html in App_tool come sorgente di produzione
+  2. Ridurre il monolite spostando logica in moduli JS/API
+  3. Eliminare gradualmente i bridge da analisidef
+  4. Portare i batch critici sotto job/worker di App_tool
 
-DOPO (se serve):
-  Ricostruisci come SPA vera (pagine separate, caricamento on-demand)
-  Oppure tieni la dashboard adattata — se funziona, funziona
+DOPO (se serve davvero):
+  Ricostruisci come SPA piu' pulita (pagine separate, moduli, caricamento on-demand)
+  Ma solo se il beneficio supera il costo di riscrittura
 ```
 
 ### Perche' NON fare la SPA ora
@@ -761,17 +765,17 @@ FastAPI funzionante con 16+ endpoint su 4 moduli (Monitor, Coach, Lab, Admin).
 4 services implementano la logica di business con query SQL aggregate.
 Swagger UI disponibile su `/api/docs`.
 
-**Nota importante**: le API SQL coprono ~20% delle analisi della dashboard.
-Le analisi avanzate (tech tornado, board state, loss classification, mulligan,
-card synergies, player cards) vivono nel motore di analisidef (lib/, 6.7K LOC)
-che non e' stato ancora portato in App_tool.
+**Nota importante**: il serving della dashboard e' gia' in App_tool, ma non tutta la generazione analitica.
+Le analisi avanzate (soprattutto alcuni matchup reports e killer curves) usano ancora
+output prodotti da analisidef e poi importati in PostgreSQL. Quindi il runtime e' in App_tool,
+ma una parte della pipeline batch e' ancora in transizione.
 
 ### ✅ Fase 3 — Frontend Ponte + Infrastruttura (completata)
-Dashboard identica a quella di analisidef, servita da App_tool.
+Dashboard servita da App_tool, con dati caricati dalle API di App_tool.
 - Dominio `metamonitor.app` registrato su Cloudflare
 - HTTPS con certificato Let's Encrypt (auto-renewal)
 - Password di protezione HTTP Basic (nessuno puo' accedere senza credenziali)
-- Symlink al template dashboard.html di analisidef (modifiche propagate automaticamente)
+- Frontend produzione residente in App_tool
 - systemd service: uvicorn si riavvia da solo se crasha, parte al boot
 
 ### ✅ Stabilizzazione (completata)
@@ -801,31 +805,32 @@ Sicurezza server:
 - JWT secret generato (random 64 char)
 
 ### ✅ Da completare per Fase 4 — TODO
-- [ ] Snapshot statico dashboard (copia di sicurezza da analisidef)
 - [ ] Stripe checkout + webhook per pagamento
 - [ ] API community: video streamer, tornei
 - [ ] API user: profilo, nickname duels.ink/lorcanito
 
 ### ⏳ Fase 5 — Transizione Frontend
-NON costruire SPA adesso. Lo sviluppo HTML attivo e' in analisidef.
-Quando la dashboard sara' stabile:
-1. Copiare dashboard.html in App_tool
-2. Adattare JS per usare le API
-3. Aggiungere login
-Le API per profile/community/tornei saranno gia' pronte.
+Non serve riscrivere tutto subito come SPA completa.
+Prima:
+1. mantenere il frontend in App_tool
+2. estrarre i pezzi piu' fragili dal monolite
+3. collegare tutto alle API stabili
+4. rimuovere le dipendenze residue da analisidef
+
+Solo dopo ha senso decidere se fare una SPA completa.
 
 ### ⏳ Fase 6 — PWA + Mobile iOS
 Service Worker, offline, manifest.json, Capacitor per App Store.
 Solo dopo che il frontend e' migrato in App_tool.
 
 ### Piano di transizione verso autonomia (futuro, 3 fasi)
-- **Fase A (ponte, attuale)**: App_tool serve, analisidef calcola. Zero rischi.
+- **Fase A (bridge, attuale)**: App_tool serve il prodotto; analisidef produce ancora alcuni output batch.
 - **Fase B (motore copiato)**: si porta lib/ in App_tool, si testa in parallelo.
 - **Fase C (autonomia)**: si attivano i worker, si spegne analisidef.
 Ogni fase e' reversibile. Si procede solo quando la precedente e' validata.
 
 ### ⚠️ Vincoli attivi
 - Nessun piano Anthropic API con credito — LLM worker rimandato
-- Il motore di calcolo (lib/) resta in analisidef — App_tool dipende dal suo output
-- Lo sviluppo frontend e' attivo in analisidef/daily/dashboard.html, NON in App_tool
-- Tab in sviluppo attivo: Profile (login, nickname), Community (video, tornei)
+- Una parte della pipeline analitica resta ancora fuori da App_tool
+- Il frontend vive in App_tool ma e' ancora monolitico
+- La migrazione non e' finita finche' matchup reports e killer curves non sono orchestrati da App_tool

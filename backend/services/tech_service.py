@@ -133,8 +133,9 @@ def get_tech_tornado(db: Session, perimeter: str = "set11", deck_code: str | Non
                     card_drops.setdefault(std_card, set()).add(player)
 
         items_out = []
+        drop_threshold = max(2, int(total_players * 0.6))
         for card, players in card_drops.items():
-            if len(players) >= 2:
+            if len(players) >= drop_threshold:
                 items_out.append({
                     "card": card,
                     "players": len(players),

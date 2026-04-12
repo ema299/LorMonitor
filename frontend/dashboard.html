@@ -2073,312 +2073,340 @@
   .pb-impact { color: var(--text2); font-size: 0.82em; margin-top: 4px; }
 
   /* === TEAM TRAINING TAB === */
-  .tt-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+  /* ── Team Tab v3: Premium Esports Dashboard ── */
+  .tt-layout { display: flex; flex-direction: column; gap: 20px; position: relative; }
 
-  /* ── Sidebar ── */
-  .tt-sidebar {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px; position: sticky; top: 12px; align-self: start;
+  /* ── KPI strip (glassmorphism top bar) ── */
+  .tt-strip {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(22,27,34,0.95), rgba(33,38,45,0.9));
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(48,54,61,0.6); border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
   }
-  .tt-sidebar-label {
-    font-size: 0.72em; color: var(--text2); text-transform: uppercase;
-    letter-spacing: 0.7px; font-weight: 600; padding: 0 4px; margin-bottom: 8px;
+  .tt-strip-kpi {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 16px; border-radius: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(48,54,61,0.4);
+    transition: border-color 0.2s, transform 0.15s;
   }
-  .tt-player-btn {
-    display: flex; align-items: center; gap: 8px; width: 100%;
-    padding: 9px 10px; margin-bottom: 3px; border-radius: 8px;
-    background: transparent; border: 1px solid transparent;
-    color: var(--text); cursor: pointer; font-size: 0.85em;
-    transition: all 0.15s; text-align: left; min-height: 44px;
+  .tt-strip-kpi:hover { border-color: rgba(212,160,58,0.4); transform: translateY(-1px); }
+  .tt-strip-val { font-weight: 800; font-size: 1.3em; letter-spacing: -0.02em; }
+  .tt-strip-lbl { font-size: 0.68em; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+  .tt-strip-spacer { flex: 1; }
+  .tt-strip-inbox {
+    margin-left: auto; display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 10px 16px; border-radius: 12px;
+    border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+    transition: all 0.2s ease; position: relative;
   }
-  .tt-player-btn:hover { background: var(--bg3); }
-  .tt-player-btn.active { background: rgba(212,160,58,0.12); border-color: var(--gold); }
-  .tt-pb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .tt-pb-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tt-pb-wr { font-weight: 700; font-size: 0.88em; }
-  .tt-overview-btn {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 9px 10px; margin-bottom: 10px; min-height: 44px;
-    border-radius: 8px; background: var(--bg3); border: 1px solid var(--border);
-    color: var(--gold); cursor: pointer; font-size: 0.82em; font-weight: 600;
-    transition: all 0.15s;
+  .tt-strip-inbox:hover { border-color: var(--gold); background: rgba(212,160,58,0.08); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(212,160,58,0.15); }
+  .tt-strip-inbox svg { width: 18px; height: 18px; }
+  .tt-strip-inbox-badge {
+    font-size: 0.72em; font-weight: 800; border-radius: 12px; padding: 2px 8px;
+    line-height: 1.4; min-width: 22px; text-align: center;
+    animation: tt-badge-pulse 2s ease-in-out infinite;
   }
-  .tt-overview-btn:hover { border-color: var(--gold); }
-  .tt-overview-btn.active { background: rgba(212,160,58,0.15); border-color: var(--gold); }
-  .tt-sidebar-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+  .tt-strip-inbox-badge.crit { background: var(--red); color: #fff; }
+  .tt-strip-inbox-badge.warn { background: var(--yellow); color: var(--bg); }
+  @keyframes tt-badge-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
 
-  /* ── KPI strip ── */
-  .tt-kpi-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-  .tt-kpi {
-    flex: 1; min-width: 100px; background: var(--bg2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 12px; text-align: center;
+  /* ── Inbox side panel ── */
+  .tt-inbox-panel {
+    position: fixed; top: 0; right: -400px; width: 380px; height: 100vh;
+    background: linear-gradient(180deg, rgba(13,17,23,0.98), rgba(22,27,34,0.98));
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-left: 1px solid var(--border); z-index: 900;
+    transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto; box-shadow: -8px 0 40px rgba(0,0,0,0.5);
   }
-  .tt-kpi-val { font-size: 1.35em; font-weight: 700; line-height: 1.2; }
-  .tt-kpi-lbl { font-size: 0.68em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-
-  /* ── Player roster cards (overview) ── */
-  .tt-roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-bottom: 16px; }
-  .tt-roster-card {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
-    padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .tt-roster-card:hover { border-color: var(--gold); background: rgba(212,160,58,0.04); }
-  .tt-rc-top { display: flex; align-items: center; gap: 8px; }
-  .tt-rc-avatar {
-    width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center;
-    justify-content: center; font-weight: 700; font-size: 0.82em; flex-shrink: 0;
-    border: 2px solid transparent;
-  }
-  .tt-rc-info { flex: 1; min-width: 0; }
-  .tt-rc-name { font-weight: 600; font-size: 0.9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tt-rc-role { font-size: 0.7em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
-  .tt-rc-wr { font-weight: 700; font-size: 1.1em; flex-shrink: 0; }
-  .tt-rc-stats { display: flex; gap: 12px; font-size: 0.75em; color: var(--text2); }
-  .tt-rc-stat span { color: var(--text); font-weight: 600; }
-  .tt-rc-alert-peek {
-    font-size: 0.75em; line-height: 1.35; padding: 5px 8px; border-radius: 6px;
-    display: flex; align-items: flex-start; gap: 6px;
-  }
-  .tt-rc-alert-peek.danger { background: rgba(248,81,73,0.1); color: var(--red); border-left: 2px solid var(--red); }
-  .tt-rc-alert-peek.warning { background: rgba(210,153,34,0.1); color: var(--yellow); border-left: 2px solid var(--yellow); }
-  .tt-rc-alert-peek.ok { background: rgba(63,185,80,0.08); color: var(--green); border-left: 2px solid var(--green); }
-
-  /* ── Coaching Inbox ── */
-  .tt-inbox { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tt-inbox-panel.open { right: 0; }
+  .tt-inbox-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 899; backdrop-filter: blur(3px); }
+  .tt-inbox-overlay.open { display: block; animation: tt-fade-in 0.25s ease; }
+  @keyframes tt-fade-in { from{opacity:0} to{opacity:1} }
   .tt-inbox-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px;
+    display: flex; align-items: center; justify-content: space-between; padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(212,160,58,0.06), transparent);
   }
-  .tt-inbox-title { font-size: 0.82em; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
-  .tt-inbox-badge {
-    font-size: 0.75em; background: var(--red); color: #fff; border-radius: 10px;
-    padding: 1px 7px; font-weight: 700; line-height: 1.5;
+  .tt-inbox-title { font-size: 1em; font-weight: 700; color: var(--gold); display: flex; align-items: center; gap: 8px; }
+  .tt-inbox-close {
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2); cursor: pointer;
+    font-size: 1.1em; padding: 6px 10px; border-radius: 8px; transition: all 0.15s;
   }
-  .tt-inbox-badge.warn { background: var(--yellow); color: var(--bg); }
-  .tt-inbox-badge.ok { background: var(--green); color: var(--bg); }
-  .tt-time-filter { display: flex; gap: 4px; flex-wrap: wrap; }
-  .tt-tf-btn {
-    padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border);
-    background: transparent; color: var(--text2); font-size: 0.75em; cursor: pointer;
-    transition: all 0.15s; min-height: 28px;
-  }
-  .tt-tf-btn:hover { border-color: var(--gold); color: var(--text); }
-  .tt-tf-btn.active { background: rgba(212,160,58,0.15); border-color: var(--gold); color: var(--gold); font-weight: 600; }
-
-  .tt-inbox-body { padding: 0; }
-  .tt-inbox-group { }
-  .tt-inbox-group-label {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 16px; font-size: 0.72em; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.6px; background: var(--bg3);
-    border-bottom: 1px solid var(--border); color: var(--text2);
-  }
-  .tt-inbox-group-label .tt-sev-dot {
-    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-  }
+  .tt-inbox-close:hover { background: var(--red); color: #fff; border-color: var(--red); }
+  .tt-inbox-list { padding: 8px 0; }
   .tt-inbox-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 11px 16px; border-bottom: 1px solid rgba(48,54,61,0.5);
-    cursor: pointer; transition: background 0.12s; min-height: 44px;
+    display: flex; align-items: flex-start; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid rgba(48,54,61,0.3); transition: background 0.15s;
   }
+  .tt-inbox-item:hover { background: rgba(255,255,255,0.02); }
   .tt-inbox-item:last-child { border-bottom: none; }
-  .tt-inbox-item:hover { background: rgba(255,255,255,0.025); }
   .tt-sev-icon {
-    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center;
-    justify-content: center; font-size: 0.72em; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+    width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 0.8em; font-weight: 800; flex-shrink: 0;
   }
-  .tt-sev-icon.critical { background: rgba(248,81,73,0.18); color: var(--red); }
-  .tt-sev-icon.warning { background: rgba(210,153,34,0.18); color: var(--yellow); }
-  .tt-sev-icon.info { background: rgba(88,166,255,0.18); color: #58a6ff; }
-  .tt-inbox-content { flex: 1; min-width: 0; }
-  .tt-inbox-who {
-    display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
-  }
+  .tt-sev-icon.critical { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+  .tt-sev-icon.warning { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .tt-sev-icon.info { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+  .tt-inbox-msg { font-size: 0.84em; line-height: 1.5; color: var(--text); margin-top: 2px; }
   .tt-inbox-player-tag {
-    font-size: 0.72em; font-weight: 600; padding: 1px 7px; border-radius: 10px;
-    text-transform: uppercase; letter-spacing: 0.3px;
-  }
-  .tt-inbox-player-tag.team { background: rgba(212,160,58,0.18); color: var(--gold); }
-  .tt-inbox-player-tag.player { background: rgba(255,255,255,0.08); color: var(--text2); }
-  .tt-inbox-msg { font-size: 0.84em; line-height: 1.45; color: var(--text); }
-  .tt-inbox-arrow { font-size: 0.75em; color: var(--text2); flex-shrink: 0; margin-top: 4px; }
-  .tt-inbox-empty { padding: 24px 16px; text-align: center; color: var(--text2); font-size: 0.85em; }
-
-  /* ── Swipe-to-archive ── */
-  .tt-inbox-item-wrap {
-    position: relative; overflow: hidden;
-    border-bottom: 1px solid rgba(48,54,61,0.5);
-  }
-  .tt-inbox-item-wrap:last-child { border-bottom: none; }
-  .tt-inbox-item {
-    border-bottom: none !important; /* border now on wrapper */
-    position: relative; z-index: 1; background: var(--bg2);
-    transition: transform 0.25s cubic-bezier(0.25,0.46,0.45,0.94), background 0.12s;
-  }
-  .tt-inbox-item.swiping { transition: none; }
-  .tt-archive-reveal {
-    position: absolute; top: 0; right: 0; bottom: 0;
-    width: 80px; display: flex; align-items: center; justify-content: center;
-    background: rgba(212,160,58,0.18); color: var(--gold);
-    font-size: 0.75em; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px; cursor: pointer; user-select: none;
-    border-left: 1px solid rgba(212,160,58,0.3);
-    flex-direction: column; gap: 3px;
-  }
-  .tt-archive-reveal svg { width: 16px; height: 16px; opacity: 0.8; }
-  /* Desktop: archive icon on hover */
-  .tt-inbox-item-wrap .tt-archive-btn-desk {
-    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-    background: rgba(212,160,58,0.12); border: 1px solid rgba(212,160,58,0.25);
-    color: var(--gold); border-radius: 6px; padding: 4px 8px;
-    font-size: 0.7em; cursor: pointer; opacity: 0; transition: opacity 0.15s;
-    z-index: 2; white-space: nowrap; min-height: 28px; display: flex; align-items: center; gap: 4px;
-  }
-  .tt-inbox-item-wrap:hover .tt-archive-btn-desk { opacity: 1; }
-  /* Slide-out animation */
-  @keyframes tt-slide-out {
-    from { max-height: 80px; opacity: 1; padding: 0; }
-    to   { max-height: 0;   opacity: 0; padding: 0; overflow: hidden; }
-  }
-  .tt-inbox-item-wrap.archiving {
-    animation: tt-slide-out 0.3s ease forwards;
-    pointer-events: none;
+    font-size: 0.7em; font-weight: 700; padding: 2px 8px; border-radius: 6px;
+    background: rgba(212,160,58,0.12); color: var(--gold); margin-right: 6px;
+    display: inline-block; margin-bottom: 4px;
   }
 
-  /* ── Archive section ── */
-  .tt-inbox-archived {
-    border-top: 1px solid var(--border); margin-top: 0;
+  /* ── Player cards grid ── */
+  .tt-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .tt-player-card {
+    background: linear-gradient(145deg, rgba(22,27,34,0.95), rgba(33,38,45,0.8));
+    border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    position: relative;
   }
-  .tt-archived-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 16px; cursor: pointer; background: none; border: none;
-    width: 100%; text-align: left; color: var(--text2);
+  .tt-player-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: 16px 16px 0 0; opacity: 0.7; transition: opacity 0.3s;
   }
-  .tt-archived-head:hover { background: rgba(255,255,255,0.02); }
-  .tt-archived-title {
-    font-size: 0.72em; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+  .tt-player-card.wr-glow-green::before { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+  .tt-player-card.wr-glow-red::before { background: linear-gradient(90deg, transparent, var(--red), transparent); }
+  .tt-player-card.wr-glow-yellow::before { background: linear-gradient(90deg, transparent, var(--yellow), transparent); }
+  .tt-player-card.wr-glow-green { box-shadow: 0 4px 20px rgba(63,185,80,0.08); }
+  .tt-player-card.wr-glow-red { box-shadow: 0 4px 20px rgba(248,81,73,0.08); }
+  .tt-player-card.wr-glow-yellow { box-shadow: 0 4px 20px rgba(210,153,34,0.06); }
+  .tt-player-card:hover { transform: translateY(-2px); }
+  .tt-player-card.wr-glow-green:hover { box-shadow: 0 8px 32px rgba(63,185,80,0.15); border-color: rgba(63,185,80,0.3); }
+  .tt-player-card.wr-glow-red:hover { box-shadow: 0 8px 32px rgba(248,81,73,0.15); border-color: rgba(248,81,73,0.3); }
+  .tt-player-card.wr-glow-yellow:hover { box-shadow: 0 8px 32px rgba(210,153,34,0.12); border-color: rgba(210,153,34,0.3); }
+  .tt-player-card.open { transform: none; }
+
+  .tt-pc-header { display: flex; align-items: center; gap: 12px; padding: 16px 18px; cursor: pointer; transition: background 0.15s; min-height: 56px; -webkit-tap-highlight-color: transparent; }
+  .tt-pc-header:hover { background: rgba(255,255,255,0.02); }
+  .tt-pc-deck-wrap {
+    width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; position: relative;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(48,54,61,0.5);
+  }
+  .tt-pc-badge-icon {
+    position: absolute; top: -6px; right: -6px; font-size: 0.85em;
+    background: var(--bg); border-radius: 50%; padding: 1px;
+  }
+  .tt-pc-info { flex: 1; min-width: 0; }
+  .tt-pc-name-row { display: flex; align-items: center; gap: 6px; }
+  .tt-pc-name { font-weight: 700; font-size: 0.95em; }
+  .tt-pc-role {
+    font-size: 0.62em; color: var(--gold); text-transform: uppercase; letter-spacing: 0.8px;
+    font-weight: 700; padding: 2px 6px; border-radius: 4px;
+    background: rgba(212,160,58,0.1); border: 1px solid rgba(212,160,58,0.2);
+  }
+  .tt-pc-wr-block { text-align: right; flex-shrink: 0; }
+  .tt-pc-wr { font-weight: 800; font-size: 1.4em; letter-spacing: -0.02em; display: block; line-height: 1.1; }
+  .tt-pc-meta { font-size: 0.72em; color: var(--text2); display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
+  .tt-pc-trend-icon { font-size: 0.9em; }
+  .tt-pc-spark-mini {
+    display: inline-flex; align-items: flex-end; gap: 1px; height: 14px; vertical-align: middle;
+  }
+  .tt-pc-spark-mini-bar { width: 3px; border-radius: 1px 1px 0 0; min-height: 2px; }
+  .tt-pc-chevron { color: var(--text2); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); font-size: 0.75em; flex-shrink: 0; margin-left: 4px; }
+  .tt-player-card.open .tt-pc-chevron { transform: rotate(180deg); }
+
+  .tt-pc-body {
+    max-height: 0; overflow: hidden; padding: 0 18px;
+    transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1), padding 0.25s ease;
+    border-top: 0 solid transparent;
+  }
+  .tt-player-card.open .tt-pc-body {
+    max-height: 1200px; padding: 16px 18px 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── Player card inner sections ── */
+  .tt-pc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .tt-pc-stat-box {
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(48,54,61,0.4);
+    border-radius: 10px; padding: 10px 8px; text-align: center;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .tt-pc-stat-box:hover { border-color: rgba(212,160,58,0.3); transform: translateY(-1px); }
+  .tt-pc-stat-val { font-weight: 800; font-size: 1.05em; display: block; }
+  .tt-pc-stat-lbl { font-size: 0.62em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 500; margin-top: 2px; }
+  .tt-pc-section-title {
+    font-size: 0.72em; color: var(--gold); text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 700; margin: 18px 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid rgba(212,160,58,0.15);
     display: flex; align-items: center; gap: 6px;
   }
-  .tt-archived-count {
-    font-size: 0.8em; background: rgba(255,255,255,0.08); color: var(--text2);
-    border-radius: 10px; padding: 1px 7px; font-weight: 600;
+  .tt-pc-alert {
+    font-size: 0.8em; padding: 8px 12px; border-radius: 10px; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px; transition: transform 0.15s;
   }
-  .tt-archived-chevron { font-size: 0.65em; transition: transform 0.2s; }
-  .tt-archived-open .tt-archived-chevron { transform: rotate(180deg); }
-  .tt-archived-body { display: none; }
-  .tt-archived-open .tt-archived-body { display: block; }
-  .tt-archived-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 9px 16px; border-bottom: 1px solid rgba(48,54,61,0.4);
-    opacity: 0.5;
-  }
-  .tt-archived-item:last-child { border-bottom: none; }
-  .tt-archived-content { flex: 1; min-width: 0; }
-  .tt-archived-del {
-    background: none; border: none; color: var(--red); cursor: pointer;
-    font-size: 1.1em; padding: 0 4px; min-height: 24px; opacity: 0.6;
-    transition: opacity 0.15s; flex-shrink: 0; line-height: 1;
-  }
-  .tt-archived-del:hover { opacity: 1; }
+  .tt-pc-alert:hover { transform: translateX(2px); }
+  .tt-pc-alert.danger { background: rgba(248,81,73,0.08); color: var(--red); border-left: 3px solid var(--red); }
+  .tt-pc-alert.warning { background: rgba(210,153,34,0.08); color: var(--yellow); border-left: 3px solid var(--yellow); }
+  .tt-pc-alert-icon { font-size: 0.9em; flex-shrink: 0; }
 
-  /* ── Comparison table (kept for heatmap section) ── */
-  .tt-comp-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-  .tt-comp-table th {
-    text-align: left; color: var(--text2); font-weight: 500; padding: 8px;
-    border-bottom: 1px solid var(--border); font-size: 0.82em; text-transform: uppercase;
+  /* ── Matchup mini-bars (inside card) ── */
+  .tt-mu-row {
+    display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 0.82em;
+    transition: background 0.12s; border-radius: 6px; padding-left: 4px; padding-right: 4px;
   }
-  .tt-comp-table td { padding: 8px; border-bottom: 1px solid rgba(48,54,61,0.4); }
-  .tt-comp-table tr { cursor: pointer; transition: background 0.1s; }
-  .tt-comp-table tr:hover { background: rgba(255,255,255,0.03); }
-  .tt-comp-table .tt-name-cell { font-weight: 600; }
-  .tt-comp-table .tt-role { font-size: 0.72em; color: var(--text2); margin-left: 5px; font-weight: 400; }
+  .tt-mu-row:hover { background: rgba(255,255,255,0.02); }
+  .tt-mu-opp { width: 28px; flex-shrink: 0; text-align: center; }
+  .tt-mu-bar-wrap {
+    flex: 1; height: 8px; background: rgba(255,255,255,0.04); border-radius: 4px;
+    position: relative; overflow: hidden;
+  }
+  .tt-mu-bar {
+    height: 100%; border-radius: 4px; position: absolute; left: 0; top: 0;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+  }
+  .tt-mu-50-line {
+    position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+    background: rgba(255,255,255,0.15); z-index: 1;
+  }
+  .tt-mu-val { width: 80px; text-align: right; font-weight: 700; font-size: 0.85em; flex-shrink: 0; }
 
-  /* ── Weakness heatmap ── */
-  .tt-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .tt-heatmap table { border-collapse: collapse; font-size: 0.8em; min-width: 400px; }
-  .tt-heatmap th { padding: 6px 8px; color: var(--text2); font-weight: 500; font-size: 0.82em; text-align: center; }
+  /* ── Replay placeholder ── */
+  .tt-replay-zone {
+    font-size: 0.78em; color: var(--text2); padding: 10px 14px; margin-top: 12px; text-align: center;
+    background: rgba(255,255,255,0.02); border: 1px dashed rgba(48,54,61,0.6);
+    border-radius: 10px;
+  }
+
+  /* ── Meta Coverage heatmap ── */
+  .tt-heatmap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+  .tt-heatmap table { border-collapse: separate; border-spacing: 3px; font-size: 0.8em; min-width: 400px; width: 100%; }
+  .tt-heatmap th {
+    padding: 8px 10px; color: var(--text2); font-weight: 600; font-size: 0.78em; text-align: center;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
   .tt-heatmap td {
-    padding: 6px 8px; text-align: center; font-weight: 600; border: 1px solid rgba(48,54,61,0.3);
-    min-width: 48px; border-radius: 4px; transition: transform 0.1s;
+    padding: 8px 10px; text-align: center; font-weight: 700; min-width: 52px; border-radius: 8px;
+    transition: transform 0.15s, box-shadow 0.15s; position: relative;
   }
-  .tt-heatmap td:hover { transform: scale(1.05); }
-  .tt-hm-name { text-align: left; font-weight: 600; color: var(--text); white-space: nowrap; }
+  .tt-heatmap td:not(.tt-hm-name):hover { transform: scale(1.08); z-index: 2; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .tt-hm-name { text-align: left; font-weight: 700; color: var(--text); white-space: nowrap; background: transparent !important; }
+  .tt-hm-team-row td { border-top: 2px solid var(--gold); }
+  .tt-hm-team { font-weight: 800; color: var(--gold); }
+  .tt-hm-hole {
+    position: relative;
+  }
+  .tt-hm-hole::after {
+    content: ''; position: absolute; inset: 2px; border: 2px dashed rgba(248,81,73,0.5);
+    border-radius: 6px; pointer-events: none;
+  }
 
   /* ── Collapsible section ── */
-  .tt-collapsible { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .tt-collapsible {
+    background: linear-gradient(145deg, rgba(22,27,34,0.95), rgba(33,38,45,0.8));
+    border: 1px solid var(--border); border-radius: 16px; overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .tt-collapsible:hover { border-color: rgba(48,54,61,0.8); }
   .tt-coll-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 16px; cursor: pointer; transition: background 0.12s;
-    background: none; border: none; width: 100%; color: var(--text); text-align: left;
+    display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;
+    cursor: pointer; transition: background 0.15s; background: none; border: none;
+    width: 100%; color: var(--text); text-align: left;
   }
   .tt-coll-head:hover { background: rgba(255,255,255,0.02); }
-  .tt-coll-title { font-size: 0.82em; font-weight: 600; color: var(--gold); text-transform: uppercase; letter-spacing: 0.5px; }
-  .tt-coll-chevron { font-size: 0.7em; color: var(--text2); transition: transform 0.2s; }
+  .tt-coll-title {
+    font-size: 0.82em; font-weight: 700; color: var(--gold); text-transform: uppercase;
+    letter-spacing: 1px; display: flex; align-items: center; gap: 8px;
+  }
+  .tt-coll-chevron { font-size: 0.7em; color: var(--text2); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
   .tt-collapsible.open .tt-coll-chevron { transform: rotate(180deg); }
-  .tt-coll-body { display: none; padding: 0 16px 16px; border-top: 1px solid var(--border); }
-  .tt-collapsible.open .tt-coll-body { display: block; padding-top: 14px; }
-
-  /* ── Player profile header ── */
-  .tt-profile-header {
-    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    margin-bottom: 16px; flex-wrap: wrap;
+  .tt-coll-body {
+    max-height: 0; overflow: hidden; padding: 0 20px;
+    transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1), padding 0.3s ease;
+    border-top: 0 solid transparent;
   }
-  .tt-ph-name { font-size: 1.15em; font-weight: 700; }
-  .tt-ph-stat { text-align: center; }
-  .tt-ph-val { font-weight: 700; font-size: 1.05em; }
-  .tt-ph-lbl { font-size: 0.62em; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
-  .tt-back-btn {
-    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
-    padding: 6px 14px; border-radius: 8px; cursor: pointer; font-size: 0.85em;
-    transition: all 0.15s; min-height: 36px;
+  .tt-collapsible.open .tt-coll-body {
+    max-height: 3000px; padding: 16px 20px 20px;
+    border-top: 1px solid var(--border);
   }
-  .tt-back-btn:hover { border-color: var(--gold); color: var(--text); }
 
-  /* ── Profile inline alert strip ── */
-  .tt-profile-alerts { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
-  .tt-pal {
-    display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
-    border-radius: 8px; font-size: 0.84em; line-height: 1.4;
+  /* ── Lineup suggestion ── */
+  .tt-lineup-row {
+    display: flex; align-items: center; gap: 12px; padding: 12px 8px;
+    border-bottom: 1px solid rgba(48,54,61,0.2); border-radius: 10px;
+    transition: background 0.15s, transform 0.15s;
   }
-  .tt-pal.danger { background: rgba(248,81,73,0.1); border-left: 3px solid var(--red); }
-  .tt-pal.warning { background: rgba(210,153,34,0.1); border-left: 3px solid var(--yellow); }
-  .tt-pal-icon { flex-shrink: 0; margin-top: 1px; font-size: 0.9em; }
-  .tt-pal.danger .tt-pal-icon { color: var(--red); }
-  .tt-pal.warning .tt-pal-icon { color: var(--yellow); }
-  .tt-pal-text { color: var(--text); }
-
-  /* Notes textarea */
-  .tt-notes {
-    width: 100%; min-height: 80px; background: var(--bg3); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px; padding: 10px;
-    font-family: inherit; font-size: 0.85em; resize: vertical; box-sizing: border-box;
-    margin-top: 10px;
+  .tt-lineup-row:hover { background: rgba(255,255,255,0.02); transform: translateX(4px); }
+  .tt-lineup-row:last-child { border-bottom: none; }
+  .tt-lineup-rank {
+    font-size: 1.3em; flex-shrink: 0; width: 36px; text-align: center;
   }
-  .tt-notes::placeholder { color: var(--text2); }
+  .tt-lineup-info { flex: 1; }
+  .tt-lineup-name { font-weight: 700; font-size: 0.92em; }
+  .tt-lineup-detail { font-size: 0.75em; color: var(--text2); margin-top: 2px; }
+  .tt-lineup-wr { font-weight: 800; font-size: 1.05em; flex-shrink: 0; }
+  .tt-lineup-sit { opacity: 0.35; }
+  .tt-lineup-sit:hover { opacity: 0.6; }
+  .tt-lineup-coverage-tag {
+    font-size: 0.68em; padding: 2px 6px; border-radius: 4px;
+    background: rgba(63,185,80,0.1); color: var(--green); font-weight: 600;
+  }
 
-  /* ── Mobile: sidebar becomes horizontal nav strip ── */
+  /* ── Buchi (holes) alert strip ── */
+  .tt-hole-alert {
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; margin-top: 12px;
+    border-radius: 10px; font-size: 0.82em; font-weight: 600;
+    background: rgba(248,81,73,0.06); border: 1px solid rgba(248,81,73,0.2); color: var(--red);
+  }
+
+  /* ── Mobile: tablet ── */
   @media (max-width: 900px) {
-    .tt-layout { grid-template-columns: 1fr; gap: 10px; }
-    .tt-sidebar {
-      position: static; display: flex; align-items: center; gap: 6px;
-      flex-wrap: nowrap; overflow-x: auto; padding: 8px 10px;
-      -webkit-overflow-scrolling: touch; border-radius: 10px;
-    }
-    .tt-sidebar-label { display: none; }
-    .tt-sidebar-divider { display: none; }
-    .tt-player-btn { width: auto; flex: 0 0 auto; padding: 7px 12px; min-height: 36px; white-space: nowrap; }
-    .tt-overview-btn { width: auto; flex: 0 0 auto; margin-bottom: 0; padding: 7px 12px; min-height: 36px; }
-    .tt-pb-wr { display: none; }
-    .tt-roster { grid-template-columns: 1fr 1fr; }
-    .tt-kpi { min-width: 80px; }
+    .tt-cards-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .tt-pc-grid { grid-template-columns: 1fr 1fr; }
   }
-  @media (max-width: 480px) {
-    .tt-roster { grid-template-columns: 1fr; }
-    .tt-profile-header { gap: 8px; }
-    .tt-ph-stat { display: none; }
-    .tt-ph-stat:nth-child(-n+3) { display: block; }
+  /* ── Mobile: phone landscape ── */
+  @media (max-width: 768px) {
+    .tt-strip { gap: 8px; padding: 10px 12px; border-radius: 12px; }
+    .tt-strip-kpi { padding: 6px 10px; min-width: 0; }
+    .tt-strip-val { font-size: 1.05em; }
+    .tt-strip-lbl { font-size: 0.6em; letter-spacing: 0.5px; }
+    .tt-strip-spacer { display: none; }
+    .tt-strip-inbox { padding: 8px 12px; margin-left: 0; }
+    .tt-cards-grid { grid-template-columns: 1fr; gap: 10px; }
+    .tt-pc-grid { grid-template-columns: 1fr 1fr; }
+    .tt-inbox-panel { width: 100%; right: -100%; }
+    .tt-pc-header { padding: 10px 12px; }
+    .tt-pc-body { padding: 0 12px 12px; }
+    .tt-collapsible, .tt-player-card { border-radius: 12px; }
+    .tt-coll-body { padding: 0 12px 12px; }
+    .tt-heatmap table { font-size: 0.72em; }
+    .tt-heatmap td, .tt-heatmap th { padding: 4px 5px; min-width: 38px; }
+  }
+  /* ── Mobile: iPhone portrait (375px) ── */
+  @media (max-width: 430px) {
+    .tt-layout { gap: 10px; }
+    .tt-strip { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+    .tt-strip-kpi { flex: 1 1 auto; min-width: 60px; padding: 5px 8px; border-radius: 8px; }
+    .tt-strip-val { font-size: 0.95em; }
+    .tt-strip-lbl { font-size: 0.55em; }
+    .tt-strip-inbox { width: 100%; justify-content: center; margin-top: 4px; padding: 10px; }
+    .tt-cards-grid { gap: 8px; }
+    .tt-player-card { border-radius: 10px; }
+    .tt-pc-header { padding: 10px; gap: 8px; }
+    .tt-pc-name { font-size: 0.88em; }
+    .tt-pc-wr { font-size: 1.1em; }
+    .tt-pc-games { font-size: 0.7em; }
+    .tt-pc-body { padding: 0 10px 10px; }
+    .tt-pc-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+    .tt-pc-stat-box { padding: 6px 8px; }
+    .tt-pc-stat-val { font-size: 0.9em; }
+    .tt-mu-row { gap: 4px; font-size: 0.78em; }
+    .tt-mu-opp { width: 24px; }
+    .tt-mu-val { width: 60px; font-size: 0.78em; }
+    .tt-coll-head { padding: 10px 12px; }
+    .tt-coll-title { font-size: 0.75em; }
+    .tt-heatmap table { font-size: 0.65em; min-width: 320px; }
+    .tt-heatmap td, .tt-heatmap th { padding: 3px 4px; min-width: 32px; }
+    .tt-hm-name { font-size: 0.75em; }
+    .tt-lineup-row { padding: 6px 0; gap: 6px; }
+    .tt-lineup-name { font-size: 0.82em; }
+    .tt-lineup-detail { font-size: 0.68em; }
+    .tt-inbox-panel { border-radius: 0; }
   }
 
   /* ============================================================ */
@@ -2975,8 +3003,10 @@
 
   /* Deck selector card — left hero panel */
   .pf-hero-deck {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 20px; display: flex; flex-direction: column; gap: 0;
+    background: linear-gradient(145deg, rgba(212,160,58,0.14) 0%, rgba(212,160,58,0.04) 100%);
+    border: 2px solid rgba(212,160,58,0.5); border-radius: 14px;
+    padding: 18px 22px; display: flex; flex-direction: column; gap: 0;
+    box-shadow: 0 0 20px rgba(212,160,58,0.12), inset 0 1px 0 rgba(212,160,58,0.15);
   }
   .pf-hero-deck-identity {
     display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
@@ -2991,6 +3021,26 @@
   .pf-hero-ink-row {
     display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
+  .pf-ink-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px;
+    margin: 4px 0;
+  }
+  .pf-ink-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 8px 4px; border-radius: 10px; cursor: pointer;
+    border: 2px solid transparent; background: rgba(255,255,255,0.03);
+    transition: all 0.15s ease;
+  }
+  .pf-ink-btn:hover { background: rgba(255,255,255,0.06); }
+  .pf-ink-btn.selected {
+    border-color: var(--gold); background: rgba(212,160,58,0.12);
+    box-shadow: 0 0 8px rgba(212,160,58,0.2);
+  }
+  .pf-ink-label {
+    font-size: 0.58em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.3px; font-weight: 600;
+  }
+  .pf-ink-btn.selected .pf-ink-label { color: var(--gold); }
   .pf-hero-pins {
     display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
     margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);
@@ -2999,6 +3049,62 @@
     font-size: 0.65em; color: var(--text2); text-transform: uppercase;
     letter-spacing: 0.5px; font-weight: 600; white-space: nowrap;
   }
+  .pf-saved-decks-section {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .pf-saved-decks-label {
+    font-size: 0.68em; color: var(--text2); text-transform: uppercase;
+    letter-spacing: 0.4px; font-weight: 700; margin-bottom: 2px;
+  }
+  .pf-saved-deck {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 8px; background: rgba(255,255,255,0.03);
+    border: 1.5px solid transparent; cursor: pointer; transition: all 0.15s;
+  }
+  .pf-saved-deck:hover { background: rgba(255,255,255,0.06); }
+  .pf-saved-deck.active {
+    border-color: var(--gold); background: rgba(212,160,58,0.08);
+  }
+  .pf-saved-deck-x {
+    font-size: 0.82em; color: var(--text2); opacity: 0; transition: opacity 0.15s;
+    cursor: pointer; padding: 2px 4px;
+  }
+  .pf-saved-deck:hover .pf-saved-deck-x { opacity: 1; }
+  /* My Stats collapsible */
+  .pf-my-stats-section {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .pf-my-stats-toggle {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 4px 0;
+  }
+  .pf-my-stats-label {
+    font-size: 0.68em; color: var(--gold); text-transform: uppercase;
+    letter-spacing: 0.4px; font-weight: 700;
+  }
+  .pf-my-stats-chev {
+    margin-left: auto; transition: transform 0.2s; color: var(--text2);
+  }
+  .pf-my-stats-chev.open { transform: rotate(180deg); }
+  .pf-my-stats-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    margin-top: 8px; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: rgba(212,160,58,0.04);
+  }
+  .pf-my-stat {
+    text-align: center; padding: 10px 4px;
+    border-right: 1px solid var(--border);
+  }
+  .pf-my-stat:last-child { border-right: none; }
+  .pf-my-stat-val { font-size: 1.1em; font-weight: 700; line-height: 1.2; }
+  .pf-my-stat-lbl { font-size: 0.58em; color: var(--text2); text-transform: uppercase; margin-top: 2px; letter-spacing: 0.3px; }
+  .pf-my-deck-row {
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    border-radius: 6px; cursor: pointer; transition: background 0.12s;
+  }
+  .pf-my-deck-row:hover { background: rgba(255,255,255,0.04); }
+  .pf-my-deck-row.active { background: rgba(212,160,58,0.08); }
   /* KPI strip inside the hero deck card */
   .pf-hero-kpi-strip {
     display: grid; grid-template-columns: repeat(4, 1fr);
@@ -3020,11 +3126,13 @@
 
   /* Meta Radar card — right hero panel */
   .pf-hero-radar {
-    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
-    padding: 16px 20px; display: flex; flex-direction: column;
+    background: linear-gradient(145deg, rgba(248,81,73,0.10) 0%, rgba(248,81,73,0.02) 100%);
+    border: 2px solid rgba(248,81,73,0.4); border-radius: 14px;
+    padding: 18px 22px; display: flex; flex-direction: column;
+    box-shadow: 0 0 20px rgba(248,81,73,0.08), inset 0 1px 0 rgba(248,81,73,0.1);
   }
   .pf-hero-radar-head {
-    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
   }
   .pf-hero-radar-title {
     font-size: 0.75em; color: var(--text2); text-transform: uppercase;
@@ -3039,6 +3147,48 @@
     margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
     line-height: 1.4;
   }
+  /* Radar deck identity banner */
+  .pf-radar-deck-banner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; margin-bottom: 14px;
+    background: rgba(248,81,73,0.08); border-radius: 10px;
+    border: 1px solid rgba(248,81,73,0.18);
+  }
+  .pf-radar-deck-banner picture, .pf-radar-deck-banner img {
+    flex-shrink: 0;
+  }
+  .pf-radar-deck-info { min-width: 0; flex: 1; }
+  .pf-radar-deck-name {
+    font-size: 0.95em; font-weight: 700; color: var(--text);
+    line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pf-radar-deck-code {
+    font-size: 0.68em; color: rgba(248,81,73,0.85); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;
+  }
+  /* Matchup chips inside radar card */
+  .pf-radar-mu-section {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+  }
+  .pf-radar-mu-group {
+    flex: 1 1 45%; min-width: 120px;
+    padding: 8px 10px; border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+  }
+  .pf-radar-mu-label {
+    font-size: 0.6em; text-transform: uppercase; letter-spacing: 0.4px;
+    font-weight: 700; margin-bottom: 5px;
+  }
+  .pf-radar-mu-items {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    font-size: 0.78em;
+  }
+  .pf-radar-mu-chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 2px 6px; border-radius: 5px;
+    background: rgba(255,255,255,0.04);
+  }
 
   /* ── LIST PANEL: Standard List + Tech Cards side by side ── */
   .pf-list-panel {
@@ -3049,6 +3199,19 @@
   }
   @media (max-width: 640px) { .pf-list-panel { grid-template-columns: 1fr; } }
 
+  /* ── Mobile (≤ 480px) ── */
+  @media (max-width: 480px) {
+    .pf-ink-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .pf-ink-btn { padding: 6px 2px; }
+    .pf-ink-btn div { width: 30px !important; height: 30px !important; }
+    .pf-saved-deck { padding: 6px 8px; }
+    .pf-my-deck-row { padding: 5px 4px; gap: 4px; }
+    .pf-my-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .pf-radar-mu-section { flex-direction: column; }
+    .pf-radar-deck-banner { padding: 8px 10px; gap: 8px; }
+    .pf-radar-deck-name { font-size: 0.92em; }
+    .pf-saved-deck-x { opacity: 1; }
+  }
   /* ── iPhone / small screens (≤ 400px) ── */
   @media (max-width: 400px) {
     .pf-hero-deck, .pf-hero-radar, .pf-std-card { padding: 12px 14px; }
@@ -3057,6 +3220,8 @@
     .pf-hero-kpi-val { font-size: 1.05em; }
     .pf-hero-kpi-lbl { font-size: 0.58em; }
     .pf-hero-mu-strip { font-size: 0.72em; }
+    .pf-ink-grid { grid-template-columns: repeat(3, 1fr); }
+    .pf-ink-label { font-size: 0.5em; }
     .pf-radar-stats { gap: 8px; }
     .pf-radar-stat-val { font-size: 0.92em; }
     .pf-radar-name { font-size: 0.8em; }
@@ -3532,6 +3697,77 @@
   .ev-empty-state .ev-submit-btn { width: auto; }
 
   /* (old profile mobile overrides removed — new profile uses .pf-* classes) */
+
+  /* ============================================================ */
+  /* GUIDED TOUR                                                   */
+  /* ============================================================ */
+  .tour-overlay {
+    position: fixed; inset: 0; z-index: 9998;
+    pointer-events: auto; background: transparent;
+  }
+  .tour-spotlight {
+    position: absolute; z-index: 9999;
+    border-radius: 10px;
+    border: 2px solid rgba(212,160,58,0.6);
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.55), 0 0 24px 6px rgba(212,160,58,0.3);
+    transition: all 0.4s ease;
+    pointer-events: none;
+  }
+  .tour-tooltip {
+    position: absolute; z-index: 10000;
+    background: var(--bg2); border: 1px solid var(--gold);
+    border-radius: 12px; padding: 16px 20px;
+    max-width: 340px; min-width: 240px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(212,160,58,0.15);
+    transition: all 0.35s ease;
+    font-size: 0.88em;
+  }
+  .tour-tooltip-title {
+    font-weight: 700; color: var(--gold); font-size: 1em;
+    margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+  }
+  .tour-tooltip-body { color: var(--text); line-height: 1.5; font-size: 0.88em; }
+  .tour-tooltip-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 14px; gap: 8px;
+  }
+  .tour-dots { display: flex; gap: 5px; }
+  .tour-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border); transition: background 0.2s;
+  }
+  .tour-dot.active { background: var(--gold); }
+  .tour-btns { display: flex; gap: 6px; }
+  .tour-btn {
+    padding: 5px 14px; border-radius: 16px; font-size: 0.82em;
+    font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2); transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tour-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .tour-btn-primary {
+    background: linear-gradient(135deg, var(--gold), #E8C97A);
+    color: var(--bg); border-color: transparent;
+  }
+  .tour-btn-primary:hover { opacity: 0.9; color: var(--bg); }
+  .tour-btn-skip { background: none; border: none; color: var(--text2); font-size: 0.78em; cursor: pointer; padding: 4px 8px; }
+  .tour-btn-skip:hover { color: var(--gold); }
+  .tour-step-num { font-size: 0.72em; color: var(--text2); font-weight: 400; }
+
+  /* Guide button in header */
+  .guide-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 16px;
+    background: rgba(212,160,58,0.1); border: 1px solid rgba(212,160,58,0.3);
+    color: var(--gold); cursor: pointer; font-size: 0.78em; font-weight: 600;
+    font-family: inherit; transition: all 0.15s; white-space: nowrap;
+  }
+  .guide-btn:hover { background: rgba(212,160,58,0.2); border-color: var(--gold); }
+  .guide-btn svg { width: 14px; height: 14px; }
+
+  @media (max-width: 768px) {
+    .tour-tooltip { max-width: 280px; min-width: 200px; padding: 12px 14px; }
+  }
 </style>
 </head>
 <body>
@@ -3552,6 +3788,10 @@
     </svg>
     <h1>Lorcana Monitor</h1>
   </div>
+  <button class="guide-btn" onclick="tourStart()" title="Tour guidato">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Guida
+  </button>
   <div class="kpi-bar" id="kpi-bar"></div>
 </div>
 
@@ -3863,7 +4103,8 @@ function initFormat() {
 function initKPI() {
   const m = DATA.meta;
   const g = m.games || {};
-  let kpis = `<div class="kpi"><div class="value">${m.period}</div><div class="label">Period</div></div>`;
+  const rangeLabel = m.period_range || m.period;
+  let kpis = `<div class="kpi"><div class="value">${m.period}</div><div class="label">${rangeLabel}</div></div>`;
 
   if (currentFormat === 'infinity') {
     kpis += `<div class="kpi"><div class="value">${(g.infinity||0).toLocaleString()}</div><div class="label">Infinity</div></div>`;
@@ -3874,7 +4115,7 @@ function initKPI() {
     kpis += `<div class="kpi"><div class="value">${(g.top||0).toLocaleString()}</div><div class="label">TOP</div></div>`;
     kpis += `<div class="kpi"><div class="value">${(g.pro||0).toLocaleString()}</div><div class="label">PRO</div></div>`;
   }
-  kpis += `<div class="kpi"><div class="value">${m.updated}</div><div class="label">Updated</div></div>`;
+  kpis += `<div class="kpi"><div class="value">${m.updated}</div><div class="label">Last update</div></div>`;
 
   // KC Spy health badge
   const spy = DATA.kc_spy;
@@ -4254,7 +4495,18 @@ function render() {
     if (currentPerim === 'community') {
       renderCommunity(main);
     } else if (!pd) {
-      main.innerHTML = '<div class="card" style="text-align:center;padding:40px"><h2>No data</h2><p>No data available for this scope.</p></div>';
+      const isTopPro = ['top','pro','infinity_top','infinity_pro'].includes(currentPerim);
+      if (isTopPro) {
+        const count = currentPerim.includes('pro') ? 50 : 100;
+        const label = currentPerim.includes('pro') ? 'PRO' : 'TOP';
+        main.innerHTML = `<div class="card" style="text-align:center;padding:40px">
+          <h2>No matches yet</h2>
+          <p>Not enough recent matches from ${label} ${count} leaderboard players.</p>
+          <p style="font-size:0.85em;color:var(--text2)">Try a wider scope (SET11) or check back later.</p>
+        </div>`;
+      } else {
+        main.innerHTML = '<div class="card" style="text-align:center;padding:40px"><h2>No data</h2><p>No data available for this scope.</p></div>';
+      }
     } else {
       renderLadder(main);
     }
@@ -4265,7 +4517,7 @@ function render() {
         info.textContent = `${pd.total_games.toLocaleString()} matches | ${pd.players.toLocaleString()} players | OTP WR: ${pd.otp_wr}%`;
       } else {
         const games = DATA.meta.games[currentPerim] || 0;
-        info.textContent = `${games.toLocaleString()} matches`;
+        info.textContent = `${games.toLocaleString()} matches · last 3 days`;
       }
     }
   } else if (currentTab === 'coach_v2') {
@@ -4418,7 +4670,7 @@ function renderLadder(main) {
     <!-- TOP PLAYERS -->
     <div class="section">
       <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('players-body');var c=document.getElementById('players-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Top Players — <span id="players-deck-label"></span>
+        Best Format Players — <span id="players-deck-label"></span>
         <svg id="players-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <div id="players-body">
@@ -4430,7 +4682,7 @@ function renderLadder(main) {
     <!-- TECH TORNADO CHART -->
     <div class="section">
       <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('tech-body');var c=document.getElementById('tech-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Tech Choices
+        Non-Standard Picks
         <svg id="tech-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
       <div id="tech-body">
@@ -4823,7 +5075,7 @@ function renderMatchupTrend(deck) {
 
   el.innerHTML = `
     <div class="card" style="padding:12px 16px">
-      <div style="font-size:0.8em;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Trend Matchup (ultimi 2gg vs 3gg precedenti)</div>
+      <div style="font-size:0.8em;color:var(--text2);text-transform:uppercase;margin-bottom:8px">Trend Matchup (ultimi 3gg vs 3gg precedenti)</div>
       <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">${cells}</div>
     </div>`;
 }
@@ -5102,7 +5354,8 @@ function buildDeckCompare(playerName, deck, totalGames) {
   const refDecklists = DATA.reference_decklists || {};
   const std = consensus[deck];
   const pCards = (playerCards[playerName.toLowerCase()] || {})[deck];
-  const refDeck = refDecklists[deck];
+  const refList = refDecklists[deck];
+  const refDeck = Array.isArray(refList) ? refList[0] : refList;
 
   if (!std || !pCards) return '';
 
@@ -5376,7 +5629,14 @@ function autoDetectDeckInks(cards) {
   const inkCounts = {};
   for (const [name, qty] of Object.entries(cards)) {
     const ink = cardInks[name];
-    if (ink && ink !== 'dual' && ink !== 'inkless') {
+    if (!ink || ink === 'inkless') continue;
+    if (ink.includes('/')) {
+      // Dual ink: "amethyst/sapphire" — count both colors
+      for (const c of ink.split('/')) {
+        const col = c.trim();
+        if (col) inkCounts[col] = (inkCounts[col] || 0) + qty;
+      }
+    } else if (ink !== 'dual' && ink !== 'Dual Ink') {
       inkCounts[ink] = (inkCounts[ink] || 0) + qty;
     }
   }
@@ -5691,8 +5951,8 @@ function renderTechTornado() {
   if (title) title.textContent = `${selectedDeck}: cards cut (←) vs added (→) — ${deckData.total_players} players analyzed`;
 
   // Separate IN and OUT, sort by adoption
-  const ins = deckData.items.filter(i => i.type === 'in').sort((a,b) => b.adoption - a.adoption).slice(0, 8);
-  const outs = deckData.items.filter(i => i.type === 'out').sort((a,b) => b.adoption - a.adoption).slice(0, 8);
+  const ins = deckData.items.filter(i => i.type === 'in').sort((a,b) => b.adoption - a.adoption).slice(0, 4);
+  const outs = deckData.items.filter(i => i.type === 'out').sort((a,b) => b.adoption - a.adoption).slice(0, 4);
 
   // Interleave: OUTs on top (negative), then INs below (positive)
   const labels = [...outs.map(o => o.card), ...ins.map(i => i.card)];
@@ -5738,7 +5998,9 @@ function renderTechTornado() {
               const idx = ctx.index;
               return idx < outs.length ? '#F85149' : '#3FB950';
             },
-            font: { size: 11 }
+            font: { size: 12 },
+            autoSkip: false,
+            maxRotation: 0
           },
           grid: { display: false }
         }
@@ -5763,6 +6025,17 @@ function renderTechTornado() {
             }
           }
         }
+      },
+      onClick: (evt, elements) => {
+        if (!elements.length) return;
+        const idx = elements[0].index;
+        const item = allItems[idx];
+        if (!item || !rvCardsDB) return;
+        const url = rvCardImgByName(item.card);
+        if (!url) return;
+        const ov = pfGetOrCreateOverlay();
+        ov.querySelector('img').src = url;
+        ov.classList.add('open');
       }
     }
   });
@@ -6522,8 +6795,20 @@ function wrapPremium(innerHtml, context) {
 
 function getAnalyzerData() {
   if (!DATA) return {};
-  if (currentFormat === 'infinity' && DATA.matchup_analyzer_infinity) return DATA.matchup_analyzer_infinity;
-  return DATA.matchup_analyzer || {};
+  const az = (currentFormat === 'infinity' && DATA.matchup_analyzer_infinity)
+    ? DATA.matchup_analyzer_infinity
+    : (DATA.matchup_analyzer || {});
+  // Derive available_matchups from vs_* keys if missing
+  const decks = az.available_decks || [];
+  for (const dk of decks) {
+    if (az[dk] && (!az[dk].available_matchups || az[dk].available_matchups.length === 0)) {
+      az[dk].available_matchups = Object.keys(az[dk])
+        .filter(k => k.startsWith('vs_'))
+        .map(k => k.slice(3))
+        .sort();
+    }
+  }
+  return az;
 }
 
 // === MATCHUP SELECTOR (shared) ===
@@ -6945,11 +7230,13 @@ function cardImgUrlFuzzy(cardName) {
   let ci = imgs[cardName];
   if (ci) return mkUrl(ci);
 
-  // 2. Normalized exact match (smart quotes → standard)
+  // 2. Normalized exact match (smart quotes + Oxford comma variants)
   const norm = cardName.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
+  // Also try with/without Oxford comma: "Mean, and" ↔ "Mean and"
+  const normAlt = norm.includes(', and ') ? norm.replace(', and ', ' and ') : norm.replace(' and ', ', and ');
   for (const [k, v] of Object.entries(imgs)) {
     const kn = k.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"');
-    if (kn === norm) return mkUrl(v);
+    if (kn === norm || kn === normAlt) return mkUrl(v);
   }
 
   // 3. rvCardsDB fallback (exact name match)
@@ -7205,6 +7492,7 @@ function renderCoachV2Tab(main) {
       sequence: curve.sequence || {},
       response: curve.response || {},
       validation: curve.validation || {},
+      keyCards: curve.key_cards || [],
       // From matching LLM threat
       description: matchingThreat?.description || '',
       sections: matchingThreat?.sections || [],
@@ -7286,12 +7574,12 @@ function renderCoachV2Tab(main) {
     const hasSections = tb.sections.length > 0;
     const hasResponse = tb.response.strategy;
 
-    if (hasSeq || hasSections) {
+    if (hasSeq || hasSections || hasResponse) {
       content += `<div class="cv2-columns">`;
 
       // LEFT: Opponent's plan (from sequence + playbook)
-      content += `<div class="cv2-col"><h4 class="opp-title">Opponent's Plan</h4>`;
       if (hasSeq) {
+        content += `<div class="cv2-col"><h4 class="opp-title">Opponent's Plan</h4>`;
         seqEntries.forEach(([turn, s]) => {
           const plays = s.plays || (s.card ? [{card: s.card, ink_cost: s.ink_cost, is_shift: s.is_shift, is_sung: s.is_sung}] : []);
           const totalInk = s.total_ink != null ? s.total_ink : plays.reduce((a, p) => a + (p.ink_cost||0), 0);
@@ -7306,8 +7594,9 @@ function renderCoachV2Tab(main) {
             <span class="cv2-play">${playsHtml} <span style="color:var(--text2);font-size:0.85em">(${totalInk} ink)</span></span>
           </div>`;
         });
-      } else {
-        // Fallback to playbook
+        content += `</div>`;
+      } else if (tb.playbook.length > 0) {
+        content += `<div class="cv2-col"><h4 class="opp-title">Opponent's Plan</h4>`;
         tb.playbook.slice(0, 5).forEach(t => {
           const topPlay = (t.plays || []).slice(0, 2).map(p => p.card).join(', ');
           content += `<div class="cv2-turn-row">
@@ -7315,11 +7604,27 @@ function renderCoachV2Tab(main) {
             <span class="cv2-play">${topPlay || '—'}</span>
           </div>`;
         });
+        content += `</div>`;
+      } else {
+        // No sequence or playbook — show key cards as threat indicators
+        content += `<div class="cv2-col"><h4 class="opp-title">Threat Pattern</h4>`;
+        content += `<div style="font-size:0.85em;color:var(--text2);margin-bottom:6px">${tb.name}</div>`;
+        if (tb.criticalTurn && tb.criticalTurn !== 'Tundefined') {
+          content += `<div style="font-size:0.82em;margin-bottom:6px">Critical turn: <strong style="color:var(--gold)">${tb.criticalTurn}</strong></div>`;
+        }
+        if (tb.keyCards.length > 0) {
+          const cardsHtml = tb.keyCards.map(c => {
+            const img = cardImgUrlFuzzy(c);
+            const short = c.split(' - ')[0];
+            return img ? `<div style="display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0"><img src="${img}" style="width:24px;height:33px;border-radius:3px;object-fit:cover" loading="lazy" onerror="this.style.display='none'"><span style="font-size:0.82em">${short}</span></div>` : `<span style="font-size:0.82em;margin-right:8px">${short}</span>`;
+          }).join('');
+          content += `<div style="margin-top:4px">${cardsHtml}</div>`;
+        }
+        content += `</div>`;
       }
-      content += `</div>`;
 
       // RIGHT: Our response
-      content += `<div class="cv2-col"><h4 class="our-title">How to Respond</h4>`;
+      content += `<div class="cv2-col"${!hasSeq && tb.playbook.length === 0 ? ' style="flex:1"' : ''}><h4 class="our-title">How to Respond</h4>`;
       if (hasSections) {
         tb.sections.forEach(s => {
           const typeIcon = s.type === 'Prevention' ? '🛡' : s.type === 'Response' ? '⚔' : '🔄';
@@ -7439,12 +7744,58 @@ function renderCV2Secondary() {
 
   if (cv2SecTab === 'killer_cards') {
     if (ac.length === 0) { body.innerHTML = '<div class="card" style="padding:16px;color:var(--text2)">No killer cards identified.</div>'; return; }
-    let html = `<div class="card" style="padding:16px;margin-top:12px"><table class="deck-table"><tr><th>Carta</th><th>Costo</th><th>% Loss</th><th>Ability</th></tr>`;
-    ac.forEach(c => {
-      const cls = c.loss_pct >= 50 ? 'wr-bad' : '';
-      html += `<tr><td><strong>${c.card}</strong></td><td>${c.cost}</td><td class="${cls}">${c.loss_pct}%</td><td style="font-size:0.8em;color:var(--text2)">${c.ability}</td></tr>`;
+
+    // Group by cost (like playbook groups by turn)
+    const byCost = {};
+    ac.forEach(c => { const k = c.cost || 0; (byCost[k] = byCost[k] || []).push(c); });
+    Object.values(byCost).forEach(arr => arr.sort((a,b) => b.loss_pct - a.loss_pct));
+    const costs = Object.keys(byCost).map(Number).sort((a,b) => a - b);
+
+    let html = `<div class="card" style="padding:20px 20px 12px 20px;margin-top:12px"><div class="playbook">`;
+
+    costs.forEach(cost => {
+      const cards = byCost[cost];
+      const maxPct = Math.max(...cards.map(c => c.loss_pct));
+      const danger = maxPct >= 55 ? 'high' : maxPct >= 40 ? 'mid' : 'low';
+      const cardsPreview = cards.slice(0,3).map(c => {
+        const imgUrl = cardImgUrlFuzzy(c.card);
+        const shortN = c.card.split(' - ')[0];
+        const thumb = imgUrl ? `<img src="${imgUrl}" style="width:18px;height:25px;border-radius:2px;vertical-align:middle;object-fit:cover;margin-right:3px">` : '';
+        return `${thumb}<strong>${shortN}</strong> <span class="pct">${c.loss_pct}%</span>`;
+      }).join(' &middot; ');
+
+      html += `<div class="pb-turn" onclick="event.stopPropagation();this.classList.toggle('open')">
+        <div class="pb-dot ${danger}"></div>
+        <div class="pb-header">
+          <span class="pb-turn-num">C${cost}</span>
+          <div class="pb-cards">${cardsPreview}</div>
+        </div>
+        <div class="pb-expand">
+          <table class="deck-table" style="margin-bottom:6px"><tr><th></th><th>Carta</th><th>Loss%</th><th>Ability</th></tr>`;
+
+      cards.forEach(c => {
+        const pct = c.loss_pct;
+        const cls = pct >= 50 ? 'wr-bad' : '';
+        const imgUrl = cardImgUrlFuzzy(c.card);
+        const fullUrl = imgUrl ? imgUrl.replace('/thumbnail/', '/full/') : '';
+        const thumb = imgUrl
+          ? `<img src="${imgUrl}" style="width:28px;height:39px;border-radius:3px;object-fit:cover;vertical-align:middle;border:1px solid var(--border)">`
+          : '<span style="font-size:1.3em;vertical-align:middle">&#127183;</span>';
+        const rowZoom = fullUrl ? `data-zoom="${fullUrl}" onclick="event.stopPropagation();pfZoomCard(this)" style="cursor:pointer"` : '';
+
+        html += `<tr ${rowZoom}>
+          <td style="width:36px;padding:4px">${thumb}</td>
+          <td><strong>${c.card}</strong></td>
+          <td class="${cls}">${pct}%</td>
+          <td style="font-size:0.8em;color:var(--text2)">${(c.ability||'').length > 80 ? c.ability.substring(0,77)+'...' : (c.ability||'')}</td>
+        </tr>`;
+
+      });
+
+      html += `</table></div></div>`;
     });
-    html += `</table></div>`;
+
+    html += `</div></div>`;
     body.innerHTML = html;
 
   } else if (cv2SecTab === 'playbook') {
@@ -7585,7 +7936,7 @@ function renderLabTab(main) {
       }</div>`;
     }
 
-    rightCol = `<div class="lab-right"><div class="lab-decklist-panel">
+    rightCol = `<div class="lab-decklist-panel">
       <div class="ldp-header">
         <span class="ldp-title">Optimized Deck</span>
         <span class="ldp-count">${totalCards}/60</span>
@@ -7597,7 +7948,13 @@ function renderLabTab(main) {
         <button class="lab-btn primary" onclick="navigator.clipboard.writeText(document.getElementById('lab-import-data').textContent.trim());this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Deck',1500)">Copy Deck</button>
       </div>
       <div id="lab-import-data" style="display:none">${dl.import_text||dl.full_list.map(c=>c.qty+' '+c.card).join('\n')}</div>
-    </div></div>`;
+    </div>`;
+  }
+
+  // Meta Deck panel removed — Lab shows only Optimized Decklist
+  // Wrap rightCol in lab-right container
+  if (rightCol) {
+    rightCol = `<div class="lab-right">${rightCol}</div>`;
   }
 
   // === BUILD LEFT COLUMN ===
@@ -8386,58 +8743,74 @@ function renderProfileTab(main) {
   // ── DECK SELECTOR INNER (used inside hero card) ──
   let deckSelectorInner = '';
   if (myDeckMode === 'standard' || !hasDeck) {
-    // STANDARD MODE: ink picker
-    deckSelectorInner += '<div class="pf-hero-ink-row">';
+    // STANDARD MODE: ink picker — step-based layout
+    const step = pfInkSel.length;
+    const stepLabel = step === 0 ? '<span style="font-size:0.78em;color:var(--gold)">Tap 2 ink colors to select your deck</span>'
+                    : step === 1 ? '<span style="font-size:0.78em;color:var(--gold)">Pick one more ink</span>'
+                    : '';
+    let inkGrid = '<div class="pf-ink-grid">';
     INK_LIST.forEach(ink => {
       const isSel = pfInkSel.includes(ink.id);
-      deckSelectorInner += `<div class="ink-icon-wrap${isSel ? ' selected' : ''}" onclick="pfToggleInk('${ink.id}')" title="${ink.label}" style="width:28px;height:28px;cursor:pointer">${INK_SVGS[ink.id]}</div>`;
+      inkGrid += `<div class="pf-ink-btn${isSel ? ' selected' : ''}" onclick="pfToggleInk('${ink.id}')" title="${ink.label}">
+        <div style="width:36px;height:36px">${INK_SVGS[ink.id]}</div>
+        <span class="pf-ink-label">${ink.label}</span>
+      </div>`;
     });
-    if (pfInkSel.length === 2) {
+    inkGrid += '</div>';
+
+    let pinAction = '';
+    if (step === 2) {
       const key = [...pfInkSel].sort().join('+');
       const resolved = INK_PAIR_TO_DECK[key];
       if (resolved) {
         const isPinned = pins.includes(resolved);
         if (!isPinned && pins.length < 3) {
-          deckSelectorInner += `<button class="pf-save-btn" style="padding:3px 10px;font-size:0.72em;margin-left:4px" onclick="pfPinAndSelect('${resolved}')">Pin</button>`;
+          pinAction = `<button class="pf-save-btn" style="padding:5px 14px;font-size:0.78em;margin-top:8px" onclick="pfPinAndSelect('${resolved}')">&#9733; Pin this deck</button>`;
         }
       }
-    } else if (pfInkSel.length === 1) {
-      deckSelectorInner += `<span style="font-size:0.72em;color:var(--text2);margin-left:4px">pick one more</span>`;
-    } else {
-      deckSelectorInner += `<span style="font-size:0.72em;color:var(--text2);margin-left:4px">pick 2 inks</span>`;
     }
-    deckSelectorInner += '</div>';
+    deckSelectorInner = `<div style="margin-bottom:4px">${stepLabel}</div>${inkGrid}${pinAction}`;
   } else {
     // MY DECK MODE
     const deckName = localStorage.getItem('lorcana_deck_name') || 'Unnamed';
     const deckCode = localStorage.getItem('lorcana_deck_code') || selectedDeck || '?';
     const cardCount = myDeckCards ? Object.values(myDeckCards).reduce((s,v)=>s+v,0) : 0;
-    deckSelectorInner += `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;background:rgba(212,160,58,0.12);border:1px solid var(--gold);cursor:pointer" onclick="showDeckHistory()">
-        ${deckCode !== '?' ? deckImg(deckCode, 24) : ''}
+    deckSelectorInner = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:rgba(212,160,58,0.08);border:1px solid rgba(212,160,58,0.25)">
+      <div style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;min-width:0" onclick="showDeckHistory()">
+        ${deckCode !== '?' ? deckImg(deckCode, 28) : ''}
         <div style="min-width:0">
-          <div style="font-size:0.82em;font-weight:600;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${deckName}</div>
-          <div style="font-size:0.65em;color:var(--text2)">${cardCount} cards</div>
+          <div style="font-size:0.88em;font-weight:600;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${deckName}</div>
+          <div style="font-size:0.68em;color:var(--text2)">${cardCount} cards</div>
         </div>
-        <span style="font-size:0.65em;color:var(--text2)">&#9660;</span>
+        <span style="font-size:0.7em;color:var(--text2);margin-left:auto">&#9660;</span>
       </div>
-      <span style="cursor:pointer;font-size:0.82em;color:var(--gold)" onclick="showDeckModal()">&#9998; Edit</span>
-      <span style="cursor:pointer;color:var(--text2);font-size:0.78em" onclick="clearMyDeckAndRender()">&times;</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="cursor:pointer;font-size:0.82em;color:var(--gold)" onclick="showDeckModal()">&#9998; Edit</span>
+        <span style="cursor:pointer;color:var(--text2);font-size:0.82em" onclick="clearMyDeckAndRender()">&times;</span>
+      </div>
     </div>`;
   }
 
-  // Pinned shortcuts
+  // Saved Decks section
   let pinsInner = '';
   if (pins.length) {
-    pinsInner = '<div class="pf-hero-pins"><span class="pf-hero-pins-label">Pinned</span>';
+    let pinCards = '';
     pins.forEach(code => {
       const isActive = activeDk === code;
-      pinsInner += `<button class="pf-deck-pill${isActive ? ' active' : ''}" onclick="pfSelectDeck('${code}')">
-        ${deckImg(code,22)}
-        <span class="pf-deck-pill-x" onclick="event.stopPropagation();pfRemoveDeck('${code}')" title="Remove">&times;</span>
-      </button>`;
+      const dn = DECK_NAMES[code] || code;
+      pinCards += `<div class="pf-saved-deck${isActive ? ' active' : ''}" onclick="pfSelectDeck('${code}')">
+        ${deckImg(code, 28)}
+        <div style="min-width:0;flex:1">
+          <div style="font-size:0.82em;font-weight:600;color:${isActive ? 'var(--gold)' : 'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dn}</div>
+          <div style="font-size:0.65em;color:var(--text2)">${code}</div>
+        </div>
+        <span class="pf-saved-deck-x" onclick="event.stopPropagation();pfRemoveDeck('${code}')" title="Remove">&times;</span>
+      </div>`;
     });
-    pinsInner += '</div>';
+    pinsInner = `<div class="pf-saved-decks-section">
+      <div class="pf-saved-decks-label">Saved Decks</div>
+      ${pinCards}
+    </div>`;
   }
 
   // Legacy studyHtml — keep for compatibility, no longer emitted in assembly
@@ -8499,9 +8872,19 @@ function renderProfileTab(main) {
         if (mus.length >= 2) {
           const best2 = mus.slice(0, 2);
           const worst2 = mus.slice(-2).reverse();
-          heroKpiHtml += `<div class="pf-hero-mu-strip">
-            <span style="color:var(--green)">Best: ${best2.map(m => `${deckImg(m.opp,14)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
-            <span style="color:var(--red)">Worst: ${worst2.map(m => `${deckImg(m.opp,14)} ${m.wr.toFixed(0)}%`).join(' &middot; ')}</span>
+          heroKpiHtml += `<div class="pf-radar-mu-section">
+            <div class="pf-radar-mu-group">
+              <div class="pf-radar-mu-label" style="color:var(--green)">Best matchups</div>
+              <div class="pf-radar-mu-items">${best2.map(m =>
+                `<span class="pf-radar-mu-chip">${deckImg(m.opp,16)} <b style="color:var(--green)">${m.wr.toFixed(0)}%</b></span>`
+              ).join('')}</div>
+            </div>
+            <div class="pf-radar-mu-group">
+              <div class="pf-radar-mu-label" style="color:var(--red)">Worst matchups</div>
+              <div class="pf-radar-mu-items">${worst2.map(m =>
+                `<span class="pf-radar-mu-chip">${deckImg(m.opp,16)} <b style="color:var(--red)">${m.wr.toFixed(0)}%</b></span>`
+              ).join('')}</div>
+            </div>
           </div>`;
         }
       }
@@ -8569,7 +8952,7 @@ function renderProfileTab(main) {
       techCards.forEach(item => { techHtml += renderTechCard(item); });
       techHtml += `</div>`;
     } else {
-      techHtml = `<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No tech cards detected — players are running the standard list.</div>`;
+      techHtml = `<div style="color:var(--text2);font-size:0.84em;padding:8px 0">No non-standard picks detected — players are running the standard list.</div>`;
     }
   }
 
@@ -8657,7 +9040,8 @@ function renderProfileTab(main) {
     const consensusData = DATA.consensus || {};
     const refDecklists = DATA.reference_decklists || {};
     const std = consensusData[activeDk];
-    const refDeck = refDecklists[activeDk];
+    const _refList = refDecklists[activeDk];
+    const refDeck = Array.isArray(_refList) ? _refList[0] : _refList;
 
     // Build the tech card name set for cross-highlighting
     const techCardNames = new Set();
@@ -8735,7 +9119,7 @@ function renderProfileTab(main) {
       tipsHtml = `<div class="pf-kpi-card">
         <div class="pf-kpi-title" style="margin-bottom:10px">
           <span>Best Plays</span>
-          <span style="font-size:0.85em;font-weight:400;color:var(--text2)">${perfPeriod || 'Last 2 days'}</span>
+          <span style="font-size:0.85em;font-weight:400;color:var(--text2)">${perfPeriod || 'Last 3 days'}</span>
         </div><div class="bp2-list">`;
 
       bp.forEach((m, idx) => {
@@ -8919,84 +9303,6 @@ function renderProfileTab(main) {
     </div>
   </div>`;
 
-  // ── META DECK PANEL ──
-  let metaDeckHtml = '';
-  if (activeDk && DATA.meta_deck) {
-    const mdSrc = currentFormat === 'infinity'
-      ? (DATA.meta_deck_infinity || DATA.meta_deck || {})
-      : (DATA.meta_deck || {});
-    const md = mdSrc[activeDk];
-    if (md && md.final_deck) {
-      const cov = md.coverage || {};
-      const covPct = cov.coverage_pct || 0;
-      const covClass = covPct >= 90 ? 'high' : covPct >= 75 ? 'mid' : 'low';
-
-      // Changes chips
-      let cutsHtml = '';
-      if (md.cuts && md.cuts.length) {
-        cutsHtml = md.cuts.map(c =>
-          `<span class="pf-md-chip cut">-${c.qty} ${(c.card||'').split(' - ')[0]}</span>`
-        ).join('');
-      }
-      let addsHtml = '';
-      if (md.adds && md.adds.length) {
-        addsHtml = md.adds.map(a => {
-          const cls = a.is_tech ? 'tech' : 'add';
-          return `<span class="pf-md-chip ${cls}">+${a.qty} ${(a.card||'').split(' - ')[0]}${a.is_tech ? ' ★' : ''}</span>`;
-        }).join('');
-      }
-
-      // Card list
-      const entries = Object.entries(md.final_deck).sort((a,b) => b[1] - a[1]);
-      const listHtml = entries.map(([card, qty]) => {
-        const isTech = md.adds && md.adds.some(a => a.card === card && a.is_tech);
-        const techBadge = isTech ? '<span class="pf-std-tech-badge is-in">TECH</span>' : '';
-        return `<div class="pf-std-row">
-          <span class="pf-std-qty">${qty}</span>
-          <span class="pf-std-name">${card}</span>
-          ${techBadge}
-        </div>`;
-      }).join('');
-
-      // Mana curve
-      const mc = md.mana_curve || {};
-      const maxMC = Math.max(...Object.values(mc), 1);
-      const manaHtml = Object.entries(mc).sort((a,b) => a[0]-b[0]).map(([cost, count]) => {
-        const h = Math.max(3, Math.round(count / maxMC * 36));
-        return `<div class="pf-md-mana-bar" style="height:${h}px"><span class="pf-md-mana-label">${cost}</span></div>`;
-      }).join('');
-
-      // Uncovered curves
-      let uncovHtml = '';
-      if (cov.uncovered && cov.uncovered.length) {
-        uncovHtml = `<div style="font-size:0.7em;color:var(--text2);margin-top:8px">
-          <strong>Gaps:</strong> ${cov.uncovered.slice(0,3).map(u =>
-            `vs ${u.opp} (${u.freq_pct}%)`
-          ).join(', ')}
-        </div>`;
-      }
-
-      metaDeckHtml = `<div class="pf-meta-deck">
-        <div class="pf-md-header">
-          <span class="pf-md-title">Meta Deck</span>
-          <span class="pf-md-coverage ${covClass}">KC Coverage ${covPct}%</span>
-        </div>
-        ${cutsHtml || addsHtml ? `<div class="pf-md-changes">
-          ${cutsHtml ? `<div class="pf-md-change-group"><div class="pf-md-change-label">Cuts</div>${cutsHtml}</div>` : ''}
-          ${addsHtml ? `<div class="pf-md-change-group"><div class="pf-md-change-label">Adds</div>${addsHtml}</div>` : ''}
-        </div>` : ''}
-        <div class="pf-md-list">${listHtml}</div>
-        <div class="pf-std-total">${md.total_cards || 60}/60 cards</div>
-        <div class="pf-md-mana" style="padding-bottom:14px">${manaHtml}</div>
-        ${uncovHtml}
-        <div class="pf-md-copy">
-          <button class="pf-md-copy-btn" onclick="pfCopyMetaDeck(this)">Copy Deck</button>
-          <textarea class="pf-md-import-data" style="display:none">${(md.import_text||'').replace(/</g,'&lt;')}</textarea>
-        </div>
-      </div>`;
-    }
-  }
-
   // ── ASSEMBLE (redesigned layout) ──
   // Row 1: User header
   // Row 2: Hero — Deck Selector card (left) + Meta Radar card (right)
@@ -9012,16 +9318,90 @@ function renderProfileTab(main) {
       onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
   </div>`;
 
+  // ── MY STATS (collapsible, from player_lookup) ──
+  let myStatsHtml = '';
+  if (myNick) {
+    const nickLow = myNick.toLowerCase();
+    const fmtKey = currentFormat === 'infinity' ? 'infinity' : 'core';
+    const lookup = ((DATA.player_lookup || {})[fmtKey] || {})[nickLow] || {};
+    const allDecks = Object.entries(lookup).sort((a, b) => (b[1].w + b[1].l) - (a[1].w + a[1].l));
+    const totalW = allDecks.reduce((s, [_, v]) => s + v.w, 0);
+    const totalL = allDecks.reduce((s, [_, v]) => s + v.l, 0);
+    const totalGames = totalW + totalL;
+    const bestMmr = allDecks.reduce((s, [_, v]) => Math.max(s, v.mmr || 0), 0);
+
+    if (totalGames > 0) {
+      const totalWr = (totalW / totalGames * 100).toFixed(1);
+      // Build deck rows with WR bar + worst matchup
+      let deckRows = '';
+      allDecks.forEach(([dk, v]) => {
+        const g = v.w + v.l;
+        const wr = (v.w / g * 100).toFixed(1);
+        const wrPct = parseFloat(wr);
+        const isActive = dk === activeDk;
+        // Find worst matchup for this deck from community matrix
+        const matrix = (pd.matrix || {})[dk] || {};
+        let worstOpp = '', worstWr = 100;
+        Object.entries(matrix).forEach(([opp, s]) => {
+          if (s.t >= 3) {
+            const oppWr = s.w / s.t * 100;
+            if (oppWr < worstWr) { worstWr = oppWr; worstOpp = opp; }
+          }
+        });
+        const worstHtml = worstOpp
+          ? `<span style="display:inline-flex;align-items:center;gap:2px;font-size:0.7em;color:var(--red)">${deckImg(worstOpp,12)} ${worstWr.toFixed(0)}%</span>`
+          : '';
+        deckRows += `<div class="pf-my-deck-row${isActive ? ' active' : ''}" onclick="pfSelectDeck('${dk}')">
+          <div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1">
+            ${deckImg(dk, 22)}
+            <span style="font-size:0.82em;font-weight:${isActive ? '700' : '500'};color:${isActive ? 'var(--gold)' : 'var(--text)'};white-space:nowrap">${dk}</span>
+            <span style="font-size:0.68em;color:var(--text2)">${g}g</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            ${worstHtml}
+            <div style="width:50px;height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${wrPct}%;background:${wrColor(wrPct)};border-radius:3px"></div>
+            </div>
+            <span style="font-size:0.82em;font-weight:700;color:${wrColor(wrPct)};min-width:38px;text-align:right">${wr}%</span>
+          </div>
+        </div>`;
+      });
+
+      myStatsHtml = `<div class="pf-my-stats-section">
+        <div class="pf-my-stats-toggle" onclick="var b=document.getElementById('pf-my-stats-body');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.pf-my-stats-chev').classList.toggle('open')">
+          <span class="pf-my-stats-label">My Stats</span>
+          <span style="font-size:0.72em;color:var(--text2)">${totalGames}g · ${totalWr}% · MMR ${bestMmr}</span>
+          <svg class="pf-my-stats-chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div id="pf-my-stats-body" style="display:none">
+          <div style="display:flex;flex-direction:column;gap:2px;margin-top:6px">
+            ${deckRows}
+          </div>
+        </div>
+      </div>`;
+    } else {
+      myStatsHtml = `<div class="pf-my-stats-section">
+        <div class="pf-my-stats-label" style="padding:0">My Stats</div>
+        <div style="font-size:0.75em;color:var(--text2);padding:4px 0">No games found for <strong>${myNick}</strong> in the last 3 days</div>
+      </div>`;
+    }
+  } else {
+    myStatsHtml = `<div class="pf-my-stats-section">
+      <div class="pf-my-stats-label" style="padding:0">My Stats</div>
+      <div style="font-size:0.75em;color:var(--text2);padding:4px 0"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see your personal stats</div>
+    </div>`;
+  }
+
   // Hero deck card (left panel of hero row)
   const heroDeckCard = `<div class="pf-hero-deck">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <span class="pf-kpi-title" style="margin:0">Deck</span>
+      <span class="pf-kpi-title" style="margin:0;color:rgba(212,160,58,0.9)">Select Your Deck</span>
       ${deckModeToggle}
     </div>
     ${heroIdentityHtml}
     ${deckSelectorInner}
     ${pinsInner}
-    ${heroKpiHtml}
+    ${myStatsHtml}
   </div>`;
 
   // Hero radar card (right panel of hero row)
@@ -9030,19 +9410,29 @@ function renderProfileTab(main) {
       <span class="pf-hero-radar-title">Meta Radar</span>
       <div class="pf-hero-radar-live-row">
         <span class="pf-radar-live"></span>
-        <span style="font-size:0.7em;color:var(--text2)">today</span>
+        <span style="font-size:0.7em;color:var(--text2)">live</span>
       </div>
     </div>
-    <div class="pf-hero-radar-snap">Decks to watch against <strong style="color:var(--gold)">${activeDk}</strong> today — dark horses and kryptonite.</div>
-    ${radarHtml || '<div class="pf-radar-empty">Select a deck to see threats.</div>'}
+    <div class="pf-radar-deck-banner">
+      ${deckImg(activeDk, 36)}
+      <div class="pf-radar-deck-info">
+        <div class="pf-radar-deck-name">${DECK_NAMES[activeDk] || activeDk}</div>
+        <div class="pf-radar-deck-code">${activeDk}</div>
+      </div>
+    </div>
+    ${heroKpiHtml}
+    ${radarHtml ? `<div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(248,81,73,0.18)">
+      <div style="font-size:0.68em;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600">Threats to watch</div>
+      ${radarHtml}
+    </div>` : ''}
   </div>` : `<div class="pf-hero-radar" style="align-items:center;justify-content:center;min-height:120px">
-    <div style="color:var(--text2);font-size:0.82em;text-align:center">Select a deck to<br>see meta threats</div>
+    <div style="color:var(--text2);font-size:0.82em;text-align:center">Select a deck to<br>see meta stats</div>
   </div>`;
 
   // Tech card panel title (right side of list panel)
   const techCardPanel = `<div class="pf-std-card">
     <div class="pf-std-title" style="margin-bottom:0">
-      <span>Tech Cards</span>
+      <span>Non-Standard Picks</span>
       <button class="pf-info-btn" onclick="event.stopPropagation();var t=this.nextElementSibling;if(t)t.classList.toggle('open')" title="What is this?">i</button>
     </div>
     <div class="pf-info-tip" style="margin-top:6px;margin-bottom:8px">Non-standard cards used by winning players (WR ≥ 52%, 15+ games). <strong>Adoption %</strong> = how many winners run it. Source: <span style="color:var(--gold)">PRO</span> &gt; <span style="color:var(--sapphire)">TOP</span> &gt; Community. Green badge on Standard List marks these cards.</div>
@@ -9060,7 +9450,6 @@ function renderProfileTab(main) {
       ${stdListHtml || '<div></div>'}
       ${techCardPanel}
     </div>` : ''}
-    ${metaDeckHtml}
     ${tipsHtml}
     ${coachHtml}
   </div>
@@ -9113,7 +9502,7 @@ function pfZoomCard(el) {
 // Desktop hover: tooltip next to card
 let _pfHoverCard = null;
 document.addEventListener('mouseover', e => {
-  const card = e.target.closest('.pf-tech-card[data-zoom]');
+  const card = e.target.closest('.pf-tech-card[data-zoom], [data-zoom]');
   if (card === _pfHoverCard) return;
   if (!card) {
     if (_pfHoverCard) { _pfHoverCard = null; const t = document.getElementById('pf-card-hover-zoom'); if (t) t.classList.remove('visible'); }
@@ -9263,269 +9652,337 @@ function pfClearDemo() {
 let ttSelectedPlayer = null; // null = overview
 let ttInboxFilter = '7d';   // today | 7d | 30d | all
 
-// Helper: severity config
+// ── Team Tab v3: Premium Esports Dashboard ──
 function ttSevConfig(type) {
-  if (type === 'danger') return { cls: 'critical', icon: '!', label: 'Critical', dot: 'var(--red)' };
-  if (type === 'warning') return { cls: 'warning', icon: '~', label: 'Warning', dot: 'var(--yellow)' };
-  return { cls: 'info', icon: 'i', label: 'Info', dot: '#58a6ff' };
+  if (type === 'danger') return { cls: 'critical', icon: '!', label: 'Critical', dot: 'var(--red)', emoji: '\u26A0\uFE0F' };
+  if (type === 'warning') return { cls: 'warning', icon: '~', label: 'Warning', dot: 'var(--yellow)', emoji: '\u26A0\uFE0F' };
+  return { cls: 'info', icon: 'i', label: 'Info', dot: '#58a6ff', emoji: '\u2139\uFE0F' };
 }
 
-// Helper: player avatar color from WR
 function ttAvatarStyle(wr) {
   if (wr >= 55) return 'background:rgba(63,185,80,0.18);color:var(--green);border-color:rgba(63,185,80,0.4)';
   if (wr <= 45) return 'background:rgba(248,81,73,0.18);color:var(--red);border-color:rgba(248,81,73,0.4)';
   return 'background:rgba(210,153,34,0.18);color:var(--yellow);border-color:rgba(210,153,34,0.4)';
 }
 
+function ttWrGlowClass(wr) {
+  if (wr >= 55) return 'wr-glow-green';
+  if (wr <= 45) return 'wr-glow-red';
+  return 'wr-glow-yellow';
+}
+
+function ttToggleCard(el) {
+  el.closest('.tt-player-card').classList.toggle('open');
+}
+function ttToggleInbox() {
+  document.getElementById('tt-inbox-panel').classList.toggle('open');
+  document.getElementById('tt-inbox-overlay').classList.toggle('open');
+}
+function ttToggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function ttMiniSparkline(daily) {
+  if (!daily || daily.length < 2) return '';
+  const last7 = daily.slice(-7);
+  let h = '<span class="tt-pc-spark-mini">';
+  last7.forEach(d => {
+    const barH = Math.max(2, Math.round(d.wr / 100 * 14));
+    const col = d.wr >= 55 ? 'var(--green)' : d.wr <= 45 ? 'var(--red)' : 'var(--yellow)';
+    h += `<span class="tt-pc-spark-mini-bar" style="height:${barH}px;background:${col}"></span>`;
+  });
+  h += '</span>';
+  return h;
+}
+
+function ttHeatmapCellBg(wr) {
+  if (wr >= 65) return 'rgba(63,185,80,0.25)';
+  if (wr >= 55) return 'rgba(63,185,80,0.12)';
+  if (wr <= 35) return 'rgba(248,81,73,0.25)';
+  if (wr <= 45) return 'rgba(248,81,73,0.12)';
+  return 'rgba(255,255,255,0.03)';
+}
+
 function renderTeamTab(main) {
   const team = DATA.team;
   if (!team || !team.players || team.players.length === 0) {
-    main.innerHTML = '<div class="card" style="text-align:center;padding:40px">' +
-      '<h2>Team Training</h2>' +
-      '<p style="color:var(--text2)">No team configured. Add players in <code>daily/team_roster.json</code> and re-run the dashboard.</p></div>';
+    main.innerHTML = '<div class="card" style="text-align:center;padding:60px 20px">' +
+      '<div style="font-size:2.5em;margin-bottom:12px">\uD83C\uDFAE</div>' +
+      '<h2 style="margin-bottom:8px">Team Training</h2>' +
+      '<p style="color:var(--text2);max-width:320px;margin:0 auto">No team configured yet. Add players via API or DB to get started.</p></div>';
     return;
   }
 
   const players = team.players;
   const ov = team.overview || {};
 
-  // ── Sidebar: one occurrence of player list ──
-  let sidebar = '<div class="tt-sidebar">';
-  sidebar += '<div class="tt-sidebar-label">Views</div>';
-  sidebar += `<button class="tt-overview-btn${ttSelectedPlayer === null ? ' active' : ''}" onclick="ttSelectedPlayer=null;renderTeamTab(document.getElementById('main-content'))">Overview</button>`;
-  sidebar += '<hr class="tt-sidebar-divider">';
-  sidebar += '<div class="tt-sidebar-label">Players</div>';
-  players.forEach(p => {
-    const active = ttSelectedPlayer === p.name ? ' active' : '';
-    const dotColor = p.wr >= 55 ? 'var(--green)' : p.wr <= 45 ? 'var(--red)' : 'var(--yellow)';
-    sidebar += `<button class="tt-player-btn${active}" onclick="ttSelectedPlayer='${p.name.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))">
-      <span class="tt-pb-dot" style="background:${dotColor}"></span>
-      <span class="tt-pb-name">${p.name}</span>
-      <span class="tt-pb-wr" style="color:${dotColor}">${p.wr}%</span>
-    </button>`;
-  });
-  sidebar += '</div>';
-
-  let content = '';
-  if (ttSelectedPlayer === null) {
-    content = ttRenderOverview(players, ov);
-  } else {
-    const player = players.find(p => p.name === ttSelectedPlayer);
-    content = player ? ttRenderProfile(player, players) : '<div class="card">Player not found</div>';
-  }
-
-  main.innerHTML = `<div class="tt-layout">${sidebar}<div class="tt-main">${content}
-    <div class="card" style="margin-top:16px">
-      <h3 style="margin-bottom:12px">Board Lab</h3>
-      <div id="tc-container"></div>
-    </div>
-  </div></div>`;
-
-  // Init coaching tool
-  if (typeof tcInit === 'function') tcInit('tc-container');
-  // Init swipe-to-archive (touch devices)
-  ttInitSwipe();
-}
-
-function ttRenderOverview(players, ov) {
-  let html = '';
-
-  // ── KPI strip ──
-  const bestP = ov.best_player;
-  const worstP = ov.worst_player;
-  html += '<div class="tt-kpi-row">';
-  html += `<div class="tt-kpi"><div class="tt-kpi-val">${ov.player_count || 0}</div><div class="tt-kpi-lbl">Players</div></div>`;
-  html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:${wrColor(ov.avg_wr||50)}">${ov.avg_wr||0}%</div><div class="tt-kpi-lbl">Avg WR</div></div>`;
-  html += `<div class="tt-kpi"><div class="tt-kpi-val">${ov.total_games || 0}</div><div class="tt-kpi-lbl">Games</div></div>`;
-  if (bestP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--green);font-size:1em">${bestP.name}</div><div class="tt-kpi-lbl">Best ${bestP.wr}%</div></div>`;
-  if (worstP) html += `<div class="tt-kpi"><div class="tt-kpi-val" style="color:var(--red);font-size:1em">${worstP.name}</div><div class="tt-kpi-lbl">Needs work ${worstP.wr}%</div></div>`;
-  html += '</div>';
-
-  // ── Player roster cards (one clean view, replaces redundant table) ──
-  html += '<div class="tt-roster">';
-  players.forEach(p => {
-    const initials = p.name.split(/[^a-zA-Z0-9]/).filter(Boolean).map(w => w[0].toUpperCase()).join('').slice(0, 2);
-    const topAlert = (p.alerts || []).find(a => a.type === 'danger') || (p.alerts || [])[0];
-    const wr = p.wr;
-    const dotColor = wr >= 55 ? 'var(--green)' : wr <= 45 ? 'var(--red)' : 'var(--yellow)';
-    let trendIcon = ''; let trendColor = 'var(--text2)';
-    if (p.daily && p.daily.length >= 2) {
-      const last = p.daily[p.daily.length - 1].wr;
-      const prev = p.daily[p.daily.length - 2].wr;
-      if (last > prev + 3) { trendIcon = ' ▲'; trendColor = 'var(--green)'; }
-      else if (last < prev - 3) { trendIcon = ' ▼'; trendColor = 'var(--red)'; }
-    }
-    html += `<div class="tt-roster-card" onclick="ttSelectedPlayer='${p.name.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))">
-      <div class="tt-rc-top">
-        <div class="tt-rc-avatar" style="${ttAvatarStyle(wr)}">${initials}</div>
-        <div class="tt-rc-info">
-          <div class="tt-rc-name">${p.name}</div>
-          <div class="tt-rc-role">${p.role || 'player'} &middot; ${p.deck ? p.deck : '?'}</div>
-        </div>
-        <div class="tt-rc-wr" style="color:${dotColor}">${wr}%<span style="color:${trendColor};font-size:0.7em">${trendIcon}</span></div>
-      </div>
-      <div class="tt-rc-stats">
-        <div><span>${p.games}g</span> played</div>
-        <div>OTP <span style="color:${wrColor(p.otp_wr)}">${p.otp_wr}%</span></div>
-        <div>OTD <span style="color:${wrColor(p.otd_wr)}">${p.otd_wr}%</span></div>
-      </div>
-      ${topAlert ? `<div class="tt-rc-alert-peek ${topAlert.type === 'danger' ? 'danger' : 'warning'}">
-        <span>${topAlert.type === 'danger' ? '!' : '~'}</span>
-        <span>${topAlert.msg}</span>
-      </div>` : `<div class="tt-rc-alert-peek ok"><span>&#10003;</span><span>No active alerts</span></div>`}
-    </div>`;
-  });
-  html += '</div>';
-
-  // ── Coaching Inbox ──
+  // ── Collect all alerts for inbox ──
   const allAlerts = [];
-  players.forEach(p => {
-    (p.alerts || []).forEach(a => allAlerts.push({ ...a, player: p.name, isTeam: false }));
-  });
+  players.forEach(p => (p.alerts || []).forEach(a => allAlerts.push({ ...a, player: p.name, isTeam: false })));
   (ov.alerts || []).forEach(a => allAlerts.push({ ...a, player: 'TEAM', isTeam: true }));
+  const critCount = allAlerts.filter(a => a.type === 'danger').length;
+  const warnCount = allAlerts.filter(a => a.type === 'warning').length;
+  const totalAlerts = critCount + warnCount;
 
-  // Assign stable hash IDs to alerts for localStorage tracking
-  function ttAlertHash(a) {
-    const raw = (a.player || '') + '|' + (a.type || '') + '|' + (a.msg || '');
-    let h = 0;
-    for (let i = 0; i < raw.length; i++) { h = ((h << 5) - h) + raw.charCodeAt(i); h |= 0; }
-    return 'al_' + Math.abs(h).toString(36);
+  // ── Team WR sparkline from player dailies ──
+  const allDays = new Set();
+  players.forEach(p => (p.daily || []).forEach(d => allDays.add(d.day)));
+  const sortedDays = [...allDays].sort();
+  const teamDailyBars = sortedDays.map(day => {
+    let w = 0, t = 0;
+    players.forEach(p => {
+      const dd = (p.daily || []).find(d => d.day === day);
+      if (dd) { w += Math.round(dd.wr * dd.games / 100); t += dd.games; }
+    });
+    return t > 0 ? Math.round(w / t * 100) : 50;
+  });
+  const sparkHtml = teamDailyBars.map(wr => {
+    const h = Math.max(4, Math.round(wr / 100 * 32));
+    const col = wr >= 55 ? 'var(--green)' : wr <= 45 ? 'var(--red)' : 'var(--yellow)';
+    return `<div class="tt-strip-bar" style="height:${h}px;background:${col}" title="${wr}%"></div>`;
+  }).join('');
+
+  // ── KPI strip trend ──
+  let trendIcon = '', trendColor = 'var(--text2)';
+  if (teamDailyBars.length >= 2) {
+    const last = teamDailyBars[teamDailyBars.length - 1], prev = teamDailyBars[teamDailyBars.length - 2];
+    if (last > prev + 3) { trendIcon = '\uD83D\uDCC8'; trendColor = 'var(--green)'; }
+    else if (last < prev - 3) { trendIcon = '\uD83D\uDCC9'; trendColor = 'var(--red)'; }
+    else { trendIcon = '\u2194\uFE0F'; }
   }
-  const archivedSet = new Set(JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]'));
 
-  // Time filter: since alerts lack timestamps, 'today'/'7d'/'30d' show all non-archived
-  // (when timestamps are added, filter by a.date here)
-  const activeAlerts = allAlerts.filter(a => !archivedSet.has(ttAlertHash(a)));
-  const archivedAlerts = allAlerts.filter(a => archivedSet.has(ttAlertHash(a)));
+  // ── Best/worst player ──
+  const bestP = ov.best_player || {};
+  const worstP = ov.worst_player || {};
 
-  const criticalAlerts = activeAlerts.filter(a => a.type === 'danger');
-  const warningAlerts  = activeAlerts.filter(a => a.type === 'warning');
+  let html = `<div class="tt-layout">`;
 
-  const totalCrit = criticalAlerts.length;
-  const badgeCls = totalCrit > 0 ? '' : warningAlerts.length > 0 ? ' warn' : ' ok';
-  const badgeNum = totalCrit > 0 ? totalCrit : warningAlerts.length > 0 ? warningAlerts.length : '&#10003;';
-
-  html += `<div class="tt-inbox">
-    <div class="tt-inbox-head">
-      <div class="tt-inbox-title">
-        Coaching Inbox
-        <span class="tt-inbox-badge${badgeCls}">${badgeNum}</span>
-      </div>
-      <div class="tt-time-filter">
-        ${['today','7d','30d','all'].map(f =>
-          `<button class="tt-tf-btn${ttInboxFilter===f?' active':''}" onclick="ttInboxFilter='${f}';renderTeamTab(document.getElementById('main-content'))">${f==='today'?'Today':f==='all'?'All':f}</button>`
-        ).join('')}
-      </div>
+  // ── KPI Strip ──
+  const bellSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>';
+  html += `<div class="tt-strip">
+    <div class="tt-strip-kpi">
+      <span class="tt-strip-val">${ov.player_count || players.length}</span>
+      <span class="tt-strip-lbl">Players</span>
     </div>
-    <div class="tt-inbox-body">`;
+    <div class="tt-strip-kpi">
+      <span class="tt-strip-val" style="color:${wrColor(ov.avg_wr||50)}">${(ov.avg_wr||0).toFixed(1)}%</span>
+      <span class="tt-strip-lbl">Avg WR</span>
+    </div>
+    <div class="tt-strip-kpi">
+      <span class="tt-strip-val">${(ov.total_games || 0).toLocaleString()}</span>
+      <span class="tt-strip-lbl">Games</span>
+    </div>
+    <div class="tt-strip-kpi">
+      <span class="tt-strip-val">${trendIcon}</span>
+      <span class="tt-strip-lbl">Trend</span>
+    </div>
+    <div class="tt-strip-spacer"></div>
+    <div class="tt-strip-inbox" onclick="ttToggleInbox()">
+      ${bellSvg}
+      ${critCount ? `<span class="tt-strip-inbox-badge crit">${critCount}</span>` : ''}
+      ${warnCount ? `<span class="tt-strip-inbox-badge warn">${warnCount}</span>` : ''}
+      ${!critCount && !warnCount ? '<span style="color:var(--green);font-weight:700">\u2713</span>' : ''}
+    </div>
+  </div>`;
 
-  const renderGroup = (alerts, sevType, label) => {
-    if (!alerts.length) return '';
-    const sev = ttSevConfig(sevType === 'danger' ? 'danger' : 'warning');
-    let g = `<div class="tt-inbox-group">
-      <div class="tt-inbox-group-label">
-        <span class="tt-sev-dot" style="background:${sev.dot}"></span>
-        ${label} &middot; ${alerts.length} alert${alerts.length > 1 ? 's' : ''}
-      </div>`;
-    alerts.forEach(a => {
-      const s = ttSevConfig(a.type);
-      const playerTagCls = a.isTeam ? 'team' : 'player';
-      const playerLabel = a.isTeam ? 'TEAM' : a.player;
-      const clickable = !a.isTeam;
-      const onclick = clickable ? `onclick="ttSelectedPlayer='${a.player.replace(/'/g,"\\'")}';renderTeamTab(document.getElementById('main-content'))"` : '';
-      const alertId = ttAlertHash(a);
-      const archiveIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12v1.5H2zM3.5 5.5l1 8h7l1-8"/><path d="M6.5 8h3"/></svg>`;
-      g += `<div class="tt-inbox-item-wrap" data-alert-id="${alertId}">
-        <div class="tt-inbox-item" ${onclick} ${clickable ? 'title="Open player profile"' : ''}>
-          <div class="tt-sev-icon ${s.cls}">${s.icon}</div>
-          <div class="tt-inbox-content">
-            <div class="tt-inbox-who">
-              <span class="tt-inbox-player-tag ${playerTagCls}">${playerLabel}</span>
-            </div>
-            <div class="tt-inbox-msg">${a.msg}${a.players && a.players.length ? ` <span style="color:var(--text2);font-size:0.9em">(${a.players.join(', ')})</span>` : ''}</div>
-          </div>
-          ${clickable ? '<div class="tt-inbox-arrow" style="margin-right:28px">›</div>' : ''}
+  // ── Player cards in 2-col grid ──
+  html += '<div class="tt-cards-grid">';
+  players.sort((a, b) => b.wr - a.wr).forEach((p, idx) => {
+    const wr = p.wr;
+    const wrCol = wrColor(wr);
+    const glowCls = ttWrGlowClass(wr);
+    const isBest = bestP.name && p.name === bestP.name;
+    const isWorst = worstP.name && p.name === worstP.name;
+    const hasAlerts = (p.alerts || []).length > 0;
+
+    // Trend calculation
+    let trendHtml = '';
+    if (p.daily && p.daily.length >= 2) {
+      const l = p.daily[p.daily.length - 1].wr, pr = p.daily[p.daily.length - 2].wr;
+      if (l > pr + 3) trendHtml = '<span class="tt-pc-trend-icon" style="color:var(--green)">\u25B2</span>';
+      else if (l < pr - 3) trendHtml = '<span class="tt-pc-trend-icon" style="color:var(--red)">\u25BC</span>';
+      else trendHtml = '<span class="tt-pc-trend-icon" style="color:var(--text2)">=</span>';
+    }
+
+    // Badge icon (best/worst/alert)
+    let badgeIcon = '';
+    if (isBest) badgeIcon = '<span class="tt-pc-badge-icon">\uD83C\uDFC6</span>';
+    else if (isWorst) badgeIcon = '<span class="tt-pc-badge-icon" style="font-size:0.75em">\u26A0\uFE0F</span>';
+    else if (hasAlerts) badgeIcon = '<span class="tt-pc-badge-icon" style="font-size:0.7em">\uD83D\uDD34</span>';
+
+    html += `<div class="tt-player-card ${glowCls}" id="tt-pc-${p.name.replace(/\W/g,'_')}">
+      <div class="tt-pc-header" onclick="ttToggleCard(this)">
+        <div class="tt-pc-deck-wrap">
+          ${p.deck ? deckImg(p.deck, 32) : '<span style="font-size:1.2em">\uD83C\uDCCF</span>'}
+          ${badgeIcon}
         </div>
-        <div class="tt-archive-reveal" onclick="ttArchiveAlert('${alertId}')" title="Archive">${archiveIcon}Archive</div>
-        <button class="tt-archive-btn-desk" onclick="event.stopPropagation();ttArchiveAlert('${alertId}')" title="Archive alert">${archiveIcon} Archive</button>
-      </div>`;
-    });
-    g += '</div>';
-    return g;
-  };
+        <div class="tt-pc-info">
+          <div class="tt-pc-name-row">
+            <span class="tt-pc-name">${p.name}</span>
+            <span class="tt-pc-role">${p.role || 'player'}</span>
+          </div>
+          <div class="tt-pc-meta" style="justify-content:flex-start;margin-top:3px">
+            <span>${p.games} games</span>
+            ${p.deck ? `<span style="opacity:0.5">\u00B7</span><span>${p.deck}</span>` : ''}
+          </div>
+        </div>
+        <div class="tt-pc-wr-block">
+          <span class="tt-pc-wr" style="color:${wrCol}">${wr}%</span>
+          <div class="tt-pc-meta">
+            ${trendHtml}
+            ${ttMiniSparkline(p.daily)}
+          </div>
+        </div>
+        <span class="tt-pc-chevron">\u25BC</span>
+      </div>
+      <div class="tt-pc-body">
+        <div class="tt-pc-grid">
+          <div class="tt-pc-stat-box"><span class="tt-pc-stat-val">${p.mmr || '\u2014'}</span><span class="tt-pc-stat-lbl">MMR</span></div>
+          <div class="tt-pc-stat-box"><span class="tt-pc-stat-val" style="color:${wrColor(p.otp_wr)}">${p.otp_wr}%</span><span class="tt-pc-stat-lbl">On the Play</span></div>
+          <div class="tt-pc-stat-box"><span class="tt-pc-stat-val" style="color:${wrColor(p.otd_wr)}">${p.otd_wr}%</span><span class="tt-pc-stat-lbl">On the Draw</span></div>
+          <div class="tt-pc-stat-box"><span class="tt-pc-stat-val" style="color:${p.otp_otd_gap > 5 ? 'var(--red)' : p.otp_otd_gap < -5 ? 'var(--red)' : 'var(--text)'}">${p.otp_otd_gap > 0 ? '+' : ''}${p.otp_otd_gap}pp</span><span class="tt-pc-stat-lbl">OTP/OTD Gap</span></div>
+        </div>`;
 
-  const critHtml = renderGroup(criticalAlerts, 'danger', 'Critical');
-  const warnHtml = renderGroup(warningAlerts, 'warning', 'Warning');
+    // Alerts inline
+    if (p.alerts && p.alerts.length) {
+      html += '<div class="tt-pc-section-title">\u26A0\uFE0F Alerts</div>';
+      p.alerts.forEach(a => {
+        const icon = a.type === 'danger' ? '\u274C' : '\u26A0\uFE0F';
+        html += `<div class="tt-pc-alert ${a.type}"><span class="tt-pc-alert-icon">${icon}</span> ${a.msg}</div>`;
+      });
+    }
 
-  if (critHtml || warnHtml) {
-    html += critHtml + warnHtml;
-  } else {
-    html += '<div class="tt-inbox-empty">No alerts for the selected period. Team is performing well.</div>';
-  }
+    // Matchup mini bars (top 6)
+    const mus = Object.entries(p.matchups || {}).sort((a,b) => b[1].games - a[1].games).slice(0, 6);
+    if (mus.length) {
+      html += '<div class="tt-pc-section-title">\uD83C\uDFAF Top Matchups</div>';
+      mus.forEach(([opp, s]) => {
+        const barW = Math.max(3, Math.min(100, s.wr));
+        const barCol = s.wr >= 55 ? 'var(--green)' : s.wr <= 45 ? 'var(--red)' : 'var(--yellow)';
+        html += `<div class="tt-mu-row">
+          <span class="tt-mu-opp">${deckImg(opp, 20)}</span>
+          <div class="tt-mu-bar-wrap">
+            <div class="tt-mu-50-line"></div>
+            <div class="tt-mu-bar" style="width:${barW}%;background:${barCol}"></div>
+          </div>
+          <span class="tt-mu-val" style="color:${barCol}">${s.wr}% <span style="color:var(--text2);font-size:0.8em">${s.games}g</span></span>
+        </div>`;
+      });
+    }
 
-  // ── Archive section ──
-  if (archivedAlerts.length > 0) {
-    const archOpenKey = 'tt_arch_open';
-    const archOpen = localStorage.getItem(archOpenKey) === '1';
-    html += `<div class="tt-inbox-archived${archOpen ? ' tt-archived-open' : ''}" id="tt-arch-section">
-      <button class="tt-archived-head" onclick="(function(){var el=document.getElementById('tt-arch-section');el.classList.toggle('tt-archived-open');localStorage.setItem('tt_arch_open',el.classList.contains('tt-archived-open')?'1':'0')})()">
-        <span class="tt-archived-title">
-          Archive
-          <span class="tt-archived-count">${archivedAlerts.length}</span>
-        </span>
-        <span class="tt-archived-chevron">▼</span>
+    // Focus area
+    if (p.worst_matchup) {
+      html += `<div class="tt-pc-section-title">\uD83D\uDD2C Focus Area</div>`;
+      html += `<div style="font-size:0.84em;color:var(--text2);padding:6px 0">Weakest matchup: <strong style="color:var(--red)">${p.worst_matchup}</strong> &mdash; prioritize practice here</div>`;
+    }
+
+    html += `<div class="tt-replay-zone">\uD83D\uDCBC Replay files (.gz) &mdash; coming soon</div>`;
+    html += `</div></div>`;
+  });
+  html += '</div>'; // .tt-cards-grid
+
+  // ── Meta Coverage heatmap ──
+  const metaWr = DATA.perimeters && DATA.perimeters.set11 ? DATA.perimeters.set11.wr : {};
+  const topMeta = Object.entries(metaWr).sort((a,b) => b[1].games - a[1].games).slice(0, 8).map(e => e[0]);
+
+  if (topMeta.length && players.length) {
+    html += `<div class="tt-collapsible open" id="tt-cov-coll">
+      <button class="tt-coll-head" onclick="ttToggleSection('tt-cov-coll')">
+        <span class="tt-coll-title">\uD83D\uDDFA\uFE0F Meta Coverage</span>
+        <span class="tt-coll-chevron">\u25BC</span>
       </button>
-      <div class="tt-archived-body">`;
-    archivedAlerts.forEach(a => {
-      const s = ttSevConfig(a.type);
-      const playerTagCls = a.isTeam ? 'team' : 'player';
-      const playerLabel = a.isTeam ? 'TEAM' : a.player;
-      const alertId = ttAlertHash(a);
-      html += `<div class="tt-archived-item">
-        <div class="tt-sev-icon ${s.cls}">${s.icon}</div>
-        <div class="tt-archived-content">
-          <div class="tt-inbox-who">
-            <span class="tt-inbox-player-tag ${playerTagCls}">${playerLabel}</span>
-          </div>
-          <div class="tt-inbox-msg">${a.msg}</div>
-        </div>
-        <button class="tt-archived-del" onclick="ttDeleteArchivedAlert('${alertId}')" title="Delete permanently">&times;</button>
-      </div>`;
+      <div class="tt-coll-body"><div class="tt-heatmap"><table><thead><tr><th></th>`;
+    topMeta.forEach(d => html += `<th>${deckImg(d, 22)}<br><span style="font-size:0.72em;opacity:0.7">${d}</span></th>`);
+    html += '</tr></thead><tbody>';
+
+    // Per-player rows
+    players.forEach(p => {
+      html += `<tr><td class="tt-hm-name">${p.name}</td>`;
+      topMeta.forEach(d => {
+        const mu = (p.matchups || {})[d];
+        if (!mu || mu.games === 0) { html += '<td style="color:var(--text2);background:rgba(255,255,255,0.01)">\u2014</td>'; }
+        else {
+          const bg = ttHeatmapCellBg(mu.wr);
+          const color = mu.wr >= 55 ? 'var(--green)' : mu.wr <= 45 ? 'var(--red)' : 'var(--text)';
+          html += `<td style="background:${bg};color:${color}" title="${mu.w}W ${mu.l}L (${mu.games}g)">${mu.wr}%</td>`;
+        }
+      });
+      html += '</tr>';
     });
+
+    // TEAM aggregate row
+    html += '<tr class="tt-hm-team-row"><td class="tt-hm-name tt-hm-team">\uD83C\uDFC5 TEAM</td>';
+    const teamBuchi = [];
+    topMeta.forEach(d => {
+      let tw = 0, tt = 0;
+      players.forEach(p => { const mu = (p.matchups || {})[d]; if (mu) { tw += mu.w; tt += mu.games; } });
+      if (tt === 0) { html += '<td class="tt-hm-team" style="color:var(--text2)">\u2014</td>'; }
+      else {
+        const twr = Math.round(tw / tt * 100);
+        const bg = ttHeatmapCellBg(twr);
+        const color = twr >= 55 ? 'var(--green)' : twr <= 45 ? 'var(--red)' : 'var(--gold)';
+        const above50 = players.filter(p => { const mu = (p.matchups || {})[d]; return mu && mu.wr >= 50; }).length;
+        const holeCls = above50 === 0 ? ' tt-hm-hole' : '';
+        html += `<td class="tt-hm-team${holeCls}" style="background:${bg};color:${color}">${twr}%</td>`;
+        if (above50 === 0) teamBuchi.push(d);
+      }
+    });
+    html += '</tr></tbody></table></div>';
+
+    // Buchi alert strip
+    if (teamBuchi.length) {
+      teamBuchi.forEach(d => {
+        html += `<div class="tt-hole-alert">\uD83D\uDEA8 <strong>Coverage hole:</strong>&nbsp;vs ${d} &mdash; no player above 50%</div>`;
+      });
+    }
     html += '</div></div>';
   }
 
-  html += '</div></div>'; // .tt-inbox-body + .tt-inbox
+  // ── Lineup Suggestion ──
+  const lineup = [...players].sort((a, b) => b.wr - a.wr);
+  html += `<div class="tt-collapsible open" id="tt-lineup-coll">
+    <button class="tt-coll-head" onclick="ttToggleSection('tt-lineup-coll')">
+      <span class="tt-coll-title">\uD83D\uDCCB Lineup Suggerita</span>
+      <span class="tt-coll-chevron">\u25BC</span>
+    </button>
+    <div class="tt-coll-body">`;
+  const medals = ['\uD83E\uDD47', '\uD83E\uDD48', '\uD83E\uDD49'];
+  lineup.forEach((p, i) => {
+    const isSit = p.wr < 45 && i >= lineup.length - 1;
+    const rank = i < 3 ? medals[i] : `<span style="color:var(--text2);font-weight:600">${i + 1}</span>`;
+    const bestCoverage = p.best_matchup ? `covers ${p.best_matchup}` : '';
+    html += `<div class="tt-lineup-row${isSit ? ' tt-lineup-sit' : ''}">
+      <span class="tt-lineup-rank">${isSit ? '\uD83E\uDE91' : rank}</span>
+      <span style="flex-shrink:0">${p.deck ? deckImg(p.deck, 28) : ''}</span>
+      <div class="tt-lineup-info">
+        <div class="tt-lineup-name">${p.name}${isSit ? ' <span style="font-size:0.75em;color:var(--red);font-weight:400">bench</span>' : ''}</div>
+        <div class="tt-lineup-detail">${p.deck || '?'}${bestCoverage ? ' &mdash; <span class="tt-lineup-coverage-tag">' + bestCoverage + '</span>' : ''}</div>
+      </div>
+      <span class="tt-lineup-wr" style="color:${wrColor(p.wr)}">${p.wr}%</span>
+    </div>`;
+  });
+  html += '</div></div>';
 
-  // ── Weakness Heatmap (collapsible) ──
+  // ── WR Heatmap (full, collapsed by default) ──
   const allOpps = new Set();
   players.forEach(p => Object.keys(p.matchups || {}).forEach(o => allOpps.add(o)));
   const opps = [...allOpps].sort();
-
-  if (opps.length > 0) {
-    const hmKey = 'tt_hm_open';
-    // Default open; only collapse if user explicitly closed it ('0')
-    const hmOpen = localStorage.getItem(hmKey) !== '0';
-    html += `<div class="tt-collapsible${hmOpen ? ' open' : ''}" id="tt-hm-coll">
-      <button class="tt-coll-head" onclick="(function(){var el=document.getElementById('tt-hm-coll');el.classList.toggle('open');localStorage.setItem('tt_hm_open',el.classList.contains('open')?'1':'0')})()">
-        <span class="tt-coll-title">Weakness Heatmap</span>
-        <span class="tt-coll-chevron">▼</span>
+  if (opps.length) {
+    html += `<div class="tt-collapsible" id="tt-hm-coll">
+      <button class="tt-coll-head" onclick="ttToggleSection('tt-hm-coll')">
+        <span class="tt-coll-title">\uD83D\uDCCA Full WR Heatmap</span>
+        <span class="tt-coll-chevron">\u25BC</span>
       </button>
-      <div class="tt-coll-body">
-        <div class="tt-heatmap"><table><thead><tr><th></th>`;
-    opps.forEach(o => {
-      const dots = (DECK_INKS[o] || []).map(i => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${INK_COLORS[i]};vertical-align:middle"></span>`).join('');
-      html += `<th>${dots}<br><span style="font-size:0.8em">${o}</span></th>`;
-    });
+      <div class="tt-coll-body"><div class="tt-heatmap"><table><thead><tr><th></th>`;
+    opps.forEach(o => html += `<th>${deckImg(o, 20)}<br><span style="font-size:0.68em;opacity:0.7">${o}</span></th>`);
     html += '</tr></thead><tbody>';
     players.forEach(p => {
       html += `<tr><td class="tt-hm-name">${p.name}</td>`;
       opps.forEach(o => {
         const mu = (p.matchups || {})[o];
-        if (!mu || mu.games === 0) {
-          html += '<td style="color:var(--text2)">—</td>';
-        } else {
-          const bg = mu.wr >= 55 ? 'rgba(63,185,80,0.15)' : mu.wr <= 45 ? 'rgba(248,81,73,0.15)' : 'transparent';
+        if (!mu || mu.games === 0) { html += '<td style="color:var(--text2);background:rgba(255,255,255,0.01)">\u2014</td>'; }
+        else {
+          const bg = ttHeatmapCellBg(mu.wr);
           const color = mu.wr >= 55 ? 'var(--green)' : mu.wr <= 45 ? 'var(--red)' : 'var(--text)';
           html += `<td style="background:${bg};color:${color}" title="${mu.w}W ${mu.l}L (${mu.games}g)">${mu.wr}%</td>`;
         }
@@ -9535,232 +9992,253 @@ function ttRenderOverview(players, ov) {
     html += '</tbody></table></div></div></div>';
   }
 
-  return html;
+  // ── Board Lab (open by default) ──
+  html += `<div class="tt-collapsible open" id="tt-lab-coll">
+    <button class="tt-coll-head" onclick="ttToggleSection('tt-lab-coll')">
+      <span class="tt-coll-title">\uD83E\uDDEA Board Lab</span>
+      <span class="tt-coll-chevron">\u25BC</span>
+    </button>
+    <div class="tt-coll-body"><div id="tc-container"></div></div>
+  </div>`;
+
+  html += '</div>'; // .tt-layout
+
+  // ── Inbox side panel ──
+  html += `<div class="tt-inbox-overlay" id="tt-inbox-overlay" onclick="ttToggleInbox()"></div>
+  <div class="tt-inbox-panel" id="tt-inbox-panel">
+    <div class="tt-inbox-head">
+      <span class="tt-inbox-title">${bellSvg} Coaching Inbox <span style="font-size:0.7em;color:var(--text2);font-weight:400">${totalAlerts} alert${totalAlerts !== 1 ? 's' : ''}</span></span>
+      <button class="tt-inbox-close" onclick="ttToggleInbox()">&times;</button>
+    </div>
+    <div class="tt-inbox-list">`;
+  if (allAlerts.length) {
+    allAlerts.sort((a, b) => (a.type === 'danger' ? 0 : 1) - (b.type === 'danger' ? 0 : 1));
+    allAlerts.forEach(a => {
+      const s = ttSevConfig(a.type);
+      const tag = a.isTeam ? 'TEAM' : a.player;
+      html += `<div class="tt-inbox-item">
+        <div class="tt-sev-icon ${s.cls}">${s.icon}</div>
+        <div style="flex:1;min-width:0">
+          <span class="tt-inbox-player-tag">${tag}</span>
+          <div class="tt-inbox-msg">${a.msg}${a.players ? ` (${a.players.join(', ')})` : ''}</div>
+        </div>
+      </div>`;
+    });
+  } else {
+    html += `<div style="padding:40px 20px;text-align:center;color:var(--text2)">
+      <div style="font-size:2em;margin-bottom:8px">\u2705</div>
+      <div style="font-weight:600;margin-bottom:4px">All clear</div>
+      <div style="font-size:0.85em">No alerts. Team is performing well.</div>
+    </div>`;
+  }
+  html += '</div></div>';
+
+  main.innerHTML = html;
+
+  // Init Board Lab
+  if (typeof tcInit === 'function') {
+    tcInit('tc-container');
+  }
 }
 
-// ── Archive helpers ──
+// ── Archive helpers (kept for backward compat) ──
 function ttArchiveAlert(alertId) {
   const arr = JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]');
   if (!arr.includes(alertId)) arr.push(alertId);
   localStorage.setItem('tt_archived_alerts', JSON.stringify(arr));
-  // Animate the wrap out, then re-render
-  const wrap = document.querySelector(`.tt-inbox-item-wrap[data-alert-id="${alertId}"]`);
-  if (wrap) {
-    wrap.classList.add('archiving');
-    setTimeout(() => renderTeamTab(document.getElementById('main-content')), 320);
-  } else {
-    renderTeamTab(document.getElementById('main-content'));
-  }
-}
-function ttDeleteArchivedAlert(alertId) {
-  const arr = JSON.parse(localStorage.getItem('tt_archived_alerts') || '[]');
-  const idx = arr.indexOf(alertId);
-  if (idx !== -1) arr.splice(idx, 1);
-  localStorage.setItem('tt_archived_alerts', JSON.stringify(arr));
   renderTeamTab(document.getElementById('main-content'));
 }
 
-// ── Swipe-to-archive touch handler (attached after render) ──
-function ttInitSwipe() {
-  document.querySelectorAll('.tt-inbox-item-wrap').forEach(wrap => {
-    if (wrap._swipeInit) return;
-    wrap._swipeInit = true;
-    let startX = 0, startY = 0, dx = 0, dragging = false;
-    const item = wrap.querySelector('.tt-inbox-item');
-    const THRESHOLD = 72; // px to reveal archive area
+// === GUIDED TOUR ===
+// Steps comuni (header/tabs/format) + steps per-tab
+const TOUR_COMMON = [
+  {
+    target: '.header',
+    title: 'Benvenuto!',
+    body: 'Questa e\' la tua dashboard Lorcana. Da qui monitori il meta, prepari i matchup e alleni il team. Clicca Avanti per scoprire le sezioni di questo tab.',
+  },
+  {
+    target: '.tabs',
+    title: 'Navigazione',
+    body: '7 tab specializzati. Il tour ti spiega il tab che stai guardando adesso. Puoi rilanciare la Guida su ogni tab!',
+  },
+  {
+    target: '.format-bar',
+    title: 'Formato e Ink',
+    body: 'Scegli Core o Infinity e i colori del deck. La selezione si propaga a tutti i tab in automatico.',
+  },
+  {
+    target: '.perimeter-bar',
+    title: 'Perimetro Dati',
+    body: 'Filtra per livello competitivo: SET11 (high ELO), TOP 100, PRO 50 o Community. Piu\' ristretto = dati piu\' forti.',
+  },
+];
 
-    wrap.addEventListener('touchstart', e => {
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      dx = 0; dragging = false;
-      item.classList.add('swiping');
-    }, { passive: true });
+const TOUR_TAB_STEPS = {
+  profile: [
+    { target: '.pf-hero-deck', title: 'Select Your Deck', body: 'Il centro di comando. Scegli il tuo deck tappando 2 colori ink — la selezione si propaga a tutti i tab (Monitor, Coach, Lab). Puoi salvare fino a 3 deck per accesso rapido.' },
+    { target: '.pf-ink-grid,.pf-hero-ink-row', title: 'Ink Picker', body: 'Tap 2 colori per selezionare un deck. Puoi anche importare una decklist custom con il toggle "My Deck".' },
+    { target: '.pf-saved-decks-section', title: 'Saved Decks', body: 'I tuoi deck salvati. Click per switchare velocemente. Puoi pinnare un deck dopo averlo selezionato con gli ink.' },
+    { target: '.pf-my-stats-section', title: 'My Stats', body: 'Le tue statistiche personali degli ultimi 3 giorni: tutti i deck giocati con WR e peggior matchup. Richiede il nickname duels.ink (Settings).' },
+    { target: '.pf-hero-radar', title: 'Meta Radar', body: 'Stats generali del deck nel meta: WR, share, partite. In basso i best/worst matchup e le minacce da tenere d\'occhio.' },
+    { target: '.pf-tech-flow', title: 'Non-Standard Picks', body: 'Carte fuori dalla lista standard usate dai player vincenti (WR 52%+). Merge da PRO, TOP e Community con adoption % e confidence.' },
+  ],
+  monitor: [
+    { target: '#meta-table', title: 'Meta Overview', body: 'Tabella con tutti i deck: meta share, win rate, trend. Clicca un deck per aprirlo nel dettaglio sotto.' },
+    { target: '#deck-body', title: 'Deck Deep Dive', body: 'Dettaglio del deck selezionato: identity card, matchup WR, grafico OTP vs OTD con gap.' },
+    { target: '#players-body', title: 'Best Format Players', body: 'I migliori giocatori dalla leaderboard duels.ink. Solo chi e\' nella top 100 (TOP) o top 50 (PRO).' },
+    { target: '#tech-tornado-box', title: 'Non-Standard Picks', body: 'Carte non-standard aggiunte o standard rimosse dai giocatori vincenti. Verde = WR alto, rosso = WR basso. Max 4+4.' },
+  ],
+  coach_v2: [
+    { target: '.cv2-strip', title: 'KPI Matchup', body: 'Win rate complessivo, OTP/OTD split e gap. Numeri specifici per il matchup selezionato sopra.' },
+    { target: '.cv2-threat', title: 'Minacce', body: 'Le sequenze avversarie piu\' pericolose, turno per turno. Espandi per vedere carte, risposte tattiche e timeline.' },
+    { target: '.cv2-columns', title: 'Killer Cards + Playbook', body: 'A sinistra le carte killer dell\'avversario. A destra il playbook turno per turno con le risposte ottimali.' },
+    { target: '.rv-wrap', title: 'Replay Viewer', body: 'Rivedi partite reali del matchup. Board visuale con carte, play/pause, filtri W/L e OTP/OTD.' },
+  ],
+  lab: [
+    { target: '.lab-left', title: 'Mulligan Trainer', body: 'Mani iniziali reali dai PRO. Filtro blind/OTP/OTD, reveal per vedere se hanno tenuto o fatto mulligan e come e\' finita.' },
+    { target: '.lab-impact-list', title: 'Card Impact', body: 'Grafico divergente: quanto ogni carta correla con vittoria (verde) o sconfitta (rosso). Le top 24 carte per impatto.' },
+    { target: '.lab-right', title: 'Decklist Ottimizzata', body: 'Deck calibrato per questo matchup con curva mana, badge add/cut e bottone copia per importare in game.' },
+  ],
+  team: [
+    { target: '.tt-strip', title: 'KPI Team', body: 'Panoramica rapida: numero giocatori, WR medio, partite totali e trend. La campana mostra gli alert attivi.' },
+    { target: '.tt-cards-grid', title: 'Player Cards', body: 'Ogni giocatore con WR, deck, sparkline trend 7gg. Clicca per espandere: stats, alert, matchup e focus area.' },
+    { target: '#tt-cov-coll', title: 'Meta Coverage', body: 'Heatmap player x matchup. Celle colorate per WR. I "buchi" (nessuno sopra 50%) sono evidenziati in rosso.' },
+    { target: '#tt-lab-coll', title: 'Board Lab', body: 'Tool di coaching: carica replay .gz da duels.ink, rivedi la partita con mano visibile e analizza le giocate.' },
+  ],
+  community: [
+    { target: '.comm-live-embed-wrap', title: 'Live Stream', body: 'Embed YouTube/Twitch del creator in live. Si attiva automaticamente quando qualcuno e\' in streaming.' },
+    { target: '.comm-clip-grid', title: 'Clip Highlights', body: 'I migliori momenti dalla community. Filtrabili per tag (combo, misplay, clutch). Click per riprodurre inline.' },
+    { target: '.comm-archive-filter-row', title: 'Archivio VOD', body: 'Tutti i video passati organizzati per topic. Filtra per argomento per trovare analisi specifiche.' },
+  ],
+  events: [
+    { target: '.ev-filter-bar,.events-filter-bar', title: 'Filtri Eventi', body: 'Formato, distanza dalla tua posizione, ricerca testo. Di default mostra eventi entro 100km da te.' },
+    { target: '#ev-minimap,.events-map-pane', title: 'Mappa Negozi', body: 'Mappa con i negozi che organizzano tornei. Clicca un pin per vedere dettagli e iscriverti.' },
+    { target: '.ev-grid,.events-list', title: 'Lista Eventi', body: 'Tutti i tornei in arrivo. Ogni card ha data, formato, negozio, costo e bottone Register per iscriverti su Ravensburger.' },
+  ],
+};
 
-    wrap.addEventListener('touchmove', e => {
-      const cx = e.touches[0].clientX;
-      const cy = e.touches[0].clientY;
-      if (!dragging) {
-        // Only swipe if horizontal intent is dominant
-        if (Math.abs(cx - startX) < Math.abs(cy - startY)) { item.classList.remove('swiping'); return; }
-        dragging = true;
-      }
-      dx = Math.min(0, cx - startX); // only left swipe
-      item.style.transform = `translateX(${dx}px)`;
-      e.preventDefault();
-    }, { passive: false });
+let tourSteps = [];
+let tourStep = 0;
+let tourActive = false;
+let tourOverlay = null;
+let tourSpotlight = null;
+let tourTooltip = null;
 
-    wrap.addEventListener('touchend', () => {
-      item.classList.remove('swiping');
-      if (dx < -THRESHOLD) {
-        // Commit archive
-        const alertId = wrap.dataset.alertId;
-        item.style.transform = `translateX(-100%)`;
-        item.style.transition = 'transform 0.2s ease';
-        setTimeout(() => ttArchiveAlert(alertId), 200);
-      } else {
-        // Snap back
-        item.style.transform = '';
-      }
-      dx = 0; dragging = false;
-    });
+function tourGetActiveTab() {
+  const active = document.querySelector('.tab.active');
+  return active ? active.dataset.tab : 'profile';
+}
+
+function tourStart() {
+  const tab = tourGetActiveTab();
+  const tabSteps = TOUR_TAB_STEPS[tab] || [];
+  tourSteps = [...TOUR_COMMON, ...tabSteps];
+  tourStep = 0;
+  tourActive = true;
+  if (!tourOverlay) {
+    tourOverlay = document.createElement('div');
+    tourOverlay.className = 'tour-overlay';
+    tourOverlay.onclick = () => tourEnd();
+    document.body.appendChild(tourOverlay);
+  }
+  if (!tourSpotlight) {
+    tourSpotlight = document.createElement('div');
+    tourSpotlight.className = 'tour-spotlight';
+    document.body.appendChild(tourSpotlight);
+  }
+  if (!tourTooltip) {
+    tourTooltip = document.createElement('div');
+    tourTooltip.className = 'tour-tooltip';
+    document.body.appendChild(tourTooltip);
+  }
+  tourOverlay.style.display = '';
+  tourSpotlight.style.display = '';
+  tourTooltip.style.display = '';
+  tourShow(0);
+}
+
+function tourEnd() {
+  tourActive = false;
+  if (tourOverlay) tourOverlay.style.display = 'none';
+  if (tourSpotlight) tourSpotlight.style.display = 'none';
+  if (tourTooltip) tourTooltip.style.display = 'none';
+}
+
+function tourShow(idx) {
+  if (idx < 0 || idx >= tourSteps.length) { tourEnd(); return; }
+  tourStep = idx;
+  const step = tourSteps[idx];
+  requestAnimationFrame(() => {
+    // Support comma-separated selectors (fallback)
+    let el = null;
+    for (const sel of step.target.split(',')) {
+      el = document.querySelector(sel.trim());
+      if (el) break;
+    }
+    if (!el) {
+      if (idx < tourSteps.length - 1) tourShow(idx + 1);
+      else tourEnd();
+      return;
+    }
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => tourPosition(el, step, idx), 180);
   });
 }
 
-function ttRenderProfile(player, allPlayers) {
-  let html = '';
-
-  // ── Profile header ──
-  const wr = player.wr;
-  const dotColor = wr >= 55 ? 'var(--green)' : wr <= 45 ? 'var(--red)' : 'var(--yellow)';
-  html += `<div class="tt-profile-header">
-    <button class="tt-back-btn" onclick="ttSelectedPlayer=null;renderTeamTab(document.getElementById('main-content'))">&#8592; Team</button>
-    <span class="tt-ph-name">${player.name}</span>
-    ${player.deck ? `<span>${deckImg(player.deck, 30)}</span>` : ''}
-    <span style="flex:1"></span>
-    <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(wr)}">${wr}%</div><div class="tt-ph-lbl">WR</div></div>
-    <div class="tt-ph-stat"><div class="tt-ph-val">${player.games}</div><div class="tt-ph-lbl">Games</div></div>
-    <div class="tt-ph-stat"><div class="tt-ph-val">${player.mmr}</div><div class="tt-ph-lbl">MMR</div></div>
-    <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(player.otp_wr)}">${player.otp_wr}%</div><div class="tt-ph-lbl">OTP</div></div>
-    <div class="tt-ph-stat"><div class="tt-ph-val" style="color:${wrColor(player.otd_wr)}">${player.otd_wr}%</div><div class="tt-ph-lbl">OTD</div></div>
-  </div>`;
-
-  // ── Player alerts (severity-styled, not a flat list) ──
-  if (player.alerts && player.alerts.length) {
-    html += '<div class="tt-profile-alerts">';
-    player.alerts.forEach(a => {
-      const icon = a.type === 'danger' ? '!' : '~';
-      html += `<div class="tt-pal ${a.type === 'danger' ? 'danger' : 'warning'}">
-        <span class="tt-pal-icon">${icon}</span>
-        <span class="tt-pal-text">${a.msg}</span>
-      </div>`;
-    });
-    html += '</div>';
-  }
-
-  // ── Matchup lollipop chart ──
-  const mus = Object.entries(player.matchups || {}).sort((a,b) => a[1].wr - b[1].wr);
-  if (mus.length) {
-    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Matchup by Opponent</h3>';
-    html += '<div class="lollipop-chart">';
-    mus.forEach(([opp, s]) => {
-      const pct = Math.max(2, Math.min(98, s.wr));
-      const colorClass = s.wr >= 55 ? 'green' : s.wr <= 45 ? 'red' : 'gray';
-      const stemStyle = s.wr >= 50 ? `left:50%;width:${s.wr-50}%` : `left:${pct}%;width:${50-s.wr}%`;
-      html += `<div class="lp-row">
-        <span class="lp-label">${deckImg(opp,24)}</span>
-        <div class="lp-track">
-          <div class="lp-ref"></div>
-          <div class="lp-stem lp-stem-${colorClass}" style="${stemStyle}"></div>
-          <div class="lp-dot lp-${colorClass}" style="left:${pct}%"></div>
-        </div>
-        <span class="lp-value" style="color:${wrColor(s.wr)}">${s.wr}% <span style="color:var(--text2);font-weight:400;font-size:0.85em">(${s.games}g)</span></span>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
-
-  // ── Daily trend ──
-  if (player.daily && player.daily.length > 0) {
-    html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Daily Trend</h3>';
-    html += '<div style="display:flex;gap:8px;align-items:flex-end;height:60px">';
-    const maxG = Math.max(...player.daily.map(d => d.games));
-    player.daily.forEach(d => {
-      const h = maxG > 0 ? Math.max(8, (d.games / maxG) * 55) : 8;
-      const color = d.wr >= 55 ? 'var(--green)' : d.wr <= 45 ? 'var(--red)' : 'var(--yellow)';
-      html += `<div style="flex:1;text-align:center">
-        <div style="font-size:0.7em;font-weight:700;color:${color}">${d.wr}%</div>
-        <div style="height:${h}px;background:${color};border-radius:3px 3px 0 0;margin:2px auto;width:80%;opacity:0.7"></div>
-        <div style="font-size:0.6em;color:var(--text2)">${d.day.substring(0,4)}</div>
-      </div>`;
-    });
-    html += '</div></div>';
-  }
-
-  // ── Session Agenda ──
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px">Session Agenda</h3>';
-  let agenda = [];
-  if (player.worst_matchup) {
-    const wmu = player.matchups[player.worst_matchup];
-    agenda.push(`<strong>Critical matchup:</strong> vs ${player.worst_matchup} — WR ${wmu.wr}% (${wmu.games}g). Prioritize this matchup.`);
-  }
-  if (player.otp_otd_gap > 15) {
-    agenda.push(`<strong>OTP/OTD gap:</strong> ${player.otp_otd_gap}pp. Struggles OTD (${player.otd_wr}%). Work on defensive openings.`);
-  }
-  if (player.wr < 50) {
-    agenda.push(`<strong>WR below 50%:</strong> ${player.wr}% across ${player.games} matches. Strategic review needed.`);
-  }
-  if (player.best_matchup) {
-    const bmu = player.matchups[player.best_matchup];
-    agenda.push(`<strong>Strength:</strong> vs ${player.best_matchup} — WR ${bmu.wr}% (${bmu.games}g). Maintain this.`);
-  }
-  if (agenda.length === 0) agenda.push('No issues detected. Keep current form.');
-
-  html += '<ol style="margin:0;padding-left:20px;font-size:0.87em;line-height:1.7">';
-  agenda.forEach(a => html += `<li style="margin-bottom:6px">${a}</li>`);
-  html += '</ol>';
-  const agendaText = agenda.map((a,i) => `${i+1}. ${a.replace(/<[^>]+>/g,'')}`).join('\\n');
-  html += `<button style="margin-top:12px;padding:6px 16px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;font-size:0.78em;cursor:pointer;min-height:36px" onclick="navigator.clipboard.writeText(\`Agenda ${player.name} (${player.deck})\\n${agendaText.replace(/\`/g,"'")}\`);this.textContent='Copied!';">Copy to Discord</button>`;
-  html += '</div>';
-
-  // ── Coach Notes ──
-  const notesKey = 'tt_notes_' + player.name;
-  const savedNotes = localStorage.getItem(notesKey) || '';
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px">Coach Notes</h3>';
-  html += `<textarea class="tt-notes" placeholder="Private notes on ${player.name}..." onchange="localStorage.setItem('${notesKey}',this.value)">${savedNotes}</textarea>`;
-  html += '</div>';
-
-  // ── Coach Diary ──
-  const diaryKey = 'coach_diary_' + player.name;
-  const diaryEntries = JSON.parse(localStorage.getItem(diaryKey) || '[]');
-  html += '<div class="card"><h3 style="color:var(--gold);font-size:0.82em;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Coach Diary <span style="font-size:0.82em;color:var(--text2);font-weight:400;text-transform:none;letter-spacing:0">visible to player in Profile</span></h3>';
-  html += `<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
-    <select id="diary-tag-${player.name}" style="padding:6px 10px;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.82em;min-height:36px">
-      <option value="note">Note</option>
-      <option value="tip">Tip</option>
-      <option value="alert">Alert</option>
-    </select>
-    <input id="diary-text-${player.name}" type="text" class="ev-input" placeholder="Write a diary entry..." style="flex:1;min-width:140px;min-height:36px">
-    <button class="pf-save-btn" style="padding:6px 14px;font-size:0.82em;min-height:36px" onclick="ttAddDiary('${player.name}')">Post</button>
-  </div>`;
-  if (diaryEntries.length) {
-    diaryEntries.slice().reverse().forEach((e, i) => {
-      const realIdx = diaryEntries.length - 1 - i;
-      const tagColor = e.tag === 'alert' ? 'var(--red)' : e.tag === 'tip' ? 'var(--green)' : 'var(--gold)';
-      html += `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
-        <span style="font-size:0.7em;padding:2px 8px;border-radius:10px;background:${tagColor}22;color:${tagColor};text-transform:uppercase;font-weight:600;white-space:nowrap;margin-top:2px">${e.tag}</span>
-        <span style="flex:1;font-size:0.84em;line-height:1.5">${e.text}</span>
-        <span style="font-size:0.7em;color:var(--text2);white-space:nowrap;margin-top:2px">${e.date}</span>
-        <button style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1em;padding:0 4px;min-height:24px;line-height:1" onclick="ttDelDiary('${player.name}',${realIdx})" title="Delete">&times;</button>
-      </div>`;
-    });
+function tourPosition(el, step, idx) {
+  const rect = el.getBoundingClientRect();
+  const pad = 6;
+  tourSpotlight.style.left = (rect.left - pad + window.scrollX) + 'px';
+  tourSpotlight.style.top = (rect.top - pad + window.scrollY) + 'px';
+  tourSpotlight.style.width = (rect.width + pad * 2) + 'px';
+  tourSpotlight.style.height = (rect.height + pad * 2) + 'px';
+  const dots = tourSteps.map((_, i) =>
+    `<div class="tour-dot${i === idx ? ' active' : ''}"></div>`
+  ).join('');
+  const isFirst = idx === 0;
+  const isLast = idx === tourSteps.length - 1;
+  tourTooltip.innerHTML = `
+    <div class="tour-tooltip-title">
+      ${step.title}
+      <span class="tour-step-num">${idx + 1}/${tourSteps.length}</span>
+    </div>
+    <div class="tour-tooltip-body">${step.body}</div>
+    <div class="tour-tooltip-footer">
+      <div class="tour-dots">${dots}</div>
+      <div class="tour-btns">
+        <button class="tour-btn-skip" onclick="tourEnd()">Chiudi</button>
+        ${!isFirst ? `<button class="tour-btn" onclick="tourShow(${idx - 1})">Indietro</button>` : ''}
+        ${isLast
+          ? `<button class="tour-btn tour-btn-primary" onclick="tourEnd()">Fatto!</button>`
+          : `<button class="tour-btn tour-btn-primary" onclick="tourShow(${idx + 1})">Avanti</button>`
+        }
+      </div>
+    </div>`;
+  const ttW = 320;
+  let ttLeft = rect.left + rect.width / 2 - ttW / 2;
+  ttLeft = Math.max(12, Math.min(ttLeft, window.innerWidth - ttW - 12));
+  const spaceBelow = window.innerHeight - rect.bottom;
+  let ttTop;
+  if (spaceBelow > 180) {
+    ttTop = rect.bottom + 14 + window.scrollY;
   } else {
-    html += '<div style="color:var(--text2);font-size:0.84em;padding:6px 0">No diary entries yet. Posts here appear in the player\'s Profile tab.</div>';
+    ttTop = rect.top - 14 + window.scrollY;
+    requestAnimationFrame(() => {
+      const ttRect = tourTooltip.getBoundingClientRect();
+      tourTooltip.style.top = (rect.top - ttRect.height - 14 + window.scrollY) + 'px';
+    });
   }
-  html += '</div>';
-
-  return html;
+  tourTooltip.style.left = ttLeft + 'px';
+  tourTooltip.style.top = ttTop + 'px';
 }
 
-function ttAddDiary(playerName) {
-  const tag = document.getElementById('diary-tag-' + playerName).value;
-  const textEl = document.getElementById('diary-text-' + playerName);
-  const text = textEl.value.trim();
-  if (!text) return;
-  const key = 'coach_diary_' + playerName;
-  const entries = JSON.parse(localStorage.getItem(key) || '[]');
-  const today = new Date().toISOString().slice(0, 10);
-  entries.push({ tag, text, date: today });
-  localStorage.setItem(key, JSON.stringify(entries));
-  textEl.value = '';
-  renderTeamTab(document.getElementById('main-content'));
-}
-function ttDelDiary(playerName, idx) {
-  const key = 'coach_diary_' + playerName;
-  const entries = JSON.parse(localStorage.getItem(key) || '[]');
-  entries.splice(idx, 1);
-  localStorage.setItem(key, JSON.stringify(entries));
-  renderTeamTab(document.getElementById('main-content'));
-}
+document.addEventListener('keydown', e => {
+  if (!tourActive) return;
+  if (e.key === 'Escape') tourEnd();
+  if (e.key === 'ArrowRight' || e.key === 'Enter') tourShow(tourStep + 1);
+  if (e.key === 'ArrowLeft') tourShow(tourStep - 1);
+});
 
 // === INIT ===
 loadData();

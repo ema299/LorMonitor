@@ -21,8 +21,8 @@ from backend.config import MATCHES_DIR
 # --- Deck color mapping (copied from analisidef/lib/loader.py) ---
 
 DECK_COLORS = {
-    'AS':    ('amethyst', 'sapphire'),
-    'ES':    ('emerald', 'sapphire'),
+    'AmSa':  ('amethyst', 'sapphire'),
+    'EmSa':  ('emerald', 'sapphire'),
     'AbS':   ('amber', 'sapphire'),
     'AmAm':  ('amber', 'amethyst'),
     'AbE':   ('amber', 'emerald'),
@@ -55,13 +55,22 @@ def folder_to_perimeter(folder_name: str) -> str:
     return folder_name.lower()
 
 
+CORE_QUEUES = {'S11-BO1', 'S11-BO3', 'SET11'}
+INF_QUEUES = {'INF-BO1', 'INF-BO3', 'INF', 'JA-BO1', 'ZH-BO1'}
+# RUSH, SEALED, SEAL-S11, QP, PRO, TOP, ? → not core constructed
+
+
 def determine_game_format(queue_name: str | None, perimeter: str) -> str:
-    """Determine game format from perimeter folder."""
+    """Determine game format from queue name (primary) and perimeter (fallback)."""
+    q = (queue_name or '').upper().strip()
+    if q in CORE_QUEUES:
+        return 'core'
+    if q in INF_QUEUES:
+        return 'infinity'
     if perimeter == 'inf':
         return 'infinity'
-    if queue_name and ('INF-' in queue_name.upper()):
-        return 'infinity'
-    return 'core'
+    # Unknown queue — not core constructed (RUSH, SEALED, QP, etc.)
+    return 'other'
 
 
 def determine_winner(logs: list[dict], p1_deck: str, p2_deck: str) -> str | None:
@@ -170,6 +179,10 @@ def iter_json_files(matches_dir: str):
                             yield os.path.join(full, sub), perimeter
 
 
+# Perimeter priority: more specific perimeter wins on conflict
+# pro > top > set11  (PRO ⊂ TOP ⊂ SET11)
+PERIM_PRIORITY = {'pro': 3, 'top': 2, 'inf': 2, 'set11': 1, 'friends': 1, 'mygame': 1}
+
 INSERT_SQL = text("""
     INSERT INTO matches
         (external_id, played_at, game_format, queue_name, perimeter,
@@ -181,17 +194,22 @@ INSERT_SQL = text("""
          :deck_a, :deck_b, :winner, :player_a_name, :player_b_name,
          :player_a_mmr, :player_b_mmr, :total_turns, :lore_a_final, :lore_b_final,
          :turns, :cards_a, :cards_b)
-    ON CONFLICT (external_id) DO NOTHING
+    ON CONFLICT (external_id) DO UPDATE
+        SET perimeter = CASE
+            WHEN EXCLUDED.perimeter = 'pro' THEN 'pro'
+            WHEN EXCLUDED.perimeter = 'top' AND matches.perimeter NOT IN ('pro') THEN 'top'
+            ELSE matches.perimeter
+        END
 """)
 
 
 SKIP_CACHE = Path(__file__).parent / ".import_skip_cache"
 
 
-def _load_known_ids(db) -> set[str]:
-    """Pre-fetch all external_ids already in PG to skip files without parsing."""
-    rows = db.execute(text("SELECT external_id FROM matches")).fetchall()
-    return {r[0] for r in rows}
+def _load_known_ids(db) -> dict[str, str]:
+    """Pre-fetch all external_ids + perimeter from PG to skip files without parsing."""
+    rows = db.execute(text("SELECT external_id, perimeter FROM matches")).fetchall()
+    return {r[0]: r[1] for r in rows}
 
 
 def _load_skip_cache() -> set[str]:
@@ -237,10 +255,18 @@ def import_all(dry_run: bool = False):
     try:
         for filepath, perimeter in iter_json_files(matches_dir):
             # Fast skip: if UUID already in DB or known-bad, don't read the file
+            # Exception: re-process if new perimeter has higher priority (e.g. PRO > TOP)
             file_id = _extract_id_from_path(filepath)
-            if file_id and (file_id in known_ids or file_id in skip_ids):
+            if file_id and file_id in skip_ids:
                 already_known += 1
                 continue
+            if file_id and file_id in known_ids:
+                existing_perim = known_ids[file_id]
+                new_prio = PERIM_PRIORITY.get(perimeter, 0)
+                old_prio = PERIM_PRIORITY.get(existing_perim, 0)
+                if new_prio <= old_prio:
+                    already_known += 1
+                    continue
 
             row = parse_match_file(filepath, perimeter)
             if not row:

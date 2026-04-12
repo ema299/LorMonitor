@@ -44,7 +44,7 @@ def main():
                COUNT(*) FILTER (WHERE winner = 'deck_a') as wins
         FROM matches
         WHERE game_format = 'core'
-          AND deck_a = 'AS' AND deck_b = 'ES'
+          AND deck_a = 'AmSa' AND deck_b = 'EmSa'
           AND played_at >= now() - INTERVAL '7 days'
         GROUP BY deck_a, deck_b
         """,
@@ -73,8 +73,8 @@ def main():
         SELECT our_deck, opp_deck, curves, match_count
         FROM killer_curves
         WHERE game_format = 'core'
-          AND our_deck = 'AS'
-          AND opp_deck = 'ES'
+          AND our_deck = 'AmSa'
+          AND opp_deck = 'EmSa'
           AND is_current = true
         """,
         target_ms=10,

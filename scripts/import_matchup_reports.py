@@ -1,9 +1,7 @@
 """
 Import matchup report data from dashboard_data.json → matchup_reports table.
 
-Imports: overview, playbook, decklist, loss_analysis, winning_hands,
-         board_state, killer_responses, ability_cards.
-(killer_curves, threats_llm, card_scores, pro_mulligans already in dedicated tables.)
+Imports all report types found in each matchup block.
 
 Usage:
     python -m scripts.import_matchup_reports [--dry-run] [--format core|infinity]
@@ -32,6 +30,10 @@ REPORT_TYPES = [
     "board_state",
     "killer_responses",
     "ability_cards",
+    "killer_curves",
+    "threats_llm",
+    "card_scores",
+    "pro_mulligans",
 ]
 
 

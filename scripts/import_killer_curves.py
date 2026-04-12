@@ -39,8 +39,9 @@ def import_killer_curves(dry_run: bool = False):
         meta = data.get('metadata', {})
         curves = data.get('curves', [])
 
-        our_deck = meta.get('our_deck', '')
-        opp_deck = meta.get('opp_deck', '')
+        _LEGACY = {"AS": "AmSa", "ES": "EmSa"}
+        our_deck = _LEGACY.get(meta.get('our_deck', ''), meta.get('our_deck', ''))
+        opp_deck = _LEGACY.get(meta.get('opp_deck', ''), meta.get('opp_deck', ''))
         date_str = meta.get('date', '')
         match_count = meta.get('based_on_games', 0)
         loss_count = meta.get('based_on_losses', 0)

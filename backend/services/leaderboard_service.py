@@ -16,14 +16,14 @@ SESSION_COOKIE = os.getenv(
 )
 
 LEADERBOARD_QUEUES = {
-    "core_bo1": "core-set11-bo1-beta",
-    "core_bo3": "core-set11-bo3-beta",
+    "core_bo1": "core-bo1",
+    "core_bo3": "core-bo3",
     "infinity_bo1": "infinity-bo1-beta",
     "infinity_bo3": "infinity-bo3-beta",
 }
 
-TOP_N = 70
-PRO_N = 30
+TOP_N = 100
+PRO_N = 50
 
 
 def fetch_leaderboards() -> dict:

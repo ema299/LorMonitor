@@ -3,12 +3,14 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription
+from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
 from backend.middleware.rate_limit import RateLimitMiddleware
@@ -24,6 +26,9 @@ app = FastAPI(
 
 # Global error handler
 app.add_exception_handler(Exception, global_exception_handler)
+
+# Gzip compression (responses > 500 bytes)
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 # Rate limiting
 app.add_middleware(RateLimitMiddleware)
@@ -51,20 +56,32 @@ app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["Dashboard"])
 
 
+@app.on_event("startup")
+def _startup_warmup():
+    """Pre-populate dashboard cache so the first user never waits 12s."""
+    import threading
+    threading.Thread(target=warmup_cache, daemon=True).start()
+
+
 @app.get("/api/v1/health")
 def health():
     return {"status": "ok"}
 
 
 # Serve dashboard
+def _serve_dashboard():
+    content = (FRONTEND_DIR / "dashboard.html").read_text()
+    return HTMLResponse(content, headers={"Cache-Control": "no-cache, must-revalidate"})
+
+
 @app.get("/")
 def serve_dashboard():
-    return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
+    return _serve_dashboard()
 
 
 @app.get("/dashboard.html")
 def serve_dashboard_alias():
-    return FileResponse(str(FRONTEND_DIR / "dashboard.html"))
+    return _serve_dashboard()
 
 
 # Cards DB for replay viewer and profile tech card images (public, no auth)
@@ -88,6 +105,57 @@ def replay_cards_db(db: Session = Depends(get_db)):
             "number": r.card_number or "",
         }
     return JSONResponse(content=slim)
+
+
+# Replay archive — serves game lists/details from analisidef archive files
+import json as _json
+from pathlib import Path as _Path
+
+_ARCHIVE_DIR = _Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/output")
+_DECK_ALIAS = {"AmSa": "AS", "EmSa": "ES"}  # dashboard code → archive code
+
+
+def _load_archive(deck: str, opp: str, fmt: str = "core"):
+    deck_f = _DECK_ALIAS.get(deck, deck)
+    opp_f = _DECK_ALIAS.get(opp, opp)
+    suffix = "_inf" if fmt == "infinity" else ""
+    fname = f"archive_{deck_f}_vs_{opp_f}{suffix}.json"
+    path = _ARCHIVE_DIR / fname
+    if not path.is_file():
+        return None
+    with open(path) as f:
+        return _json.load(f)
+
+
+@app.get("/api/replay/list")
+def replay_list(deck: str = "", opp: str = "", format: str = "core"):
+    if not deck or not opp:
+        return JSONResponse({"error": "deck and opp required"}, 400)
+    archive = _load_archive(deck, opp, format)
+    if not archive:
+        return JSONResponse({"error": "archive not found", "games": []}, 404)
+    games = archive.get("games", [])
+    game_list = [{
+        "i": i, "r": "W" if g.get("we_won") else "L",
+        "otp": g.get("we_otp", False),
+        "on": g.get("our_name", ""), "en": g.get("opp_name", ""),
+        "om": g.get("our_mmr", 0), "em": g.get("opp_mmr", 0),
+        "l": g.get("length", 0), "d": g.get("date", ""),
+    } for i, g in enumerate(games)]
+    return JSONResponse({"games": game_list, "total": len(games)})
+
+
+@app.get("/api/replay/game")
+def replay_game(deck: str = "", opp: str = "", idx: int = 0, format: str = "core"):
+    if not deck or not opp:
+        return JSONResponse({"error": "deck and opp required"}, 400)
+    archive = _load_archive(deck, opp, format)
+    if not archive:
+        return JSONResponse({"error": "archive not found"}, 404)
+    games = archive.get("games", [])
+    if idx < 0 or idx >= len(games):
+        return JSONResponse({"error": "game index out of range"}, 404)
+    return JSONResponse(games[idx])
 
 
 # Serve all frontend static files (icons, manifest, chart.js, assets/)
