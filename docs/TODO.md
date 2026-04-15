@@ -90,9 +90,12 @@ Documento di riferimento: `ARCHITECTURE.md` §12.
 
 Dettaglio in [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md).
 
+- **Sprint-1 Mossa A FATTO 15/04/2026**: Blind Playbook in PG + endpoint + accordion Profile (importer bridge da analisidef)
+- **Sprint-1 Mossa B (DA FARE)**: porting nativo `gen_deck_playbook.py` in App_tool + cron settimanale + chiave OpenAI propria. Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md).
+  - **⚠️ CAVEAT LINGUA**: il prompt analisidef forza output `italiano fluido`. App e' inglese-only. Quando porteremo il generator in App_tool, modificare il prompt in `fluent English` e tutte le istruzioni (vedi `SPRINT_1_MOSSA_B.md` §3 e memoria `feedback_app_language_english.md`). Le 24 narrative attualmente in PG sono in italiano e resteranno tali fino a Mossa B.
 - **Fase F (DA FARE)**: matchup report refresh autonomo (oggi dipende ancora da `analisidef/dashboard_data.json` importato da cron)
-- **Fase G (FUTURO)**: killer curves batch autonomo (oggi parte da `analisidef/output/killer_curves_*.json` via `import_killer_curves.py`)
-- **Fase H (FUTURO)**: player scouting reports LLM nativo App_tool
+- **Fase G (FUTURO)**: killer curves batch autonomo (oggi parte da `analisidef/output/killer_curves_*.json` via `import_killer_curves.py`). **Anche qui prompt deve produrre EN**.
+- **Fase H (FUTURO)**: player scouting reports LLM nativo App_tool. **Anche qui prompt EN**.
 
 ---
 

@@ -4,6 +4,11 @@ Mossa A Sprint-1 Liberation Day: backfill iniziale dei 24 playbook gia'
 generati dal batch settimanale di analisidef. Mossa B sostituira' questo
 script con la generazione nativa via OpenAI dentro App_tool.
 
+⚠️  CAVEAT LINGUA: i playbook analisidef contengono narrative in italiano
+    (prompt forzato a 'italiano fluido'). App e' inglese-only. Questo
+    importer non corregge: copia 1:1. Mossa B (porting nativo) deve generare
+    in inglese fin dall'origine. Vedi docs/SPRINT_1_MOSSA_B.md §3.
+
 Uso:
     python scripts/import_playbooks.py                  # importa tutti
     python scripts/import_playbooks.py --deck RS        # solo RS (entrambi formati)

@@ -5,6 +5,14 @@ Espone le query principali per il frontend (Profile tab):
 
 E le primitive di scrittura usate dall'importer (mossa A) e in futuro dal
 generatore nativo (mossa B).
+
+⚠️  CAVEAT LINGUA (Sprint-1 Mossa B): l'app e' inglese-only.
+    Quando porteremo il generatore OpenAI da analisidef in App_tool, il prompt
+    `build_narrative_prompt` (oggi forza 'italiano fluido') va riscritto in
+    inglese: 'fluent English'. Stesso vale per `strategic_frame.one_liner`,
+    `key_principles[]`, e tutte le sezioni testuali del playbook.
+    Vedi: docs/SPRINT_1_MOSSA_B.md §3 e memoria feedback_app_language_english.md.
+    Le narrative attualmente in PG (importate da bridge analisidef) sono in IT.
 """
 from __future__ import annotations
 
