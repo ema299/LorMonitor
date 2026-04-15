@@ -12,7 +12,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.services import static_data_service
+from backend.services import kc_spy_service, static_data_service
 from backend.services.leaderboard_service import fetch_leaderboards
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def assemble(db: Session, days: int = DAYS) -> dict:
     blob["best_plays_infinity"] = {}
     blob["team"] = _build_team(db, days)
     blob["player_lookup"] = _build_player_lookup(db, days)
-    blob["kc_spy"] = _load_kc_spy()
+    blob["kc_spy"] = _load_kc_spy(db)
     blob["analysis"] = ""
 
     logger.info("Snapshot assembled: %d top-level keys", len(blob))
@@ -74,17 +74,12 @@ def assemble(db: Session, days: int = DAYS) -> dict:
 # KC SPY
 # ---------------------------------------------------------------------------
 
-_KC_SPY_PATH = "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/output/kc_spy_report.json"
-
-
-def _load_kc_spy() -> dict:
-    """Load KC spy report from analisidef output."""
+def _load_kc_spy(db: Session) -> dict:
+    """Load KC spy report from PostgreSQL."""
     try:
-        if os.path.isfile(_KC_SPY_PATH):
-            with open(_KC_SPY_PATH) as f:
-                return json.load(f)
+        return kc_spy_service.get_latest_report(db)
     except Exception as e:
-        logger.warning("Could not load kc_spy_report.json: %s", e)
+        logger.warning("Could not load kc_spy report from PG: %s", e)
     return {}
 
 

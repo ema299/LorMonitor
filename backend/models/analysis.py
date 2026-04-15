@@ -47,6 +47,41 @@ class Archive(Base):
     )
 
 
+class ReplayArchive(Base):
+    __tablename__ = "replay_archives"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    generated_at: Mapped[date] = mapped_column(Date, nullable=False)
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    game_format: Mapped[str] = mapped_column(String(20), nullable=False)
+    our_deck: Mapped[str] = mapped_column(String(10), nullable=False)
+    opp_deck: Mapped[str] = mapped_column(String(10), nullable=False)
+    archive_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False)
+    games: Mapped[list] = mapped_column(JSONB, nullable=False)
+    match_count: Mapped[int | None] = mapped_column(Integer)
+
+    __table_args__ = (
+        UniqueConstraint("game_format", "our_deck", "opp_deck", "generated_at"),
+        Index("idx_replay_archives_lookup", "game_format", "our_deck", "opp_deck"),
+    )
+
+
+class KCSpyReport(Base):
+    __tablename__ = "kc_spy_reports"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    report: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str | None] = mapped_column(String(20))
+
+    __table_args__ = (
+        UniqueConstraint("report_date"),
+        Index("idx_kc_spy_reports_date", report_date.desc()),
+    )
+
+
 class ThreatLLM(Base):
     __tablename__ = "threats_llm"
 
