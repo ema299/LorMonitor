@@ -38,3 +38,5 @@ output/
 # Local backups and runtime cache
 *.bak
 scripts/.import_skip_cache
+backups/
+.codex
