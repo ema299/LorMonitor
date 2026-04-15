@@ -1,6 +1,12 @@
 # Sprint-1 Mossa B — Blind Playbook native generation in App_tool
 
-**Status:** TODO (Mossa A completata 15/04/2026, Mossa B da pianificare).
+**Status:** ✅ COMPLETATA 15/04/2026 (commit `df8e486` + merge `f4a0d2d`).
+Generator nativo + CLI + helpers in App_tool. Prompt EN, OpenAI key proprio.
+Test end-to-end OK su RS core (~$0.01, 14s, narrative 1651 chars EN).
+Batch completo (24 deck × ~$0.008 = ~$0.20) in esecuzione.
+
+**Pendente post-batch:** aggiornare crontab per cron settimanale nativo
+(martedi 01:00) e disattivare il bridge importer.
 
 ## Goal
 

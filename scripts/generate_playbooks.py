@@ -48,6 +48,15 @@ from pipelines.playbook.generator import (
 
 DECKS = sorted(DECK_COLORS.keys())
 
+# analisidef usa AS/ES come codici, App_tool usa AmSa/EmSa (vedi DECK_COLORS in
+# scripts/import_matches.py). Mapping al momento dell'upsert PG cosi tutto il
+# codice App_tool usa un solo schema. Il generator continua a usare i codici
+# analisidef internamente perche' deve leggere digest files con quei codici.
+_DECK_ALIAS_TO_APPTOOL = {
+    "AS": "AmSa",
+    "ES": "EmSa",
+}
+
 
 def _run_one(deck, game_format, model, dry_run, print_prompt):
     """Run a single (deck, format). Returns (ok, summary_dict, err_str|None)."""
@@ -163,9 +172,12 @@ def main():
                     and result.get("playbook")
                     and not result["playbook"].get("error")
                 ):
+                    # Map analisidef code -> App_tool code (AS->AmSa, ES->EmSa)
+                    pg_deck = _DECK_ALIAS_TO_APPTOOL.get(deck, deck)
                     try:
-                        row_id = upsert_playbook(db, deck, fmt, result)
-                        print(f"       -> upserted row id={row_id}")
+                        row_id = upsert_playbook(db, pg_deck, fmt, result)
+                        suffix = f" (alias {deck}->{pg_deck})" if pg_deck != deck else ""
+                        print(f"       -> upserted row id={row_id}{suffix}")
                     except Exception as e:
                         err_count += 1
                         print(f"       -> DB upsert FAILED: {e}")

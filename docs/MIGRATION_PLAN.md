@@ -3,9 +3,13 @@
 **Obiettivo prodotto:** `App_tool` e' l'unica app pubblica che serve gli utenti.
 `analisidef` e' un motore transitorio di calcolo/import, non il prodotto.
 
-**Stato attuale (10 Apr 2026):** API 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
-(snapshot_assembler.py, cache 2h con stale-while-revalidate + warm-up). Nessun blob statico importato.
-Match importati ogni 2h. Matchup reports (tutti i 12 tipi) e killer curves importati da analisidef via cron.
+**Stato attuale (15 Apr 2026 — Liberation Day):** API 100% da PostgreSQL.
+Dashboard blob assemblato **live** da PG (snapshot_assembler.py, cache 2h).
+Match importati ogni 2h **con legality gate per core** (Sprint-0 oggi).
+Matchup reports e killer curves ancora importati da analisidef via cron (Fase F/G).
+**Blind Deck Playbook** importato in PG con narrative completa (24/24 deck) — Sprint-1 Mossa A
+oggi. **Mossa B** (porting nativo OpenAI in App_tool) pianificata, vedi
+[`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md).
 
 ## Architettura attuale (09 Apr 2026)
 
@@ -181,6 +185,9 @@ Input: i replay reali del player (turns JSONB con CARD_PLAYED, QUEST, CHALLENGE,
 | B-C | **FATTO** | No |
 | D | **FATTO** | No |
 | E | **FATTO** | No |
+| **Sprint-0 (15/04)** | **FATTO** | No — legality gate nativo App_tool |
+| **Sprint-1 Mossa A (15/04)** | **FATTO** | Sì — bridge importer per Blind Playbook |
+| **Sprint-1 Mossa B (15/04)** | **FATTO** | No (generator nativo + prompt EN, batch in PG via OpenAI key App_tool) |
 | F | DA FARE | Sì (analyzer 12K LOC → matchup reports) |
 | G | FUTURO | Sì (OpenAI killer curves) |
 | H | FUTURO | No (replay da PG + OpenAI) |
