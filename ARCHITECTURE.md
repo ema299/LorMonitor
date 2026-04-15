@@ -97,33 +97,39 @@ Dati sorgente:
 - **Meta Radar** (box rosso): deck identity banner, KPI strip (WR, Share, Games, Players del meta), Best/Worst matchups in box separati, sezione "Threats to watch"
 - My Stats usa `DATA.player_lookup[formato][nick]` — coerente col formato Core/Infinity selezionato
 
-**Dipendenze residue da analisidef (bridge temporaneo):**
-- `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile**
-- `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (12 tipi, analyzer 12K LOC) — **Phase F**
-- `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **futuro Phase G**
-- `kc_spy.py` → `kc_spy_report.json` → `import_kc_spy.py` — **producer legacy, consumer runtime gia' portato in PG**
+**Dipendenze residue da analisidef (bridge temporaneo, stato 15 Apr 2026 sera — Liberation Day):**
+- `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile** (collection infra)
+- `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (12 tipi, analyzer 12K LOC) — **D3, target P3**
+- `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **D2, target P2**
+- `pipelines/playbook/generator.py` → `analisidef/output/digest_*.json` — **D1, target 16/04 (cutover a digest nativo)**
+- `kc_spy.py` → `kc_spy_report.json` → `import_kc_spy.py` (cron 04:05 daily) — **producer legacy, consumer runtime gia' su PG**
 
-**Dipendenze runtime gia' rimosse da analisidef (15 Apr 2026):**
-- digest generator (`pipelines/digest/`) — vendorized locale, nessun import runtime da tree esterno
-- replay viewer pubblico — lettura da PostgreSQL (`replay_archives`)
-- dashboard `kc_spy` — lettura da PostgreSQL (`kc_spy_reports`)
+**Dipendenze runtime gia' rimosse da analisidef (15 Apr 2026 — Liberation Day):**
+- R1 replay viewer pubblico — `/api/replay/list` + `/api/replay/game` leggono da PostgreSQL (`replay_archives`, 271 archive importati, 601MB JSONB) via `backend/services/replay_archive_service.py`
+- R2 dashboard `kc_spy` — `snapshot_assembler._load_kc_spy` legge da PostgreSQL (`kc_spy_reports`) via `backend/services/kc_spy_service.py`
+- R3 `backend/workers/llm_worker.py` — **rimosso** (dead code, non schedulato, commit `9ec0f45`)
+- C1 digest generator code-level — `pipelines/digest/vendored/` (1200 LOC congelati da `58288f36`), golden diff `DIFFS=0` su 10 matchup, smoke generate_digests ok
 
 **Eliminato:** `import_snapshot.py` e `assemble_snapshot.py` via cron — l'API serve il blob live.
 
 **Frontend:** il file di produzione vive in `App_tool/frontend/dashboard.html`. Rimane ancora monolitico, ma non e' piu' un symlink e non deve dipendere da sync manuali da analisidef.
 
-**Cron App_tool (UTC):**
+**Cron App_tool (UTC, verificato 15 Apr 2026 via `crontab -l`):**
 ```
-*/2h       import_matches.py          → match JSON → PG (~1s)
-05:30      import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
-Mar 05:30  import_killer_curves.py     → KC da analisidef/output
-post-kcspy  import_kc_spy.py           → KC Spy JSON legacy → PG (operational follow-up da aggiungere)
-Dom 02:00  maintenance.sh              → drop turns >90gg, VACUUM
-03:00      backup.sh                   → pg_dump giornaliero
-Dom 04:45  static_importer.py          → cards DB refresh (duels.ink cache merge, dual ink corretti)
-*/5min     healthcheck.sh              → monitoring
+*/2h        import_matches.py           → match JSON → PG (~1s)
+*/5min      healthcheck.sh              → monitoring, auto-restart
+03:00       backup.sh                   → pg_dump giornaliero
+Dom 02:00   maintenance.sh              → drop turns >90gg, VACUUM
+Dom 04:45   static_importer.py          → cards DB refresh (duels.ink cache merge)
+04:05       import_kc_spy.py            → KC Spy JSON legacy → PG `kc_spy_reports` (aggiunto 15/04)
+05:30       import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
+05:35       assemble_snapshot.py        → warm-up cache blob
+Mar 00:00   (analisidef) run_kc_production.sh   → OpenAI batch KC
+Mar 01:00   generate_playbooks.py       → playbook nativo App_tool
+Mar 05:30   import_killer_curves.py     → KC da analisidef/output → PG
+07:00       monitor_kc_freshness.py     → canary freshness, mail STALE/ERROR
 ```
-**Nota:** `assemble_snapshot.py` via cron rimosso. L'API assembla il blob on-demand con cache 2h + warm-up allo startup.
+**Nota:** `assemble_snapshot.py` via cron rimosso dal serving path. L'API assembla il blob on-demand con cache 2h + warm-up allo startup.
 
 ---
 
@@ -552,6 +558,49 @@ CREATE TABLE daily_snapshots (
 );
 
 CREATE INDEX idx_snapshots_date ON daily_snapshots(snapshot_date DESC);
+
+-- ============================================================
+-- RUNTIME DECOUPLING (aggiunte 15 Apr 2026 — Liberation Day)
+-- ============================================================
+
+-- replay_archives (R1): sostituisce la lettura live di analisidef/output/archive_*.json
+-- Popolata da scripts/import_replay_archives.py (271 archive, ~601MB JSONB).
+-- Letta da backend/services/replay_archive_service.py per /api/replay/list + /api/replay/game.
+CREATE TABLE replay_archives (
+    id              BIGSERIAL PRIMARY KEY,
+    our_deck        VARCHAR(16) NOT NULL,
+    opp_deck        VARCHAR(16) NOT NULL,
+    game_format     VARCHAR(16) NOT NULL,
+    metadata        JSONB NOT NULL,
+    games           JSONB NOT NULL,
+    imported_at     TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(our_deck, opp_deck, game_format)
+);
+
+-- kc_spy_reports (R2): sostituisce la lettura live di analisidef/output/kc_spy_report.json
+-- Popolata da scripts/import_kc_spy.py (cron 04:05 UTC daily).
+-- Letta da backend/services/kc_spy_service.py + snapshot_assembler.
+CREATE TABLE kc_spy_reports (
+    id              BIGSERIAL PRIMARY KEY,
+    generated_at    TIMESTAMPTZ NOT NULL,
+    game_format     VARCHAR(16) NOT NULL,
+    report          JSONB NOT NULL,
+    imported_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_kc_spy_generated ON kc_spy_reports(generated_at DESC);
+
+-- meta_epochs (P1 digest): governa set-legality + window effettiva del digest generator.
+-- Popolata manualmente al release di ogni nuovo set Ravensburger.
+CREATE TABLE meta_epochs (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    started_at      DATE NOT NULL,
+    ended_at        DATE,
+    legal_sets      INTEGER[] NOT NULL,
+    notes           TEXT,
+    created_at      TIMESTAMPTZ DEFAULT now()
+);
 
 -- ============================================================
 -- AUDIT LOG
@@ -2599,21 +2648,26 @@ apscheduler>=3.10           # Scheduler workers
 - [ ] Alerting Telegram — da aggiungere
 - [ ] Load testing — da fare prima del lancio pubblico
 
-**Cron schedule completo (App_tool):**
+**Cron schedule completo (App_tool, verificato 15 Apr 2026):**
 ```
-*/5 * * * *   healthcheck.sh          → auto-restart se down
-0   3 * * *   backup.sh               → pg_dump + gzip + cleanup 7gg
+*/5 * * * *   healthcheck.sh           → auto-restart se down
+0   3 * * *   backup.sh                → pg_dump + gzip + cleanup 7gg
 0 */2 * * *   import_matches.py        → importa nuovi match da /matches/
+0   2 * * 0   maintenance.sh           → drop turns >90gg, VACUUM
+45  4 * * 0   static_importer.py       → cards DB refresh (duels.ink)
+5   4 * * *   import_kc_spy.py         → KC Spy JSON → PG kc_spy_reports
 30  5 * * 2   import_killer_curves.py  → importa nuove curve dopo batch KC OpenAI
 30  5 * * *   import_matchup_reports.py → importa matchup reports daily_routine → PG
-0   7 * * *   monitor_kc_freshness.py  → canary freshness monitor
+35  5 * * *   assemble_snapshot.py     → warm-up cache blob
+0   7 * * *   monitor_kc_freshness.py  → canary freshness, mail STALE/ERROR
 0   1 * * 2   generate_playbooks.py    → playbook nativo App_tool
 ```
 
-**Cron schedule analisidef (invariato):**
+**Cron schedule analisidef (ancora attivo fino a P2/P3 cutover):**
 ```
 0   0 * * 2   run_kc_production.sh     → genera killer curves (OpenAI batch)
 0   4 * * *   kc_spy.py --format all   → daily canary KC + validation
+30  4 * * *   decks_db_builder.py      → refresh decks DB
 0   5 * * *   lorcana_monitor.py report
 1   5 * * *   daily_routine.py         → genera dashboard_data.json
 ```

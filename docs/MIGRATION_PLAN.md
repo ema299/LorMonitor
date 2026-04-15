@@ -3,16 +3,20 @@
 **Obiettivo prodotto:** `App_tool` e' l'unica app pubblica che serve gli utenti.
 `analisidef` e' un motore transitorio di calcolo/import, non il prodotto.
 
-**Stato attuale (15 Apr 2026 — Liberation Day):** API quasi 100% da PostgreSQL.
-Dashboard blob assemblato **live** da PG (snapshot_assembler.py, cache 2h).
-Match importati ogni 2h **con legality gate per core** (Sprint-0 oggi).
-Matchup reports e killer curves ancora importati da analisidef via cron (Fase F/G).
-**Blind Deck Playbook** importato in PG con narrative completa (24/24 deck) — Sprint-1 Mossa A
-oggi. **Mossa B** (porting nativo OpenAI in App_tool) completata. Digest pipeline
-P1.5 vendorized e sganciata dal codice runtime esterno. Replay viewer P2.5a
-fase 1 e' in corso: endpoint letti da PG via `replay_archives`, import one-shot
-degli archive pronto, generatore nativo archive ancora da fare. Vedi
-[`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md).
+**Stato attuale (15 Apr 2026 sera — Liberation Day chiuso sui runtime coupling):**
+API quasi 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
+(snapshot_assembler.py, cache 2h). Match importati ogni 2h con legality gate core
+(Sprint-0). Blind Deck Playbook nativo generato in App_tool via OpenAI (Mossa B).
+
+**Chiuso oggi (commit `ab03c6e` → `9ec0f45`):**
+- P0 monitor freshness + baseline (commit `ab03c6e`)
+- P1 digest nativo PG-first in shadow mode + `meta_epochs` migration (commit `ace88dc`)
+- P1.5 vendorized freeze 1200 LOC analytics, `DIFFS=0` su 10 matchup (commit `7d08425`)
+- P2.5a R1 replay endpoint legge da PG `replay_archives` (271 archive, 601MB JSONB)
+- P2.5b R2 kc_spy runtime legge da PG `kc_spy_reports` (commit `8c2b84a`)
+- P2.5c R3 `llm_worker.py` rimosso come dead code (commit `9ec0f45`)
+
+**Aperto:** D1 (playbook → digest file analisidef, cutover 16/04), D2 (`import_killer_curves`, target P2), D3 (`import_matchup_reports`, target P3). Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md), [`SPRINT_P1_DIGEST.md`](SPRINT_P1_DIGEST.md), [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
 
 ## Architettura attuale (09 Apr 2026)
 
@@ -118,81 +122,55 @@ Frontend resiliente: `getAnalyzerData()` deriva `available_matchups` dalle chiav
 
 ---
 
-### P1.5: Digest vendorized bridge freeze
-**COMPLETATA 15 Apr 2026 sera**
+### P1.5 — Digest vendorized bridge freeze
+**COMPLETATA 15 Apr 2026 sera (commit `7d08425`)**
 
 Il generator digest nativo non importa piu' codice runtime dal tree esterno.
-I moduli legacy sono congelati in `pipelines/digest/vendored/` con harness di
-parita' dedicata (`scripts/diff_digest_vendored.py`).
+I moduli legacy (~1200 LOC) sono congelati byte-perfect in `pipelines/digest/vendored/`
+(loader.py, gen_archive.py, investigate.py) con header freeze che cita SHA
+analisidef `58288f36a6e41b1830efab0941223e7160b84450`. Harness di parita' dedicata
+in `scripts/diff_digest_vendored.py`.
 
 **Validazione eseguita:**
-1. `rg -n "analisidef" pipelines/digest` -> zero match
-2. parity harness su 10 matchup core -> `DIFFS=0`
-3. smoke `generate_digests.py --format core --limit 3` -> `ok=3 err=0`
+1. `rg -n "analisidef" pipelines/digest` → zero match
+2. parity harness su 10 matchup core → `DIFFS=0`
+3. smoke `generate_digests.py --format core --limit 3` → `ok=3 err=0`
 
-Questo chiude il coupling **code-level** del digest generator. Restano aperti i
-coupling **runtime** user-facing descritti sotto.
+Questo chiude il coupling **C1** (code-level) del digest generator. Resta aperto
+solo il coupling **D1** (data-level): `pipelines/playbook/generator.py` legge ancora
+file `analisidef/output/digest_*.json`. Cutover domani (vedi Piano 16/04).
 
 ---
 
-### P2.5: Runtime consumers ancora agganciati a analisidef
-**Effort: basso-medio | Rischio: medio | Priorita': alta**
+### P2.5 — Runtime consumers (R1/R2/R3)
+**COMPLETATA 15 Apr 2026 sera**
 
-`Liberation Day` non si chiude finche' esistono endpoint o assembler runtime che
-leggono file live dal tree esterno.
+`Liberation Day` dei runtime coupling chiuso: nessun endpoint o assembler legge
+piu' file live dal tree esterno.
 
-#### P2.5a: Replay viewer -> PostgreSQL
-**IN CORSO (fase 1 implementata e validata localmente 15 Apr 2026 notte)**
+#### P2.5a — Replay viewer → PostgreSQL (R1) ✅
 
-Fase 1 fatta:
-1. nuova tabella `replay_archives` con `metadata` + `games` JSONB
-2. importer one-shot `scripts/import_replay_archives.py`
-3. `/api/replay/list` e `/api/replay/game` riscritti per leggere da PG
-4. migration applicata in locale + sample import validato (`limit 5`)
+Commit `8c2b84a`. Fatto:
+1. nuova tabella `replay_archives` (our_deck, opp_deck, game_format, metadata, games JSONB)
+2. importer `scripts/import_replay_archives.py` eseguito sul full set storico → **271 archive importati, ~601MB JSONB in PG**
+3. `backend/services/replay_archive_service.py` nuovo; `/api/replay/list` e `/api/replay/game` riscritti su PG
+4. smoke test verde su localhost e via metamonitor.app
 
-Da fare per chiuderla davvero:
-1. eseguire il full import storico dei 271 archive replay (job operativo piu' lungo)
-2. validare endpoint replay su dataset importato completo
-3. sostituire l'archive stale del 28/03 con generatore nativo da PG oppure on-demand cache
+Follow-up operativo: il dataset 28/03 è stale per design (archive analisidef fermo da allora). Refresh da PG → nativo coperto in P2.5a fase 2 (generator nativo archive) se/quando serve.
 
-#### P2.5b: KC Spy runtime consumer
-**FATTO 15 Apr 2026 notte**
+#### P2.5b — KC Spy runtime → PostgreSQL (R2) ✅
 
-Fatto:
-1. nuova tabella `kc_spy_reports`
-2. importer `scripts/import_kc_spy.py` dal file legacy
-3. `snapshot_assembler.py` ora legge l'ultimo report da PG
-4. migration applicata in locale + import report corrente validato
-5. cron macchina aggiornato: `04:05 UTC` importa `KC Spy` in App_tool subito dopo il canary legacy delle `04:00`
+Commit `8c2b84a`. Fatto:
+1. nuova tabella `kc_spy_reports` (generated_at, game_format, report JSONB)
+2. `scripts/import_kc_spy.py` legge il JSON legacy e upserta in PG (cron 04:05 UTC daily, subito dopo canary legacy 04:00)
+3. `backend/services/kc_spy_service.py` reader; `snapshot_assembler._load_kc_spy` letto da PG
+4. migration applicata live, import report corrente validato
 
-Da fare:
-1. in un secondo tempo, se serve, portare anche il producer `kc_spy.py` in App_tool
+Follow-up: se in P2 vogliamo tagliare anche il producer `kc_spy.py`, si porta il generator in App_tool; non urgente.
 
-#### P2.5c: llm_worker cleanup
-**DISCOVERY FATTA 15 Apr 2026 notte — non schedulato nel crontab macchina**
+#### P2.5c — llm_worker cleanup (R3) ✅
 
-`backend/workers/llm_worker.py` punta ancora a `ANALISIDEF_OUTPUT_DIR`, ma il
-crontab reale usa `scripts/import_killer_curves.py` e non mostra invocazioni a
-`llm_worker.py`. I guardrail OpenAI delle killer curves stanno nel batch
-`run_kc_production.py`, non in `llm_worker.py`.
-
-Prossimo step corretto:
-1. verificare se esiste qualche invocazione manuale/esterna fuori repo
-2. se no, rimuovere `llm_worker.py` come legacy morto o sostituirlo con alias chiaro
-
-#### Prima del commit (ripartenza domani)
-
-Stato adesso:
-1. `P1.5` chiuso e validato (`DIFFS=0` su 10 matchup)
-2. `P2.5b` chiuso anche lato operativo (cron aggiunto)
-3. `P2.5a` pronto nel codice, ma validato solo con sample import replay (`replay_archives=5`)
-4. `P2.5c` in discovery: `llm_worker.py` non e' nel crontab macchina
-
-Cose da fare domani prima del commit:
-1. decidere se eseguire il full import storico di `replay_archives` (271 file) oppure lasciare il sample import come rollout operativo separato
-2. se si fa il full import: validare di nuovo replay list/game su dataset completo
-3. decidere se `llm_worker.py` resta fuori da questo commit o viene rimosso come legacy non schedulato
-4. fare review finale del diff e spezzare i commit in blocchi logici (`P1.5`, `P2.5a`, `P2.5b/docs`)
+Commit `9ec0f45`. `backend/workers/llm_worker.py` è stato **rimosso**: non era schedulato nel crontab, duplicato funzionale di `scripts/import_killer_curves.py`, nessun consumer esterno trovato. Dead code eliminato.
 
 ---
 
@@ -257,29 +235,21 @@ Input: i replay reali del player (turns JSONB con CARD_PLAYED, QUEST, CHALLENGE,
 
 ---
 
-## Stato riepilogativo
+## Stato riepilogativo (storico fasi A-H)
 
 | Fase | Stato | Dipende da analisidef? |
 |------|-------|----------------------|
-| 0-6 | **FATTO** | No (runtime) |
-| A | **FATTO** | Solo `/matches/` (lorcana_monitor) |
-| B-C | **FATTO** | No |
-| D | **FATTO** | No |
-| E | **FATTO** | No |
-| **Sprint-0 (15/04)** | **FATTO** | No — legality gate nativo App_tool |
-| **Sprint-1 Mossa A (15/04)** | **FATTO** | Sì — bridge importer per Blind Playbook |
-| **Sprint-1 Mossa B (15/04)** | **FATTO** | No (generator nativo + prompt EN, batch in PG via OpenAI key App_tool) |
-| **P1.5 (15/04 sera)** | **FATTO** | No — digest vendorized, no code import runtime esterno |
-| **P2.5a (15/04 notte)** | **IN CORSO** | Ancora parzialmente sì finche' non si decide/full-import replay storico |
-| **P2.5b (15/04 notte)** | **FATTO** | No — runtime KC Spy legge PG, cron import aggiunto |
-| **P2.5c** | DISCOVERY | `llm_worker` non risulta schedulato; legacy da verificare/rimuovere |
-| F | DA FARE | Sì (analyzer 12K LOC → matchup reports) |
-| G | FUTURO | Sì (OpenAI killer curves) |
-| H | FUTURO | No (replay da PG + OpenAI) |
+| A (import matches) | **FATTO** | Solo `/matches/` (lorcana_monitor, infra non spostabile) |
+| B-C (stats/leaderboard da PG) | **FATTO** | No |
+| D (tech tornado da PG) | **FATTO** | No |
+| E (dashboard live assembler) | **FATTO** | No |
+| Sprint-0 legality gate (15/04) | **FATTO** | No |
+| Sprint-1 Mossa A+B playbook (15/04) | **FATTO** | No (generator nativo OpenAI) |
+| F (matchup reports/analyzer 12K LOC) | DA FARE | Sì — target **P3** |
+| G (killer curves autonome) | FUTURO | Sì — target **P2** |
+| H (scouting LLM) | FUTURO | No |
 
-**Dopo Fase F:** `daily_routine.py` eliminabile. Solo `lorcana_monitor.py` resta.
-**Dopo Fase G:** analisidef eliminabile completamente.
-**Fase H:** indipendente da analisidef, richiede solo replay in PG + API OpenAI.
+La tassonomia corrente è **P0-P5** (vedi sezione piano revisionato sotto) che rimpiazza le lettere F/G per gli sprint recenti.
 
 ## Exit criteria
 
@@ -347,22 +317,24 @@ Gli archive JSON sono un **intermediate legacy** che sostituisce una query PG. I
 
 ## 🆕 Piano revisionato (P0–P5) — 15/04/2026, rivisto post-Codex review
 
-Sostituisce e dettaglia Fase F-G. Dual-run e shadow mode obbligatori per ogni cutover (la app è a pagamento, zero discontinuità).
+Sostituisce e dettaglia Fase F-G. Dual-run e shadow mode obbligatori per ogni cutover (app a pagamento, zero discontinuità).
 
-**Tabella riepilogo fasi (post-Codex)**:
+**Tabella riepilogo fasi (stato fine giornata 15/04/2026):**
 
-| Sprint | Scope | Effort | Stato 15/04 sera |
+| Sprint | Scope | Effort | Stato |
 |---|---|---|---|
-| **P0** | Monitoring + baseline | — | ✅ FATTO (mail monitor 07:00, baseline tarball) |
-| **P1** | Digest nativo PG + meta_epochs (shadow) | medio-alto | ✅ FATTO (branch `sprint-p1-digest`, non mergiato) |
-| **P1.5** | Vendorized freeze 1200 LOC analytics + golden diff | medio | ⏳ IN CORSO — step 1/7 fatto da Codex (vendorize byte-perfect), step 2-7 domani |
-| **P2** | KC pipeline nativa + kc_spy | medio | DA FARE |
-| **P2.5a** | Replay endpoint → PG (user-facing) | medio-alto | DA FARE |
-| **P2.5b** | KC spy reader → PG | basso-medio | DA FARE |
-| **P2.5c** | llm_worker cleanup | basso | DA FARE (verdetto: dead code, cancellabile, no cron/import) |
-| **P3** | Matchup reports / analyzer_v3 (12K LOC, vendored + adapter) | alto | DA FARE |
-| **P4** | Decommission analisidef | basso | DA FARE |
+| **P0** | Monitoring + baseline | basso | ✅ FATTO (commit `ab03c6e`, mail monitor 07:00, baseline tarball) |
+| **P1** | Digest nativo PG + meta_epochs (shadow) | medio-alto | ✅ FATTO (commit `ace88dc`, shadow attivo) |
+| **P1.5** | Vendorized freeze 1200 LOC analytics + golden diff | medio | ✅ FATTO (commit `7d08425`, DIFFS=0 su 10 matchup) |
+| **P2.5a** | Replay endpoint → PG (user-facing) | medio-alto | ✅ FATTO (commit `8c2b84a`, 271 archive in PG) |
+| **P2.5b** | KC spy reader → PG | basso-medio | ✅ FATTO (commit `8c2b84a`, cron 04:05 attivo) |
+| **P2.5c** | llm_worker cleanup | basso | ✅ FATTO (commit `9ec0f45`, file rimosso) |
+| **P2** | KC pipeline nativa (D2) | medio | DA FARE |
+| **P3** | Matchup reports / analyzer_v3 (D3, 12K LOC, vendored + adapter) | alto | DA FARE |
+| **P4** | Decommission analisidef | basso | DA FARE (dopo P2+P3 stabili ≥4 settimane) |
 | **P5** | lorcana_monitor failover (opzionale, robustezza) | alto | FUTURO |
+
+**Cutover intermedio 16/04/2026:** D1 (playbook → digest nativo). Vedi sezione "Piano domani" sotto. Non è un nuovo sprint, è il completamento operativo di P1.
 
 ### P0 — Monitoring + baseline ✅ FATTO 15/04/2026
 
@@ -430,51 +402,15 @@ L'LLM lo vede nel prompt e può mitigare: "*the meta is in transition — these 
 
 **Effort**: medio-alto. Scope ~1.5–2K LOC nuovo + 1 migration Alembic + 1 tabella.
 
-### P1.5 — Vendorized bridge freeze (nuovo, critico) — IN CORSO (step 1/7 fatto, 2-7 da fare)
+### P1.5 — Vendorized bridge freeze ✅ FATTO (commit `7d08425`)
 
-**Scoperta nel review Codex 15/04/2026 sera**: P1 ha moved la dipendenza da livello-dati a livello-codice ma non l'ha eliminata. Il generator nativo importa `analisidef.lib.{loader, gen_archive._build_aggregates, investigate.{classify_losses, enrich_games}}` a runtime (~1200 LOC).
+Dettagli operativi nella sezione "P1.5 — Digest vendorized bridge freeze" sopra. Razionale storico: P1 ha moved la dipendenza da livello-dati a livello-codice; il generator nativo importava `analisidef.lib.{loader, gen_archive._build_aggregates, investigate.{classify_losses, enrich_games}}` a runtime (~1200 LOC).
 
-**Rischio se trattato come "pulizia dopo"**: silent divergence tra parsing legacy e PG-native, trascinamento dipendenza per mesi perché "tanto funziona".
-
-**Approccio corretto — NON riscrivere, VENDORIZZARE**:
-1. Copia esatta dei 3 moduli analisidef in `App_tool/pipelines/digest/vendored/`:
-   - `loader.py`, `gen_archive.py` (solo `_build_aggregates` + suoi helper), `investigate.py`
-2. **Congela il codice** — nessuna modifica creativa. Solo fix import path (da `analisidef.lib.X` a `pipelines.digest.vendored.X`).
-3. Golden diff harness: test automatico che confronta output del vendored vs analisidef su dataset campione (10-20 matchup). Byte-per-byte per campi numerici, semantic diff per stringhe.
-4. Solo dopo golden diff = 0 su 3 run consecutivi, cambia `generator.py` a importare da `vendored/` invece che da `analisidef/`.
-5. `sys.path.insert(0, "/mnt/.../analisidef")` nel generator.py — RIMOSSO.
-
-**Exit criterion**: `grep -rn "analisidef" App_tool/pipelines/digest/` ritorna zero match.
-
-**Effort**: medio. Scope: copia 1200 LOC + harness test + validation 3 run.
-
-**Rischio**: divergenza silenziosa se il golden diff non cattura tutti i campi. Mitigazione: test coverage obbligatoria su tutti i 15 campi digest + sub-dict `profiles.*`, `lore_speed.*`, `example_games[*].turns`.
-
-#### Stato attuale 15/04/2026 sera
-
-**Tentativo Codex**: lanciato `codex exec` in worktree `.claude/worktrees/codex-p15/` su branch `sprint-p1-5-vendored`. Sessione interrotta presumibilmente per limit turni.
-
-**Step 1 completato** (byte-perfect vendorize):
-- `pipelines/digest/vendored/loader.py` (1076 LOC: 1073 source + 3 freeze header)
-- `pipelines/digest/vendored/gen_archive.py` (804 LOC: 801 + 3)
-- `pipelines/digest/vendored/investigate.py` (807 LOC: 804 + 3)
-- `pipelines/digest/vendored/__init__.py` (1 LOC)
-- Tutti con header freeze che cita SHA analisidef `58288f36a6e41b1830efab0941223e7160b84450`
-- **Untracked, non committati**. Branch `sprint-p1-5-vendored` ancora a `ace88dc` (HEAD di `sprint-p1-digest`).
-
-**Step 2-7 da fare domani**:
-2. Fix import paths **interni** ai vendored (es. `from lib.cards_dict import ...` → resolvere). I file attualmente non sono utilizzabili senza fix perché i loro import interni puntano a `lib.*` che non esiste in App_tool
-3. Golden diff harness `scripts/diff_digest_vendored.py` — confronta output bridge vs vendored
-4. Run harness 3 volte consecutive, diff=0 obbligatorio
-5. Switch `generator.py` a importare da `pipelines.digest.vendored.*`
-6. Smoke test `generate_digests.py --limit 3`
-7. Sprint doc `docs/SPRINT_P1.5_VENDORED.md` + commit pulito
-
-**Rischi post-sessione Codex**: zero impatto prod. Tutto isolato in worktree, nessun commit, nessuna migration.
+Esecuzione completata in un unico commit `7d08425`: vendorize byte-perfect dei 3 moduli in `pipelines/digest/vendored/`, fix import paths interni, harness `scripts/diff_digest_vendored.py`, switch di `generator.py` alle import `vendored.*`, rimozione di `sys.path.insert(_ANALISIDEF_ROOT)`. Exit criterion `grep -rn analisidef pipelines/digest/` → zero match: rispettato. Validazione: `DIFFS=0` su 10 matchup, smoke `generate_digests.py --limit 3` verde.
 
 ---
 
-### P2 — Port KC pipeline (dual-run su PG) — DOPO P1.5
+### P2 — Port KC pipeline (dual-run su PG) — DA FARE
 
 **Obiettivo**: `scripts/generate_killer_curves.py` legge digest nativi + chiama OpenAI + upserta direttamente in PG `killer_curves` (saltando il passaggio file JSON).
 
@@ -490,42 +426,13 @@ L'LLM lo vede nel prompt e può mitigare: "*the meta is in transition — these 
 
 ---
 
-### P2.5 — Port runtime consumers (replay + kc_spy + llm_worker) — NUOVO
+### P2.5 — Runtime consumers ✅ FATTO (commit `8c2b84a`, `9ec0f45`)
 
-**Scoperta Codex 15/04/2026 sera**: esistono 3 consumer RUNTIME che leggono da analisidef, **non batch**. Vanno portati prima di P4 (decommission) altrimenti spegnere analisidef rompe feature utente-facing.
+Dettagli operativi nella sezione "P2.5 — Runtime consumers" sopra (R1/R2/R3 tutti chiusi, 271 replay_archives in PG, `kc_spy_reports` + cron 04:05 attivo, `llm_worker.py` rimosso).
 
-#### P2.5a — Replay archive endpoint (PRIORITÀ ALTA, user-facing)
+---
 
-`backend/main.py:111-150` → endpoint `/api/replay/list` e `/api/replay/game` leggono hardcoded da `/mnt/.../analisidef/output/archive_*.json`. Serve la feature **Lab tab → Replay Viewer** e **Coach V2 → Replay Viewer**.
-
-**Port path**:
-1. Importare gli archive `archive_*.json` esistenti (stale 28/03) in una nuova tabella PG `replay_archives(our_deck, opp_deck, game_format, games JSONB, imported_at)` — **una tantum** preserva i dati storici
-2. Endpoint riscritti a leggere da PG invece che da filesystem
-3. Archive nuovi: siccome gli archive non vengono più rigenerati dal 28/03 (vedi Discovery sopra), serve generatore nativo in App_tool che produce archive da PG matches. Scope ~800 LOC lift-and-shift di `analisidef/lib/gen_archive.py` (parte di `_build_aggregates` è già in vendored da P1.5) + cron settimanale
-4. Alternativa più pulita: rigenerare archive dinamicamente ON-DEMAND al primo hit dell'endpoint, con cache (stesso pattern del dashboard blob)
-
-**Effort**: medio-alto. Blocca P4.
-
-#### P2.5b — kc_spy runtime consumer
-
-`backend/services/snapshot_assembler.py:77-95` legge `kc_spy_report.json` hardcoded da `analisidef/output`. Alimenta la sezione "KC Spy" del dashboard.
-
-**Port path**:
-1. Portare `analisidef/kc_spy.py` in `App_tool/scripts/kc_spy.py` (fatto in P2 o separato qui)
-2. Output: scrivere in PG `kc_spy_reports` table invece che JSON file
-3. Assembler legge da PG, non filesystem
-
-**Effort**: basso-medio (dopo P2).
-
-#### P2.5c — llm_worker.py
-
-`backend/workers/llm_worker.py:8` importa `ANALISIDEF_OUTPUT_DIR` per glob `killer_curves_*.json`. Duplicato di `scripts/import_killer_curves.py`.
-
-**Port path**: verificare se worker è attivo in produzione. Se sì, migrare a leggere da PG nativo (post-P2). Se no (legacy code), rimuovere in P4.
-
-**Effort**: basso.
-
-### P3 — Port matchup reports / daily_routine — DOPO P2
+### P3 — Port matchup reports / daily_routine — DA FARE
 
 Corrisponde alla vecchia **Fase F**. Dual-run dell'analyzer v3 (12K LOC) su PG invece che su JSON estratti.
 
@@ -551,27 +458,27 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 
 ---
 
-## Stato coupling App_tool → analisidef (15/04/2026 sera, post Codex review)
+## Stato coupling App_tool → analisidef (15/04/2026 sera — Liberation Day runtime)
 
-### Livello RUNTIME (servono richieste utente) — BLOCCANTI per qualsiasi decommission
+### Livello RUNTIME (servono richieste utente) — CHIUSI
 
-| # | File App_tool | Dipendenza | Sbloccato da |
+| # | File App_tool | Stato | Come chiuso |
 |---|---|---|---|
-| R1 | `backend/main.py:111-150` | `/api/replay/list` + `/api/replay/game` leggono `analisidef/output/archive_*.json` live | **P2.5a** |
-| R2 | `backend/services/snapshot_assembler.py:77` | legge `kc_spy_report.json` da analisidef | **P2.5b** |
-| R3 | `backend/workers/llm_worker.py:8` | importa `ANALISIDEF_OUTPUT_DIR` per glob KC JSON | **P2.5c** |
+| R1 | `backend/main.py` + `backend/services/replay_archive_service.py` | ✅ CHIUSO | `/api/replay/*` leggono da PG `replay_archives` (271 archive, 601MB JSONB) |
+| R2 | `backend/services/snapshot_assembler.py` + `kc_spy_service.py` | ✅ CHIUSO | KC Spy letto da PG `kc_spy_reports`, cron 04:05 |
+| R3 | `backend/workers/llm_worker.py` | ✅ RIMOSSO | Dead code, file cancellato (commit `9ec0f45`) |
 
-### Livello CODICE (import Python runtime — introdotto da P1)
+### Livello CODICE (import Python runtime) — CHIUSO
 
-| # | File App_tool | Dipendenza | Sbloccato da |
+| # | File App_tool | Stato | Come chiuso |
 |---|---|---|---|
-| C1 | `pipelines/digest/generator.py` | importa `analisidef.lib.{loader, gen_archive, investigate}` (~1200 LOC) | **P1.5** |
+| C1 | `pipelines/digest/generator.py` | ✅ CHIUSO | Vendorized in `pipelines/digest/vendored/` (~1200 LOC), DIFFS=0 su 10 matchup |
 
-### Livello DATA (file reads batch — importer cron)
+### Livello DATA (file reads batch — importer cron) — APERTI
 
-| # | File App_tool | Dipendenza | Sbloccato da |
+| # | File App_tool | Dipendenza | Target |
 |---|---|---|---|
-| D1 | `pipelines/playbook/generator.py` | legge `analisidef/output/digest_*.json` | **P1 cutover** |
+| D1 | `pipelines/playbook/generator.py` | legge `analisidef/output/digest_*.json` | **16/04 cutover a digest nativo** (shadow già attivo) |
 | D2 | `scripts/import_killer_curves.py` | legge `analisidef/output/killer_curves_*.json` | **P2** |
 | D3 | `scripts/import_matchup_reports.py` | legge `Daily_routine/output/dashboard_data.json` | **P3** |
 
@@ -585,70 +492,96 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 ## Rischi noti non-indipendenza
 
 - `lorcana_monitor.py` single-node: se cade, tutto a monte si ferma. Non coperto da P1–P4.
-- Stale archive 28/03 esiste ma **non impatta il design digest nuovo** (archive eliminato a monte del digest in P1). Impatta però il **replay endpoint** (R1) che serve archive stale a utente. P2.5a deve rigenerare archive da PG o importarli una tantum.
+- Stale archive 28/03 esiste, impatta il **replay endpoint** che ora serve archive stale da PG (dati importati 15/04 ma contenuto 28/03). Refresh da PG → nativo in follow-up di P2.5a.
 - Fallback credenziali `/tmp/.openai_key` in `pipelines/playbook/generator.py:1205` = coupling operativo fragile (non analisidef, ma reboot VPS = perdita chiave).
 
-## Exit criteria riformulati (post-Codex)
+## Exit criteria riformulati
 
 **Liberation Day** non è "P4 completato", è la capacità di rispondere **SÌ** alla domanda:
 
 > *"Posso spegnere analisidef adesso senza perdere replay, KC spy, playbook, digest, matchup reports, o nessuna feature utente-facing?"*
 
-Checklist oggi (15/04/2026 sera): ❌ NO.
-- R1 Replay endpoint: ancora legge analisidef live → Lab tab si rompe
-- R2 KC spy: snapshot_assembler ancora legge analisidef → sezione KC Spy vuota
-- R3 llm_worker: ancora punta ad ANALISIDEF_OUTPUT_DIR
-- C1 Digest generator: ancora importa analisidef code
-- D1/D2/D3: data-level couplings esistenti
+Checklist fine giornata 15/04/2026:
+- [x] R1 Replay endpoint da PG
+- [x] R2 KC spy da PG
+- [x] R3 llm_worker rimosso
+- [x] C1 Digest generator senza import da analisidef
+- [ ] D1 Playbook generator senza `analisidef/output/digest_*.json` → **target 16/04**
+- [ ] D2 KC pipeline nativa (blocca `import_killer_curves.py`) → target P2
+- [ ] D3 Matchup reports analyzer nativi → target P3
 
-**Traguardo Liberation Day = risposta SÌ**, quando ogni voce sopra è verde.
+**Risposta alla domanda Liberation Day oggi: PARZIALE**.
+- Runtime (richieste utente): ✅ SÌ — nessun endpoint o assembler rompe se analisidef è down
+- Batch (aggiornamento dati): ❌ NO — playbook/KC/matchup reports si congelano
+
+**Traguardo Liberation Day completo = tutte le caselle verdi**, sbloccato dopo D1/D2/D3.
 
 ---
 
 ## 📋 Bilancio giornata 15/04/2026
 
-### Fatto oggi
+### Fatto oggi (commit `ab03c6e` → `9ec0f45`)
 
 1. **Sprint-0** ✅ Legality gate nativo App_tool (mattina)
 2. **Sprint-1 Mossa A** ✅ Import bridge Blind Playbook (mattina)
 3. **Sprint-1 Mossa B** ✅ Generator nativo Blind Playbook + cron settimanale Tue 01:00 (notte)
 4. **Discovery** digest dependency trap + archive stale 28/03 (pomeriggio)
-5. **P0** ✅ Monitor freshness + baseline + mail alert a `monitorteamfe@gmail.com` + cron 07:00
-6. **P1** ✅ Digest nativo PG-first + meta_epochs migration (applicata live) + 3 smoke digest prodotti, schema diff=0 (branch `sprint-p1-digest`, non mergiato)
-7. **MIGRATION_PLAN** riscritto con piano P0-P5 + Codex review integrata
-8. **P1.5** ⏳ Codex ha fatto step 1/7 (vendorize byte-perfect), uscito senza committare — file untracked nel worktree
+5. **P0** ✅ Monitor freshness + baseline + mail alert `monitorteamfe@gmail.com` + cron 07:00 (commit `ab03c6e`)
+6. **P1** ✅ Digest nativo PG-first + `meta_epochs` migration (2 seed row) + shadow mode (commit `ace88dc`)
+7. **P1.5** ✅ Vendorize byte-perfect 1200 LOC (loader/gen_archive/investigate) + harness + switch import + `DIFFS=0` su 10 matchup + smoke ok (commit `7d08425`, merge `64397d2`)
+8. **P2.5a** ✅ R1 replay: tabella `replay_archives` + importer full 271 archive (~601MB JSONB) + endpoint `/api/replay/*` letti da PG via `replay_archive_service.py` (commit `8c2b84a`)
+9. **P2.5b** ✅ R2 kc_spy: tabella `kc_spy_reports` + `import_kc_spy.py` + cron 04:05 daily + `kc_spy_service.py` in snapshot_assembler (commit `8c2b84a`)
+10. **P2.5c** ✅ R3 llm_worker: file `backend/workers/llm_worker.py` rimosso come dead code non schedulato (commit `9ec0f45`)
+11. **Docs** ✅ MIGRATION_PLAN + ARCHITECTURE aggiornati (commit `1ea4ccf`)
 
 ### Stato repository fine giornata
 
-- Branch `dev` pulito sul HEAD di stamattina `a838e8c` + untracked files di lavoro (baseline, monitor, migration plan doc update, 3 scripts)
-- Branch `sprint-p1-digest` (commit `ace88dc`) con P1 completo shadow, non mergiato
-- Branch `sprint-p1-5-vendored` creato, a `ace88dc`, nessun commit nuovo (lavoro di Codex untracked nel worktree)
-- Branch `worktree-agent-a46465f8` (Mossa B) — già mergiato
-- Migration `meta_epochs` applicata live (2 seed row), non reader prod → zero impatto
-- Cron attivi: playbook Tue 01:00, freshness monitor daily 07:00, import_matches ogni 2h (invariato), import_killer_curves Tue 05:30 (invariato), analisidef KC Tue 00:00 (invariato), kc_spy daily 04:00 (invariato)
+- Branch `dev` a HEAD `9ec0f45` con tutti i commit P0-P2.5c + docs mergiati
+- Branch `sprint-p1-digest`, `sprint-p1-5-vendored`, `worktree-agent-a46465f8` storici (mergiati)
+- Tabelle PG create e popolate: `meta_epochs` (2 righe), `replay_archives` (271 righe, 601MB JSONB), `kc_spy_reports` (1 riga)
+- Cron App_tool: import_matches */2h, healthcheck 5min, backup 03:00, maintenance Dom 02:00, **import_kc_spy daily 04:05 (nuovo)**, static_importer Dom 04:45, import_matchup_reports daily 05:30, import_killer_curves Mar 05:30, assemble_snapshot daily 05:35, monitor_kc_freshness daily 07:00, generate_playbooks Mar 01:00
+- Cron analisidef ancora attivi (fino a cutover P2/P3): lorcana_monitor 05:00, daily_routine 05:01, run_kc_production Mar 00:00, kc_spy 04:00, decks_db_builder 04:30
+- Produzione live: uvicorn `127.0.0.1:8100`, smoke test verde su replay + dashboard (localhost + metamonitor.app)
 
-### Da riprendere domani 16/04/2026
+### Liberation Day status fine giornata
 
-**Prima scelta — merge di P1 o prosecuzione P1.5?**
+- Runtime coupling (R1/R2/R3) + code-level coupling (C1): **TUTTI CHIUSI** ✅
+- Data-level coupling (D1/D2/D3): 3 su 3 ancora aperti, target 16/04 (D1), P2 (D2), P3 (D3)
+- Prossimo gate: D1 cutover playbook → digest nativo (vedi piano sotto)
 
-- Raccomandazione: **completare P1.5 step 2-7 prima del merge P1**. Altrimenti mergi codice con bridge runtime ad analisidef e rischi "tanto funziona" (Codex warning).
-- Alternative: merge P1 subito e P1.5 come PR separata. Più granulare ma bridge vive 1-2 giorni in più.
+---
 
-**Completamento P1.5 (step 2-7)**:
+## 📅 Piano domani 16/04/2026 — D1 cutover (playbook → digest nativo)
 
-2. Fix import paths interni ai vendored (es. `loader.py` importa `lib.cards_dict` → redirect a `pipelines.digest.vendored.cards_dict` o usa App_tool/lib/cards_dict.py già esistente)
-3. `scripts/diff_digest_vendored.py` — golden diff harness
-4. Run harness 3 volte → diff=0 atteso
-5. Switch `pipelines/digest/generator.py` import a `vendored.*`, rimuovere `sys.path.insert(_ANALISIDEF_ROOT)`
-6. `grep -rn "analisidef" pipelines/digest/` deve tornare vuoto
-7. Smoke test `generate_digests.py --limit 3` + sprint doc + commit
+**Target singolo della giornata**: chiudere coupling data-level **D1**. `pipelines/playbook/generator.py` deve smettere di leggere `analisidef/output/digest_*.json` e passare a `App_tool/output/digests/*.json` (prodotti da P1 nativo, shadow attivo dal 15/04).
 
-**Altro pending minore (domani o dopo)**:
-- P2.5c llm_worker cleanup: dead code confermato, cancellabile. 5 minuti.
-- Commit degli untracked su `dev` (baseline script, monitor script, migration plan doc). Oggi sono stati usati live ma non committati.
+### Step
 
-**Prossimo ciclo verifica automatica**:
-- Martedì 21/04 00:00: batch analisidef legacy gira (come sempre)
-- Martedì 21/04 01:00: playbook nativo App_tool gira (come settimana scorsa)
-- Mercoledì 22/04 07:00: primo vero test del monitor freshness su ciclo completo
-- Se monitor manda STALE → investigare prima di P1.5 cutover
+1. **Shadow run mattina** — eseguire in parallelo il generator playbook con:
+   - `DIGEST_SOURCE=legacy` → legge `analisidef/output/digest_*.json`
+   - `DIGEST_SOURCE=native` → legge `App_tool/output/digests/*.json`
+   Confronto output narrative per **5-10 matchup core** (Amber/Steel vs top meta).
+2. **Review manuale**: se le narrative sono semanticamente equivalenti e non si osservano regressioni evidenti (hallucination, dati stale, formattazione rotta), aggiungere flag `DIGEST_SOURCE` in `backend/config.py` con default `"legacy"`.
+3. **Flip a native** in un commit separato dopo review manuale. Default `"native"` in config, `"legacy"` sbloccato via env var come fallback.
+4. **Osservazione 3-7 giorni**: monitor freshness daily + check manuale playbook output su spot matchup. Se stabile, pianificare lo spegnimento del cron analisidef relativo (oppure lasciarlo come fallback silenzioso).
+
+### Exit criteria D1
+
+- `grep -rn "analisidef/output/digest" pipelines/playbook/` → zero match
+- Flag `DIGEST_SOURCE` in config default `"native"`, valore `"legacy"` ancora supportato come rollback
+- Nessuna regressione visibile sul Blind Playbook utente-facing per 72h
+
+### Effort
+
+1-2h di lavoro effettivo (shadow run + diff + flag + flip), il resto è osservazione.
+
+### Pending minori da smaltire in coda
+
+- Commit degli untracked residui (`backups/`, `scripts/kc_baseline.sh`, `scripts/monitor_kc_freshness.py`) su `dev`
+- Aggiornare `docs/MIGRATION_PLAN.md` con esito D1 a fine giornata
+
+### Prossimo ciclo verifica automatica
+
+- Martedì 21/04 00:00: batch analisidef legacy KC (come sempre, finché P2 non è chiuso)
+- Martedì 21/04 01:00: playbook nativo App_tool (dopo flip D1, legge digest nativo)
+- Mercoledì 22/04 07:00: monitor freshness — se manda STALE, investigare prima di procedere a P2
