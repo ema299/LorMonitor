@@ -3965,31 +3965,88 @@
     max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
 
-  /* Blind Deck Playbook (Sprint-1 Liberation Day) */
-  .bpb-summary { color: var(--text2); font-size: 0.92em; line-height: 1.5; margin-bottom: 14px; padding: 10px 12px; background: rgba(255,255,255,0.02); border-left: 3px solid var(--gold); border-radius: 4px; }
-  .bpb-sect { margin-top: 14px; }
-  .bpb-sect:first-child { margin-top: 0; }
-  .bpb-sect-title { font-size: 0.78em; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
-  .bpb-text { color: var(--text); font-size: 0.92em; line-height: 1.5; }
-  .bpb-list { margin: 0; padding-left: 18px; color: var(--text); font-size: 0.9em; line-height: 1.55; }
-  .bpb-list li { margin-bottom: 3px; }
-  .bpb-mul-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
-  @media (max-width: 640px) { .bpb-mul-grid { grid-template-columns: 1fr; } }
-  .bpb-mul-block { background: rgba(255,255,255,0.02); border-radius: 6px; padding: 8px 10px; }
-  .bpb-mul-label { font-size: 0.72em; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text2); margin-bottom: 4px; }
-  .bpb-curve-list { display: flex; flex-direction: column; gap: 6px; }
-  .bpb-curve-row { display: flex; gap: 10px; align-items: baseline; }
-  .bpb-curve-t { font-weight: 700; color: var(--gold); font-size: 0.78em; min-width: 28px; }
-  .bpb-curve-text { color: var(--text); font-size: 0.9em; }
-  .bpb-combos { display: flex; flex-direction: column; gap: 8px; }
-  .bpb-combo { padding: 8px 10px; background: rgba(255,255,255,0.02); border-radius: 6px; }
-  .bpb-combo-cards { font-weight: 600; font-size: 0.92em; color: var(--text); margin-bottom: 3px; }
-  .bpb-combo-wr { font-weight: 400; font-size: 0.82em; color: var(--green, #3FB950); margin-left: 6px; }
-  .bpb-combo-why { font-size: 0.85em; color: var(--text2); line-height: 1.45; }
-  .bpb-pros { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
-  @media (max-width: 640px) { .bpb-pros { grid-template-columns: 1fr; } }
-  .bpb-pro-name { font-weight: 600; font-size: 0.88em; color: var(--text); }
-  .bpb-pro-hint { font-size: 0.82em; color: var(--text2); margin-top: 2px; }
+  /* Blind Deck Playbook (Sprint-1 Liberation Day) — design da analisidef */
+  .bp-row { width: 100%; }
+  .bp-header { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 6px 12px; margin-bottom: 10px; }
+  .bp-title { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: var(--text2); }
+  .bp-subtitle { font-size: 0.72em; color: var(--text2); font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.7; }
+  .bp-tech-badge { margin-left: auto; font-size: 0.68em; padding: 2px 9px; border-radius: 10px; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+  .bp-tech-badge.has-change { background: rgba(63,185,80,0.12); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .bp-tech-badge.no-change  { background: rgba(155,164,174,0.1); color: var(--text2); border: 1px solid var(--border); }
+  .bp-narrative { font-size: 0.86em; line-height: 1.65; color: var(--text); margin: 4px 0 12px; }
+  .bp-narrative p { margin: 0 0 10px; }
+  .bp-narrative p:last-child { margin-bottom: 0; }
+  /* Strategic frame */
+  .bp-sf { margin-bottom: 12px; padding: 10px 12px; background: linear-gradient(180deg, rgba(212,160,58,0.06) 0%, rgba(212,160,58,0.02) 100%); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; }
+  .bp-sf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .bp-sf-chip { font-size: 0.7em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 9px; border-radius: 10px; white-space: nowrap; border: 1px solid var(--border); background: rgba(255,255,255,0.02); color: var(--text); }
+  .bp-sf-chip.arch { border-color: rgba(212,160,58,0.4); color: var(--gold); background: rgba(212,160,58,0.08); }
+  .bp-sf-chip.tier.top { border-color: rgba(63,185,80,0.5); color: #3fb950; background: rgba(63,185,80,0.1); }
+  .bp-sf-chip.tier.competitive { border-color: rgba(100,165,255,0.4); color: #64a5ff; background: rgba(100,165,255,0.08); }
+  .bp-sf-chip.tier.mid { border-color: rgba(212,160,58,0.3); color: #d4a03a; background: rgba(212,160,58,0.06); }
+  .bp-sf-chip.tier.fringe { border-color: rgba(248,81,73,0.4); color: #f85149; background: rgba(248,81,73,0.08); }
+  .bp-sf-chip.skill.high { border-color: rgba(212,160,58,0.5); color: var(--gold); font-weight: 800; }
+  .bp-sf-oneliner { font-size: 0.88em; line-height: 1.45; color: var(--text); font-style: italic; margin-bottom: 8px; }
+  .bp-sf-principles { margin: 0; padding-left: 18px; font-size: 0.78em; line-height: 1.5; color: var(--text2); }
+  .bp-sf-principles li { margin-bottom: 3px; }
+  .bp-sf-principles li::marker { color: var(--gold); }
+  /* Sub-accordion */
+  .bp-acc-item { border-top: 1px solid var(--border); }
+  .bp-acc-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 10px 0; background: none; border: none; cursor: pointer; font-family: inherit; color: var(--text); font-size: 0.84em; font-weight: 600; text-align: left; gap: 8px; }
+  .bp-acc-btn:hover { color: var(--gold); }
+  .bp-acc-icon { font-size: 0.9em; opacity: 0.6; flex-shrink: 0; }
+  .bp-acc-chevron { flex-shrink: 0; color: var(--text2); transition: transform 0.22s; width: 14px; height: 14px; margin-left: auto; }
+  .bp-acc-item.open .bp-acc-chevron { transform: rotate(180deg); }
+  .bp-acc-body { max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.3s ease, opacity 0.22s ease; }
+  .bp-acc-item.open .bp-acc-body { max-height: 1500px; opacity: 1; }
+  .bp-acc-inner { padding: 4px 0 14px; }
+  /* Mulligan grid */
+  .bp-mull-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .bp-mull-grid { grid-template-columns: 1fr; } }
+  .bp-mull-col { background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .bp-mull-label { font-size: 0.68em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
+  .bp-mull-label.keep { color: var(--green, #3fb950); }
+  .bp-mull-label.otp, .bp-mull-label.otd { color: var(--yellow, #d4a03a); }
+  .bp-mull-label.never { color: var(--red, #f85149); }
+  .bp-mull-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+  .bp-pill { font-size: 0.72em; padding: 3px 8px; border-radius: 10px; font-weight: 500; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  /* Curves stepper */
+  .bp-curve-list { display: flex; flex-direction: column; gap: 0; }
+  .bp-curve-row { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+  .bp-curve-row:last-child { border-bottom: none; }
+  .bp-turn-badge { flex-shrink: 0; min-width: 30px; height: 30px; border-radius: 6px; background: rgba(212,160,58,0.12); border: 1px solid rgba(212,160,58,0.3); display: flex; align-items: center; justify-content: center; font-size: 0.8em; font-weight: 800; color: var(--gold); margin-top: 1px; }
+  .bp-curve-text { font-size: 0.82em; line-height: 1.5; color: var(--text); flex: 1; }
+  /* Combos carousel */
+  .bp-combo-scroll { display: flex; gap: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: none; }
+  .bp-combo-scroll::-webkit-scrollbar { display: none; }
+  .bp-combo-card { flex-shrink: 0; min-width: 200px; max-width: 240px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 10px; padding: 11px 13px; scroll-snap-align: start; }
+  .bp-combo-cards { font-size: 0.78em; font-weight: 600; color: var(--text); margin-bottom: 5px; }
+  .bp-combo-meta { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; flex-wrap: wrap; }
+  .bp-combo-timing { font-size: 0.65em; padding: 2px 7px; border-radius: 8px; font-weight: 700; background: rgba(212,160,58,0.12); color: var(--gold); border: 1px solid rgba(212,160,58,0.25); }
+  .bp-combo-wr { font-size: 0.72em; font-weight: 700; color: var(--green, #3fb950); }
+  .bp-combo-why { font-size: 0.76em; color: var(--text2); line-height: 1.45; }
+  /* Checklist */
+  .bp-checklist { display: flex; flex-direction: column; gap: 7px; }
+  .bp-check-item { display: flex; align-items: flex-start; gap: 8px; font-size: 0.82em; line-height: 1.5; color: var(--text); }
+  .bp-check-icon { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: rgba(63,185,80,0.15); border: 1px solid rgba(63,185,80,0.3); color: var(--green, #3fb950); display: flex; align-items: center; justify-content: center; font-size: 0.7em; font-weight: 800; margin-top: 1px; }
+  /* Trap plays */
+  .bp-trap-list { display: flex; flex-direction: column; gap: 8px; }
+  .bp-trap-item { background: rgba(248,81,73,0.06); border: 1px solid rgba(248,81,73,0.2); border-radius: 8px; padding: 10px 12px; }
+  .bp-trap-what { font-size: 0.82em; font-weight: 600; color: var(--red, #f85149); margin-bottom: 3px; }
+  .bp-trap-why { font-size: 0.78em; color: var(--text2); line-height: 1.45; }
+  /* Pro refs footer */
+  .bp-pro-row { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .bp-pro-label { font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
+  .bp-pro-cards { display: flex; flex-wrap: wrap; gap: 8px; }
+  .bp-pro-card { flex: 1 1 140px; min-width: 130px; max-width: 200px; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+  .bp-pro-name { font-size: 0.8em; font-weight: 700; color: var(--gold); margin-bottom: 2px; }
+  .bp-pro-wr { font-size: 0.72em; color: var(--green, #3fb950); font-weight: 600; margin-bottom: 4px; }
+  .bp-pro-hint { font-size: 0.74em; color: var(--text2); line-height: 1.4; }
+  @media (max-width: 400px) {
+    .bp-mull-grid { gap: 8px; }
+    .bp-combo-card { min-width: 175px; }
+    .bp-pro-card { min-width: 100%; }
+  }
 
   /* Best Plays v2 — real game highlights */
   .bp2-list { display: flex; flex-direction: column; gap: 8px; }
@@ -10497,79 +10554,173 @@ function renderProfileTab(main) {
   if (activeDk) loadBlindPlaybook(activeDk, currentFormat || 'core', 'pf-blind-playbook-host');
 }
 
-// ── Blind Deck Playbook (Sprint-1 Liberation Day) ──
+// ── Blind Deck Playbook (Sprint-1 Liberation Day) — design from analisidef ──
 // Lazy-load: fetch on render, cache by (deck, format) per la sessione, fail closed.
 const _blindPlaybookCache = {};
 const _blindPlaybookInflight = {};
 function _bpEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
-function _bpList(items) {
+function _bpAsText(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  return v.text || v.action || v.card || JSON.stringify(v);
+}
+function _bpItemList(items) {
   if (!Array.isArray(items) || !items.length) return '';
-  return '<ul class="bpb-list">' + items.map(x => `<li>${_bpEsc(typeof x === 'string' ? x : (x.text || x.card || JSON.stringify(x)))}</li>`).join('') + '</ul>';
+  return items.map(x => _bpAsText(x)).filter(Boolean);
 }
-function _bpRenderSection(title, body) {
-  if (!body) return '';
-  return `<div class="bpb-sect"><div class="bpb-sect-title">${_bpEsc(title)}</div>${body}</div>`;
+// Pills (carte chip): mulligan + threat answers
+function _bpPills(items) {
+  const arr = _bpItemList(items);
+  if (!arr.length) return '';
+  return `<div class="bp-mull-pills">${arr.map(s => `<span class="bp-pill" title="${_bpEsc(s)}">${_bpEsc(s.split(' - ')[0])}</span>`).join('')}</div>`;
 }
-function _bpRenderMulligan(mul) {
+function _bpMulligan(mul) {
   if (!mul || typeof mul !== 'object') return '';
-  // Schema fluido: accetta sia 'if_otp/if_otd' che 'keep_if_otp/keep_if_otd' (gen_deck_playbook real output)
-  const blocks = [];
+  // Schema fluido: 'if_otp/if_otd' o 'keep_if_otp/keep_if_otd'
   const fields = [
-    ['always_keep', 'Always Keep'],
-    [['keep_if_otp','if_otp'], 'If OTP'],
-    [['keep_if_otd','if_otd'], 'If OTD'],
-    ['never_keep', 'Never Keep'],
+    ['always_keep', 'Always Keep', 'keep'],
+    [['keep_if_otp','if_otp'], 'If OTP', 'otp'],
+    [['keep_if_otd','if_otd'], 'If OTD', 'otd'],
+    ['never_keep', 'Never Keep', 'never'],
   ];
-  for (const [keyOrKeys, label] of fields) {
+  const cols = [];
+  for (const [keyOrKeys, label, cls] of fields) {
     const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
     let v = null;
     for (const k of keys) { if (Array.isArray(mul[k]) && mul[k].length) { v = mul[k]; break; } }
-    if (v) blocks.push(`<div class="bpb-mul-block"><div class="bpb-mul-label">${label}</div>${_bpList(v)}</div>`);
+    if (!v) continue;
+    cols.push(`<div class="bp-mull-col">
+      <div class="bp-mull-label ${cls}">${_bpEsc(label)}</div>
+      ${_bpPills(v)}
+    </div>`);
   }
-  return blocks.length ? `<div class="bpb-mul-grid">${blocks.join('')}</div>` : '';
+  return cols.length ? `<div class="bp-mull-grid">${cols.join('')}</div>` : '';
 }
-function _bpRenderCurves(curves) {
+function _bpCurves(curves) {
   if (!curves || typeof curves !== 'object') return '';
-  // Accetta sia 't1..t5' che 'T1..T5'
   const turns = ['T1','T2','T3','T4','T5'];
   const rows = turns.map(t => [t, curves[t] != null ? curves[t] : curves[t.toLowerCase()]])
     .filter(([t, v]) => v != null && v !== '')
-    .map(([t, v]) => {
-      const text = typeof v === 'string' ? v : (v.text || v.action || JSON.stringify(v));
-      return `<div class="bpb-curve-row"><span class="bpb-curve-t">${t}</span><span class="bpb-curve-text">${_bpEsc(text)}</span></div>`;
-    });
-  return rows.length ? `<div class="bpb-curve-list">${rows.join('')}</div>` : '';
+    .map(([t, v]) => `<div class="bp-curve-row">
+      <span class="bp-turn-badge">${t}</span>
+      <span class="bp-curve-text">${_bpEsc(_bpAsText(v))}</span>
+    </div>`);
+  return rows.length ? `<div class="bp-curve-list">${rows.join('')}</div>` : '';
 }
-function _bpRenderCombos(combos) {
+function _bpCombos(combos) {
   if (!Array.isArray(combos) || !combos.length) return '';
-  return '<div class="bpb-combos">' + combos.map(c => {
-    const cards = Array.isArray(c.cards) ? c.cards.join(' + ') : (c.cards || '');
+  const cards = combos.map(c => {
+    const cardsStr = Array.isArray(c.cards) ? c.cards.map(s => s.split(' - ')[0]).join(' + ') : (c.cards || '');
     const why = c.why || c.note || '';
+    const timing = c.timing || c.turn || '';
     const wr = c.wr || c.win_rate || '';
-    return `<div class="bpb-combo">
-      <div class="bpb-combo-cards">${_bpEsc(cards)}${wr ? ` <span class="bpb-combo-wr">WR ${_bpEsc(wr)}</span>` : ''}</div>
-      ${why ? `<div class="bpb-combo-why">${_bpEsc(why)}</div>` : ''}
+    return `<div class="bp-combo-card">
+      <div class="bp-combo-cards">${_bpEsc(cardsStr)}</div>
+      ${(timing || wr) ? `<div class="bp-combo-meta">
+        ${timing ? `<span class="bp-combo-timing">${_bpEsc(timing)}</span>` : ''}
+        ${wr ? `<span class="bp-combo-wr">${_bpEsc(wr)}</span>` : ''}
+      </div>` : ''}
+      ${why ? `<div class="bp-combo-why">${_bpEsc(why)}</div>` : ''}
     </div>`;
-  }).join('') + '</div>';
+  }).join('');
+  return `<div class="bp-combo-scroll">${cards}</div>`;
 }
-function _bpRenderProRefs(refs) {
+function _bpChecklist(items) {
+  const arr = _bpItemList(items);
+  if (!arr.length) return '';
+  return `<div class="bp-checklist">${arr.map(s => `<div class="bp-check-item">
+    <span class="bp-check-icon">&check;</span>
+    <span>${_bpEsc(s)}</span>
+  </div>`).join('')}</div>`;
+}
+function _bpTrapPlays(items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  return `<div class="bp-trap-list">${items.map(t => {
+    const what = (typeof t === 'string') ? t : (t.what || t.text || _bpAsText(t));
+    const why = (typeof t === 'object') ? (t.why || t.note || '') : '';
+    return `<div class="bp-trap-item">
+      <div class="bp-trap-what">&#9888; ${_bpEsc(what)}</div>
+      ${why ? `<div class="bp-trap-why">${_bpEsc(why)}</div>` : ''}
+    </div>`;
+  }).join('')}</div>`;
+}
+function _bpStrategicHeader(sf) {
+  if (!sf || sf.error) return '';
+  const tierClass = ({top:'top', competitive:'competitive', mid:'mid', fringe:'fringe'})[sf.tier] || 'mid';
+  const skillClass = ({low:'low', medium:'medium', high:'high'})[sf.skill_dependency] || 'medium';
+  const arch = sf.archetype ? `<span class="bp-sf-chip arch" title="Archetipo">${_bpEsc(sf.archetype)}</span>` : '';
+  const tier = sf.tier ? `<span class="bp-sf-chip tier ${tierClass}" title="Tier meta">${_bpEsc(sf.tier)}</span>` : '';
+  const skill = sf.skill_dependency ? `<span class="bp-sf-chip skill ${skillClass}" title="Dipendenza dallo skill del pilot">skill: ${_bpEsc(sf.skill_dependency)}</span>` : '';
+  const oneLiner = sf.one_liner ? `<div class="bp-sf-oneliner">&ldquo;${_bpEsc(sf.one_liner)}&rdquo;</div>` : '';
+  const principles = Array.isArray(sf.key_principles) && sf.key_principles.length
+    ? `<ul class="bp-sf-principles">${sf.key_principles.map(p => `<li>${_bpEsc(p)}</li>`).join('')}</ul>`
+    : '';
+  if (!arch && !tier && !skill && !oneLiner && !principles) return '';
+  return `<div class="bp-sf">
+    <div class="bp-sf-chips">${arch}${tier}${skill}</div>
+    ${oneLiner}
+    ${principles}
+  </div>`;
+}
+function _bpWeeklyTechBadge(wt) {
+  if (!wt || typeof wt !== 'object') {
+    return `<span class="bp-tech-badge no-change">No changes this week</span>`;
+  }
+  const newTech = wt.new_tech || [];
+  const droppedTech = wt.dropped_tech || [];
+  const hasChange = newTech.length > 0 || droppedTech.length > 0;
+  if (!hasChange) {
+    return `<span class="bp-tech-badge no-change" title="No tech changes this week">No changes this week</span>`;
+  }
+  const adds = newTech.slice(0, 2).map(c => (c.card || c).split(' - ')[0]).join(', ');
+  const drops = droppedTech.slice(0, 1).map(c => (c.card || c).split(' - ')[0]).join(', ');
+  const parts = [];
+  if (adds) parts.push('+' + adds);
+  if (drops) parts.push('\u2212' + drops);
+  const txt = 'Weekly: ' + parts.join(' \u00b7 ');
+  return `<span class="bp-tech-badge has-change" title="${_bpEsc(txt)}">${_bpEsc(txt)}</span>`;
+}
+function _bpProRefs(refs) {
   if (!Array.isArray(refs) || !refs.length) return '';
-  return '<div class="bpb-pros">' + refs.slice(0, 6).map(p => {
-    const name = p.name || p.player || 'unknown';
-    const wr = p.wr || p.win_rate || '';
-    const games = p.games || p.matches || '';
-    const hint = p.hint || p.note || '';
-    return `<div class="bpb-pro"><div class="bpb-pro-name">${_bpEsc(name)}${wr ? ` · ${_bpEsc(wr)} WR` : ''}${games ? ` · ${_bpEsc(games)}g` : ''}</div>${hint ? `<div class="bpb-pro-hint">${_bpEsc(hint)}</div>` : ''}</div>`;
-  }).join('') + '</div>';
+  const cards = refs.slice(0, 3).map(r => {
+    const name = r.player || r.name || '';
+    const wr = (typeof r.wr_pct === 'number') ? `${r.wr_pct.toFixed(1)}% WR (${r.games || '?'} games)` : '';
+    const hint = r.hint || r.note || '';
+    return `<div class="bp-pro-card">
+      <div class="bp-pro-name">${_bpEsc(name)}</div>
+      ${wr ? `<div class="bp-pro-wr">${_bpEsc(wr)}</div>` : ''}
+      ${hint ? `<div class="bp-pro-hint">${_bpEsc(hint)}</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="bp-pro-row">
+    <div class="bp-pro-label">Look how they pilot it</div>
+    <div class="bp-pro-cards">${cards}</div>
+  </div>`;
+}
+function _bpAccItem(icon, title, body, openByDefault) {
+  if (!body) return '';
+  const chev = '<svg class="bp-acc-chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return `<div class="bp-acc-item${openByDefault ? ' open' : ''}">
+    <button class="bp-acc-btn" type="button" onclick="bpAccToggle(this)">
+      <span class="bp-acc-icon">${icon}</span>
+      <span>${_bpEsc(title)}</span>
+      ${chev}
+    </button>
+    <div class="bp-acc-body"><div class="bp-acc-inner">${body}</div></div>
+  </div>`;
+}
+function bpAccToggle(btn) {
+  const item = btn.closest('.bp-acc-item');
+  if (item) item.classList.toggle('open');
 }
 function loadBlindPlaybook(deck, fmt, hostId) {
   const host = document.getElementById(hostId);
   if (!host) return;
-  host.innerHTML = '';  // clear previous
+  host.innerHTML = '';
   const cacheKey = `${deck}|${fmt}`;
-  if (_blindPlaybookCache[cacheKey] === null) return;  // already known missing
+  if (_blindPlaybookCache[cacheKey] === null) return;
   if (_blindPlaybookCache[cacheKey]) {
     _renderBlindPlaybook(_blindPlaybookCache[cacheKey], host);
     return;
@@ -10586,7 +10737,6 @@ function loadBlindPlaybook(deck, fmt, hostId) {
       delete _blindPlaybookInflight[cacheKey];
       if (!data) return;
       _blindPlaybookCache[cacheKey] = data;
-      // Solo se host esiste ancora E il deck attivo non e' cambiato
       const stillThere = document.getElementById(hostId);
       if (stillThere && pfActiveDeck === deck) _renderBlindPlaybook(data, stillThere);
     })
@@ -10597,34 +10747,49 @@ function loadBlindPlaybook(deck, fmt, hostId) {
 }
 function _renderBlindPlaybook(data, host) {
   const pb = data.playbook || {};
+  const sf = data.strategic_frame || null;
+  const wt = data.weekly_tech || null;
+  const proRefs = data.pro_references || pb.pro_references || [];
+
+  // Narrative (schema v2): se presente, prosa libera. Altrimenti sezioni strutturate.
+  const narrativeRaw = (pb.narrative || '').trim();
+  const narrativeHtml = narrativeRaw
+    ? `<div class="bp-narrative">${narrativeRaw.split(/\n\s*\n/).filter(Boolean).map(p => `<p>${_bpEsc(p.trim())}</p>`).join('')}</div>`
+    : '';
+
+  // Sezioni strutturate (schema v1, sempre disponibili nei nostri JSON oggi)
   const summary = pb.summary || '';
-  const sections = [
-    _bpRenderSection('Mulligan blind', _bpRenderMulligan(pb.mulligan_blind)),
-    _bpRenderSection('Target curves T1-T5', _bpRenderCurves(pb.target_curves)),
-    _bpRenderSection('Win condition', pb.win_condition ? `<div class="bpb-text">${_bpEsc(pb.win_condition)}</div>` : ''),
-    _bpRenderSection('Plan B', pb.plan_b ? `<div class="bpb-text">${_bpEsc(pb.plan_b)}</div>` : ''),
-    _bpRenderSection('Key combos', _bpRenderCombos(pb.key_combos)),
-    _bpRenderSection('Threat answers', _bpList(pb.threat_answers)),
-    _bpRenderSection('Trap plays', _bpList(pb.trap_plays)),
-    _bpRenderSection('Blind checklist', _bpList(pb.blind_checklist_5)),
-    _bpRenderSection('Pro references', _bpRenderProRefs(pb.pro_references || data.pro_references)),
+  const summaryHtml = summary ? `<div class="bp-narrative"><p>${_bpEsc(summary)}</p></div>` : '';
+  const wcText = pb.win_condition || '';
+  const planBText = pb.plan_b || '';
+
+  const accItems = [
+    _bpAccItem('&#127919;', 'Mulligan blind', _bpMulligan(pb.mulligan_blind), true),
+    _bpAccItem('&#9203;', 'Target curves T1-T5', _bpCurves(pb.target_curves), false),
+    _bpAccItem('&#127942;', 'Win condition', wcText ? `<div class="bp-curve-text">${_bpEsc(wcText)}</div>` : '', false),
+    _bpAccItem('&#128260;', 'Plan B', planBText ? `<div class="bp-curve-text">${_bpEsc(planBText)}</div>` : '', false),
+    _bpAccItem('&#10024;', 'Key combos', _bpCombos(pb.key_combos), false),
+    _bpAccItem('&#128737;', 'Threat answers', _bpPills(pb.threat_answers), false),
+    _bpAccItem('&#9888;', 'Trap plays', _bpTrapPlays(pb.trap_plays), false),
+    _bpAccItem('&#9989;', 'Blind checklist', _bpChecklist(pb.blind_checklist_5), false),
   ].filter(Boolean).join('');
-  if (!sections && !summary) return;  // fail closed
-  const summaryHtml = summary ? `<div class="bpb-summary">${_bpEsc(summary)}</div>` : '';
-  const games = data.total_games ? ` · ${data.total_games} games` : '';
-  const subline = `Blind guide${games}`;
-  host.innerHTML = `<div class="section">${monAccordion('acc-blind-pb',
-    'How to Pilot — Blind Playbook',
-    subline,
-    summaryHtml + sections,
-    {
-      desktopOpen: false,
-      info: {
-        title: 'Blind Playbook',
-        body: 'Guida tattica "al buio": come pilotare il deck quando non sai cosa incontri. Mulligan, curve target, combo chiave, trap plays. Generato settimanalmente con LLM su digest dei matchup reali.'
-      }
-    })}</div>`;
-  monAccordionInit();
+
+  // Fail closed: se non c'e' nulla di significativo, container vuoto
+  if (!sf && !narrativeHtml && !summaryHtml && !accItems && !proRefs.length) return;
+
+  host.innerHTML = `<div class="pf-kpi-card bp-row">
+    <div class="bp-header">
+      <div>
+        <div class="bp-title">How to Pilot &mdash; Blind Guide</div>
+        <div class="bp-subtitle">Come giochi senza info avversario</div>
+      </div>
+      ${_bpWeeklyTechBadge(wt)}
+    </div>
+    ${_bpStrategicHeader(sf)}
+    ${narrativeHtml || summaryHtml}
+    ${accItems}
+    ${_bpProRefs(proRefs)}
+  </div>`;
 }
 
 // ── Card zoom: tap on mobile → full-screen overlay; hover on desktop → floating tooltip ──
