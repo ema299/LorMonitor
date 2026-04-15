@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription
+from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile
 from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
@@ -52,6 +52,7 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(team.router, prefix="/api/v1/team", tags=["Team"])
 app.include_router(user.router, prefix="/api/v1/user", tags=["User"])
 app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(profile.router, prefix="/api/v1/profile", tags=["Profile"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["Dashboard"])
 
