@@ -3,12 +3,15 @@
 **Obiettivo prodotto:** `App_tool` e' l'unica app pubblica che serve gli utenti.
 `analisidef` e' un motore transitorio di calcolo/import, non il prodotto.
 
-**Stato attuale (15 Apr 2026 — Liberation Day):** API 100% da PostgreSQL.
+**Stato attuale (15 Apr 2026 — Liberation Day):** API quasi 100% da PostgreSQL.
 Dashboard blob assemblato **live** da PG (snapshot_assembler.py, cache 2h).
 Match importati ogni 2h **con legality gate per core** (Sprint-0 oggi).
 Matchup reports e killer curves ancora importati da analisidef via cron (Fase F/G).
 **Blind Deck Playbook** importato in PG con narrative completa (24/24 deck) — Sprint-1 Mossa A
-oggi. **Mossa B** (porting nativo OpenAI in App_tool) pianificata, vedi
+oggi. **Mossa B** (porting nativo OpenAI in App_tool) completata. Digest pipeline
+P1.5 vendorized e sganciata dal codice runtime esterno. Replay viewer P2.5a
+fase 1 e' in corso: endpoint letti da PG via `replay_archives`, import one-shot
+degli archive pronto, generatore nativo archive ancora da fare. Vedi
 [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md).
 
 ## Architettura attuale (09 Apr 2026)
@@ -115,6 +118,84 @@ Frontend resiliente: `getAnalyzerData()` deriva `available_matchups` dalle chiav
 
 ---
 
+### P1.5: Digest vendorized bridge freeze
+**COMPLETATA 15 Apr 2026 sera**
+
+Il generator digest nativo non importa piu' codice runtime dal tree esterno.
+I moduli legacy sono congelati in `pipelines/digest/vendored/` con harness di
+parita' dedicata (`scripts/diff_digest_vendored.py`).
+
+**Validazione eseguita:**
+1. `rg -n "analisidef" pipelines/digest` -> zero match
+2. parity harness su 10 matchup core -> `DIFFS=0`
+3. smoke `generate_digests.py --format core --limit 3` -> `ok=3 err=0`
+
+Questo chiude il coupling **code-level** del digest generator. Restano aperti i
+coupling **runtime** user-facing descritti sotto.
+
+---
+
+### P2.5: Runtime consumers ancora agganciati a analisidef
+**Effort: basso-medio | Rischio: medio | Priorita': alta**
+
+`Liberation Day` non si chiude finche' esistono endpoint o assembler runtime che
+leggono file live dal tree esterno.
+
+#### P2.5a: Replay viewer -> PostgreSQL
+**IN CORSO (fase 1 implementata e validata localmente 15 Apr 2026 notte)**
+
+Fase 1 fatta:
+1. nuova tabella `replay_archives` con `metadata` + `games` JSONB
+2. importer one-shot `scripts/import_replay_archives.py`
+3. `/api/replay/list` e `/api/replay/game` riscritti per leggere da PG
+4. migration applicata in locale + sample import validato (`limit 5`)
+
+Da fare per chiuderla davvero:
+1. eseguire il full import storico dei 271 archive replay (job operativo piu' lungo)
+2. validare endpoint replay su dataset importato completo
+3. sostituire l'archive stale del 28/03 con generatore nativo da PG oppure on-demand cache
+
+#### P2.5b: KC Spy runtime consumer
+**FATTO 15 Apr 2026 notte**
+
+Fatto:
+1. nuova tabella `kc_spy_reports`
+2. importer `scripts/import_kc_spy.py` dal file legacy
+3. `snapshot_assembler.py` ora legge l'ultimo report da PG
+4. migration applicata in locale + import report corrente validato
+5. cron macchina aggiornato: `04:05 UTC` importa `KC Spy` in App_tool subito dopo il canary legacy delle `04:00`
+
+Da fare:
+1. in un secondo tempo, se serve, portare anche il producer `kc_spy.py` in App_tool
+
+#### P2.5c: llm_worker cleanup
+**DISCOVERY FATTA 15 Apr 2026 notte — non schedulato nel crontab macchina**
+
+`backend/workers/llm_worker.py` punta ancora a `ANALISIDEF_OUTPUT_DIR`, ma il
+crontab reale usa `scripts/import_killer_curves.py` e non mostra invocazioni a
+`llm_worker.py`. I guardrail OpenAI delle killer curves stanno nel batch
+`run_kc_production.py`, non in `llm_worker.py`.
+
+Prossimo step corretto:
+1. verificare se esiste qualche invocazione manuale/esterna fuori repo
+2. se no, rimuovere `llm_worker.py` come legacy morto o sostituirlo con alias chiaro
+
+#### Prima del commit (ripartenza domani)
+
+Stato adesso:
+1. `P1.5` chiuso e validato (`DIFFS=0` su 10 matchup)
+2. `P2.5b` chiuso anche lato operativo (cron aggiunto)
+3. `P2.5a` pronto nel codice, ma validato solo con sample import replay (`replay_archives=5`)
+4. `P2.5c` in discovery: `llm_worker.py` non e' nel crontab macchina
+
+Cose da fare domani prima del commit:
+1. decidere se eseguire il full import storico di `replay_archives` (271 file) oppure lasciare il sample import come rollout operativo separato
+2. se si fa il full import: validare di nuovo replay list/game su dataset completo
+3. decidere se `llm_worker.py` resta fuori da questo commit o viene rimosso come legacy non schedulato
+4. fare review finale del diff e spezzare i commit in blocchi logici (`P1.5`, `P2.5a`, `P2.5b/docs`)
+
+---
+
 ### Fase F: Matchup report refresh — DA FARE
 **Effort: medio-alto | Rischio: medio**
 
@@ -188,6 +269,10 @@ Input: i replay reali del player (turns JSONB con CARD_PLAYED, QUEST, CHALLENGE,
 | **Sprint-0 (15/04)** | **FATTO** | No — legality gate nativo App_tool |
 | **Sprint-1 Mossa A (15/04)** | **FATTO** | Sì — bridge importer per Blind Playbook |
 | **Sprint-1 Mossa B (15/04)** | **FATTO** | No (generator nativo + prompt EN, batch in PG via OpenAI key App_tool) |
+| **P1.5 (15/04 sera)** | **FATTO** | No — digest vendorized, no code import runtime esterno |
+| **P2.5a (15/04 notte)** | **IN CORSO** | Ancora parzialmente sì finche' non si decide/full-import replay storico |
+| **P2.5b (15/04 notte)** | **FATTO** | No — runtime KC Spy legge PG, cron import aggiunto |
+| **P2.5c** | DISCOVERY | `llm_worker` non risulta schedulato; legacy da verificare/rimuovere |
 | F | DA FARE | Sì (analyzer 12K LOC → matchup reports) |
 | G | FUTURO | Sì (OpenAI killer curves) |
 | H | FUTURO | No (replay da PG + OpenAI) |
@@ -201,6 +286,7 @@ Input: i replay reali del player (turns JSONB con CARD_PLAYED, QUEST, CHALLENGE,
 La migrazione e' davvero conclusa solo quando:
 
 - `App_tool` serve tutti gli utenti senza leggere output applicativi da analisidef
+- replay viewer e KC Spy non leggono piu' file JSON live da analisidef
 - i job schedulati vivono in `App_tool` e sono monitorati li'
 - il frontend di produzione vive in `App_tool` senza sync manuali
 - PostgreSQL e Redis sono l'unica base runtime dell'app

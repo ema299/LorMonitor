@@ -14,6 +14,7 @@ from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
 from backend.middleware.rate_limit import RateLimitMiddleware
+from backend.services import replay_archive_service
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -108,55 +109,39 @@ def replay_cards_db(db: Session = Depends(get_db)):
     return JSONResponse(content=slim)
 
 
-# Replay archive — serves game lists/details from analisidef archive files
-import json as _json
-from pathlib import Path as _Path
-
-_ARCHIVE_DIR = _Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/output")
-_DECK_ALIAS = {"AmSa": "AS", "EmSa": "ES"}  # dashboard code → archive code
-
-
-def _load_archive(deck: str, opp: str, fmt: str = "core"):
-    deck_f = _DECK_ALIAS.get(deck, deck)
-    opp_f = _DECK_ALIAS.get(opp, opp)
-    suffix = "_inf" if fmt == "infinity" else ""
-    fname = f"archive_{deck_f}_vs_{opp_f}{suffix}.json"
-    path = _ARCHIVE_DIR / fname
-    if not path.is_file():
-        return None
-    with open(path) as f:
-        return _json.load(f)
-
-
 @app.get("/api/replay/list")
-def replay_list(deck: str = "", opp: str = "", format: str = "core"):
+def replay_list(
+    deck: str = "",
+    opp: str = "",
+    format: str = "core",
+    db: Session = Depends(get_db),
+):
     if not deck or not opp:
         return JSONResponse({"error": "deck and opp required"}, 400)
-    archive = _load_archive(deck, opp, format)
+    archive = replay_archive_service.get_latest_archive(db, deck, opp, format)
     if not archive:
         return JSONResponse({"error": "archive not found", "games": []}, 404)
-    games = archive.get("games", [])
-    game_list = [{
-        "i": i, "r": "W" if g.get("we_won") else "L",
-        "otp": g.get("we_otp", False),
-        "on": g.get("our_name", ""), "en": g.get("opp_name", ""),
-        "om": g.get("our_mmr", 0), "em": g.get("opp_mmr", 0),
-        "l": g.get("length", 0), "d": g.get("date", ""),
-    } for i, g in enumerate(games)]
-    return JSONResponse({"games": game_list, "total": len(games)})
+    game_list = replay_archive_service.build_replay_list(archive)
+    return JSONResponse({"games": game_list, "total": len(game_list)})
 
 
 @app.get("/api/replay/game")
-def replay_game(deck: str = "", opp: str = "", idx: int = 0, format: str = "core"):
+def replay_game(
+    deck: str = "",
+    opp: str = "",
+    idx: int = 0,
+    format: str = "core",
+    db: Session = Depends(get_db),
+):
     if not deck or not opp:
         return JSONResponse({"error": "deck and opp required"}, 400)
-    archive = _load_archive(deck, opp, format)
+    archive = replay_archive_service.get_latest_archive(db, deck, opp, format)
     if not archive:
         return JSONResponse({"error": "archive not found"}, 404)
-    games = archive.get("games", [])
-    if idx < 0 or idx >= len(games):
+    game = replay_archive_service.get_replay_game(archive, idx)
+    if game is None:
         return JSONResponse({"error": "game index out of range"}, 404)
-    return JSONResponse(games[idx])
+    return JSONResponse(game)
 
 
 # Serve all frontend static files (icons, manifest, chart.js, assets/)

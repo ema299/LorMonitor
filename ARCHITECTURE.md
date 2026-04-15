@@ -97,10 +97,16 @@ Dati sorgente:
 - **Meta Radar** (box rosso): deck identity banner, KPI strip (WR, Share, Games, Players del meta), Best/Worst matchups in box separati, sezione "Threats to watch"
 - My Stats usa `DATA.player_lookup[formato][nick]` — coerente col formato Core/Infinity selezionato
 
-**Dipendenze residue da analisidef (bridge temporaneo, non runtime):**
+**Dipendenze residue da analisidef (bridge temporaneo):**
 - `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile**
 - `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (12 tipi, analyzer 12K LOC) — **Phase F**
 - `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **futuro Phase G**
+- `kc_spy.py` → `kc_spy_report.json` → `import_kc_spy.py` — **producer legacy, consumer runtime gia' portato in PG**
+
+**Dipendenze runtime gia' rimosse da analisidef (15 Apr 2026):**
+- digest generator (`pipelines/digest/`) — vendorized locale, nessun import runtime da tree esterno
+- replay viewer pubblico — lettura da PostgreSQL (`replay_archives`)
+- dashboard `kc_spy` — lettura da PostgreSQL (`kc_spy_reports`)
 
 **Eliminato:** `import_snapshot.py` e `assemble_snapshot.py` via cron — l'API serve il blob live.
 
@@ -111,6 +117,7 @@ Dati sorgente:
 */2h       import_matches.py          → match JSON → PG (~1s)
 05:30      import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
 Mar 05:30  import_killer_curves.py     → KC da analisidef/output
+post-kcspy  import_kc_spy.py           → KC Spy JSON legacy → PG (operational follow-up da aggiungere)
 Dom 02:00  maintenance.sh              → drop turns >90gg, VACUUM
 03:00      backup.sh                   → pg_dump giornaliero
 Dom 04:45  static_importer.py          → cards DB refresh (duels.ink cache merge, dual ink corretti)
@@ -944,13 +951,16 @@ IMPLEMENTATO:
   backend/api/monitor.py +tech-tornado — GET /tech-tornado via dashboard_bridge
   backend/api/admin.py +logs          — GET /logs from audit_log table
   backend/api/team.py                 — replay upload/list/get, roster, player stats, overview, weaknesses
+  backend/main.py                     — replay list/game pubblici letti da PG (`replay_archives`)
+  backend/services/replay_archive_service.py — reader PG per replay viewer
+  backend/services/kc_spy_service.py  — reader PG per dashboard KC Spy
   frontend/dashboard.html             — auth UI (login/register/logout), profile tab con save nicknames,
                                          country via API, pfRefreshAuthUser() per sync profilo.
                                          Dati via fetch('/api/v1/dashboard-data'), no embedded data.
 
   backend/workers/match_importer.py   — import nuovi match JSON → PostgreSQL, refresh views
   backend/workers/daily_pipeline.py   — orchestratore: import + refresh views
-  backend/workers/llm_worker.py       — import killer curves JSON → PostgreSQL
+  backend/workers/llm_worker.py       — legacy importer non schedulato nel crontab macchina
   backend/workers/backup_worker.py    — pg_dump + GPG encryption + cleanup
 
   schemas/                            — JSON Schema contratti API (monitor, coach, lab, user, killer_curves)
@@ -2584,7 +2594,9 @@ apscheduler>=3.10           # Scheduler workers
 - [x] Symlink `frontend/dashboard.html` → analisidef (dashboard sempre aggiornata con le modifiche in analisidef)
 - [x] Backup automatico DB: cron 03:00, `scripts/backup.sh` (pg_dump + gzip, retention 7gg, dir `/backups/lorcana/`)
 - [x] Import match automatico: cron 06:30, `scripts/import_matches.py` (ON CONFLICT DO NOTHING, solo nuovi)
-- [x] Import killer curves: cron Mar+Gio 03:30, `scripts/import_killer_curves.py` (dopo batch generation analisidef)
+- [x] Import killer curves: cron mar 05:30, `scripts/import_killer_curves.py` (dopo batch generation analisidef)
+- [x] Replay runtime decoupling: `replay_archives` + API replay da PG (sample import validato localmente)
+- [x] KC Spy runtime decoupling: `kc_spy_reports` + assembler da PG (import corrente validato localmente)
 - [x] `robots.txt` — blocca tutti i crawler (Disallow: /)
 - [x] Health check: cron ogni 5 min, `scripts/healthcheck.sh` (auto-restart se API non risponde)
 - [ ] Alerting Telegram — da aggiungere
@@ -2594,16 +2606,19 @@ apscheduler>=3.10           # Scheduler workers
 ```
 */5 * * * *   healthcheck.sh          → auto-restart se down
 0   3 * * *   backup.sh               → pg_dump + gzip + cleanup 7gg
-30  3 * * 2,4 import_killer_curves.py  → importa nuove curve dopo batch
-30  6 * * *   import_matches.py        → importa nuovi match da /matches/
+0 */2 * * *   import_matches.py        → importa nuovi match da /matches/
+30  5 * * 2   import_killer_curves.py  → importa nuove curve dopo batch KC OpenAI
+30  5 * * *   import_matchup_reports.py → importa matchup reports daily_routine → PG
+0   7 * * *   monitor_kc_freshness.py  → canary freshness monitor
+0   1 * * 2   generate_playbooks.py    → playbook nativo App_tool
 ```
 
 **Cron schedule analisidef (invariato):**
 ```
-0   2 * * 2,4 run_all_killer_curves.sh → genera killer curves (Claude API batch)
-0   7 * * *   lorcana_monitor.py report
-1   7 * * *   daily_routine.py         → genera dashboard_data.json
-5   7 * * *   generate_and_send.py
+0   0 * * 2   run_kc_production.sh     → genera killer curves (OpenAI batch)
+0   4 * * *   kc_spy.py --format all   → daily canary KC + validation
+0   5 * * *   lorcana_monitor.py report
+1   5 * * *   daily_routine.py         → genera dashboard_data.json
 ```
 
 ### Piano di transizione verso autonomia (futuro)
