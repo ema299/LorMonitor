@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy import text
 from backend.models import SessionLocal, engine
 from backend.config import MATCHES_DIR
+from backend.services.legality_service import get_checker
 
 # --- Deck color mapping (copied from analisidef/lib/loader.py) ---
 
@@ -96,8 +97,14 @@ def determine_winner(logs: list[dict], p1_deck: str, p2_deck: str) -> str | None
     return None
 
 
-def parse_match_file(filepath: str, perimeter: str) -> dict | None:
-    """Parse a single match JSON file into a database row dict."""
+def parse_match_file(filepath: str, perimeter: str,
+                     illegal_stats: dict | None = None) -> dict | None:
+    """Parse a single match JSON file into a database row dict.
+
+    Applica legality gate per il formato core: se il match contiene carte non
+    legali nel formato, ritorna None e registra counter in illegal_stats.
+    Infinity non e' gated (set rotation piu' permissiva).
+    """
     try:
         with open(filepath) as f:
             data = json.load(f)
@@ -129,6 +136,20 @@ def parse_match_file(filepath: str, perimeter: str) -> dict | None:
 
     queue_name = gi.get('queueShortName', '')
     game_format = determine_game_format(queue_name, perimeter)
+
+    # Legality gate (solo core, solo nuovi import). Match con carte illegali -> skip.
+    if game_format == 'core':
+        checker = get_checker('core')
+        if checker.available:
+            is_legal, violations = checker.check_match(logs)
+            if not is_legal:
+                if illegal_stats is not None:
+                    illegal_stats['count'] += 1
+                    for v in violations:
+                        illegal_stats['cards'][v['card']] = (
+                            illegal_stats['cards'].get(v['card'], 0) + 1
+                        )
+                return None
 
     winner = determine_winner(logs, deck_a, deck_b)
     total_turns = gi.get('currentTurn', 0)
@@ -241,6 +262,7 @@ def import_all(dry_run: bool = False):
     skipped = 0
     already_known = 0
     inserted = 0
+    illegal_stats = {'count': 0, 'cards': {}}
 
     db = None if dry_run else SessionLocal()
 
@@ -268,7 +290,7 @@ def import_all(dry_run: bool = False):
                     already_known += 1
                     continue
 
-            row = parse_match_file(filepath, perimeter)
+            row = parse_match_file(filepath, perimeter, illegal_stats)
             if not row:
                 skipped += 1
                 if file_id:
@@ -312,6 +334,11 @@ def import_all(dry_run: bool = False):
         print(f"  Parsed:   {parsed}")
         print(f"  Skipped:  {skipped} (cached for next run)")
         print(f"  Inserted: {inserted}")
+        if illegal_stats['count']:
+            print(f"  Illegal core matches skipped: {illegal_stats['count']}")
+            top = sorted(illegal_stats['cards'].items(), key=lambda x: -x[1])[:5]
+            for card, n in top:
+                print(f"    {card}: {n}x")
     finally:
         if db:
             db.close()
