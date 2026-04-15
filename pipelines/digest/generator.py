@@ -1,6 +1,6 @@
 """Native PG-first digest generator (Sprint P1 — Liberation Day).
 
-Replaces `analisidef/lib/gen_digest.py` as the data source for the killer-curves
+Replaces the legacy `gen_digest.py` as the data source for the killer-curves
 prompt builder and the blind-playbook pipeline. Where the legacy generator read
 stale `archive_*.json` files off the filesystem, this one starts from rows in
 `matches` (PostgreSQL) and rebuilds the same compact digest structure so
@@ -13,7 +13,7 @@ Pipeline (per (our_deck, opp_deck, game_format) tuple):
      present, only the N-day window applies.
   2. Candidate fetch. Filter `matches` by `(game_format, deck_a/deck_b)` in
      either orientation, restricted to perimeter set `set11/top/pro/friends`.
-  3. Game materialisation. For each row we call analisidef's existing
+  3. Game materialisation. For each row we call the legacy parser's existing
      `loader._parse_turn_events` against the raw log blob stored in
      `matches.turns`, yielding the same per-turn dict that the legacy pipeline
      feeds into `enrich_games`. We then reuse `enrich_games`, `classify_losses`
@@ -23,7 +23,7 @@ Pipeline (per (our_deck, opp_deck, game_format) tuple):
      `current_epoch.legal_sets` are dropped before materialisation.
   5. Loss floor. If fewer than `min_games` losses survive the filters we
      return `None` — caller decides whether to skip the matchup entirely.
-  6. Compacting. Port of `analisidef/lib/gen_digest.py` lines 55-333 (all 15
+  6. Compacting. Port of legacy `gen_digest.py` lines 55-333 (all 15
      fields). Implementation is copied 1:1 except the input is the freshly
      built archive dict rather than a JSON file.
 
@@ -39,8 +39,7 @@ Shadow-only contract for P1:
   * no existing reader is modified;
   * the native output lives in a NEW directory so it can coexist with the
     legacy one for at least two weeks before cutover;
-  * analisidef is still imported as a library (bridge) — this is the same
-    contract as `pipelines/playbook/generator.py`.
+  * the legacy analytics code is vendored locally for bug-for-bug parity.
 """
 from __future__ import annotations
 
@@ -56,19 +55,17 @@ from typing import Iterable
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-# ---------------------------------------------------------------------------
-# Bridge to analisidef — we reuse the existing enrichment pipeline because
-# porting ~1200 LOC of loader+investigate is explicitly out of scope for P1.
-# ---------------------------------------------------------------------------
-_ANALISIDEF_ROOT = Path(
-    "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef"
+# Vendored legacy analytics modules. These remain frozen during P1.5 so the
+# bridge is local-only and parity is validated by the diff harness.
+from pipelines.digest.vendored import loader as _loader  # noqa: E402
+from pipelines.digest.vendored.gen_archive import (  # noqa: E402
+    _build_aggregates,
+    _build_turn,
 )
-if str(_ANALISIDEF_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ANALISIDEF_ROOT))
-
-from lib import loader as _loader  # noqa: E402
-from lib.gen_archive import _build_aggregates  # noqa: E402
-from lib.investigate import classify_losses, enrich_games  # noqa: E402
+from pipelines.digest.vendored.investigate import (  # noqa: E402
+    classify_losses,
+    enrich_games,
+)
 
 # Project-root models/services imports.
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -83,7 +80,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Deck code conversions.
 #
-# App_tool PG uses canonical codes (`AmSa`, `EmSa`), while analisidef's
+# App_tool PG uses canonical codes (`AmSa`, `EmSa`), while the legacy
 # DECK_COLORS table predates that rename and still uses `AS`, `ES`. The two
 # codes describe identical color pairs — we bridge transparently so callers
 # can pass either form.
@@ -286,7 +283,7 @@ def _fetch_matches(
 
 
 # ---------------------------------------------------------------------------
-# COMPACTING LOGIC — ported verbatim from analisidef/lib/gen_digest.py 55-333
+# COMPACTING LOGIC — ported verbatim from legacy gen_digest.py 55-333
 # ---------------------------------------------------------------------------
 
 TOP_CARDS_CAP = 12
@@ -310,7 +307,7 @@ def _build_top_cards(top_cards_raw: dict, bucket_count: int, db: dict) -> dict:
 
 
 def _compact_archive(arch: dict, db: dict) -> dict:
-    """Port of analisidef/lib/gen_digest.py:generate_digest minus disk I/O."""
+    """Port of legacy gen_digest.py:generate_digest minus disk I/O."""
     meta = arch["metadata"]
     agg = arch["aggregates"]
     lp = agg.get("loss_profiles", {})
@@ -582,7 +579,7 @@ def _build_archive(
 ) -> dict:
     """Assemble the legacy archive dict from enriched games + loss classes.
 
-    Mirrors `analisidef/lib/gen_archive.py:generate_archive` but without any
+    Mirrors legacy `gen_archive.py:generate_archive` but without any
     file I/O. Uses the canonical deck codes as both short and long names so
     downstream readers see App_tool-canonical strings.
     """
@@ -604,11 +601,10 @@ def _build_archive(
             "length": g["length"],
             "turns": [],
         }
-        # Build per-turn entries the same way gen_archive._build_turn does;
+        # Build per-turn entries the same way the legacy helper does;
         # we reuse the function for pixel parity.
-        from lib.gen_archive import _build_turn as _ga_build_turn  # noqa: E402
         for t in range(1, min(g["length"] + 1, 13)):
-            entry["turns"].append(_ga_build_turn(g, t))
+            entry["turns"].append(_build_turn(g, t))
         if la:
             entry["analysis"] = {
                 "criticals": la["criticals"],
@@ -674,7 +670,7 @@ def generate_digest(
     the loss floor (caller should skip it in the batch runner).
     """
     # Normalise deck codes: accept both canonical PG ('AmSa', 'EmSa') and
-    # legacy analisidef ('AS', 'ES') forms. PG queries use the canonical
+    # legacy bridge ('AS', 'ES') forms. PG queries use the canonical
     # form (matches import_matches); metadata/output uses the canonical form.
     our_pg = LEGACY_TO_PG.get(our_deck, our_deck)
     opp_pg = LEGACY_TO_PG.get(opp_deck, opp_deck)
@@ -729,7 +725,7 @@ def generate_digest(
         )
         return None
 
-    # --- 4. Run enrichment + aggregation pipeline (reused from analisidef) ---
+    # --- 4. Run enrichment + aggregation pipeline (reused from legacy code) ---
     db_ext, ability_cost_map, _id_map = _loader.load_cards_db_extended()
     enrich_games(games, db_ext, ability_cost_map)
     loss_classes = classify_losses(games, db=db_ext)
