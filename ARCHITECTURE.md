@@ -212,7 +212,6 @@ App_tool/
 │   └── workers/                      # Background jobs
 │       ├── daily_pipeline.py         # Cron 07:00 — aggiorna monitor_data
 │       ├── weekly_pipeline.py        # Cron lunedi — aggiorna coach_data + lab_data
-│       ├── llm_worker.py             # Async — killer curves via Claude API (Batch)
 │       ├── match_importer.py         # Cron 06:00 — importa nuovi match JSON -> PostgreSQL
 │       └── backup_worker.py          # Cron 03:00 — pg_dump + upload offsite
 │
@@ -960,7 +959,6 @@ IMPLEMENTATO:
 
   backend/workers/match_importer.py   — import nuovi match JSON → PostgreSQL, refresh views
   backend/workers/daily_pipeline.py   — orchestratore: import + refresh views
-  backend/workers/llm_worker.py       — legacy importer non schedulato nel crontab macchina
   backend/workers/backup_worker.py    — pg_dump + GPG encryption + cleanup
 
   schemas/                            — JSON Schema contratti API (monitor, coach, lab, user, killer_curves)
@@ -2197,7 +2195,6 @@ non regge sui match lunghi.
 | 07:00 | `daily_pipeline.py` | Genera dati Monitor |
 | 07:01 | `daily_pipeline.py` | Raccoglie killer curves, parsa threats |
 | Lunedi 08:00 | `weekly_pipeline.py` | Genera dati Coach + Lab |
-| On-demand | `llm_worker.py` | Killer curves via Claude API Batch |
 
 ### 16.2 LLM Worker (Claude API)
 
