@@ -47,6 +47,29 @@ def matchup_matrix(
     return stats_service.get_matchup_matrix(db, game_format, perimeter, days)
 
 
+@router.get("/deck-fitness")
+def deck_fitness(
+    game_format: str = Query("core"),
+    perimeter: str | None = Query(None),
+    days: int = Query(7, ge=1, le=30),
+    min_games_per_matchup: int = Query(15, ge=5, le=100),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Deck Fitness Score (0-100): meta-weighted winrate per deck.
+
+    fitness(D) = Σ (wr[D vs X] × share[X]) / Σ share[X]
+    Ranks all decks. 50 = meta break-even.
+    """
+    return stats_service.get_deck_fitness(
+        db,
+        game_format=game_format,
+        perimeter=perimeter,
+        days=days,
+        min_games_per_matchup=min_games_per_matchup,
+    )
+
+
 @router.get("/otp-otd")
 def otp_otd(
     game_format: str = Query("core"),

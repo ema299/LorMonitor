@@ -354,6 +354,9 @@ def _build_single_perimeter(db: Session, db_perims: list[str], db_fmt: str,
     # ELO distribution
     elo_dist = _build_elo_dist(db, base_where, params)
 
+    # Deck Fitness Score: meta-weighted WR, normalized 0-100
+    fitness = _compute_fitness(matrix, meta_share, min_games=15)
+
     return {
         "label": label,
         "wr": wr,
@@ -364,7 +367,61 @@ def _build_single_perimeter(db: Session, db_perims: list[str], db_fmt: str,
         "top_players": top_players,
         "elo_dist": elo_dist,
         "tech_choices": [],
+        "fitness": fitness,
     }
+
+
+def _compute_fitness(matrix: dict, meta_share: dict, min_games: int = 15) -> list:
+    """Deck Fitness Score: meta-weighted WR, 0-100 scale (50 = break-even).
+
+    fitness(D) = Σ (wr[D vs X] × share[X]) / Σ share[X]
+    Only opponents X with >= min_games games are counted.
+    Returns list sorted by fitness desc, with rank and coverage.
+    """
+    results = []
+    for deck, opp_map in matrix.items():
+        deck_share_data = meta_share.get(deck)
+        if not deck_share_data:
+            continue
+
+        weighted_wr = 0.0
+        total_weight = 0.0
+        covered = 0
+
+        for opp, cell in opp_map.items():
+            t = cell.get("t", 0)
+            if opp == deck or t < min_games:
+                continue
+            opp_share_data = meta_share.get(opp)
+            if not opp_share_data:
+                continue
+            opp_share = opp_share_data.get("share", 0)
+            if opp_share <= 0:
+                continue
+            wr = (cell.get("w", 0) / t) * 100 if t > 0 else 0
+            weighted_wr += wr * opp_share
+            total_weight += opp_share
+            covered += 1
+
+        fitness = round(weighted_wr / total_weight, 1) if total_weight > 0 else None
+
+        results.append({
+            "deck": deck,
+            "fitness": fitness,
+            "games": deck_share_data.get("games", 0),
+            "meta_share": deck_share_data.get("share", 0),
+            "covered_matchups": covered,
+            "coverage_pct": round(total_weight, 1),
+        })
+
+    results.sort(
+        key=lambda r: (r["fitness"] if r["fitness"] is not None else -1),
+        reverse=True,
+    )
+    for i, r in enumerate(results):
+        r["rank"] = i + 1 if r["fitness"] is not None else None
+
+    return results
 
 
 def _build_elo_dist(db: Session, base_where: str, params: dict) -> dict:

@@ -135,6 +135,74 @@ def get_otp_otd(db: Session, game_format: str = "core", perimeter: str | None = 
     return result
 
 
+def get_deck_fitness(
+    db: Session,
+    game_format: str = "core",
+    perimeter: str | None = None,
+    days: int = 7,
+    min_games_per_matchup: int = 15,
+):
+    """Deck Fitness Score: meta-weighted winrate, normalized 0-100.
+
+    For each deck D:
+        fitness(D) = Σ (wr[D vs X] × share[X]) / Σ share[X]
+        where X are opponents with at least `min_games_per_matchup` games.
+
+    Since wr is already 0-100, fitness is naturally on a 0-100 scale.
+    50 = meta break-even. Deck with no qualifying matchups has fitness=None.
+    """
+    meta = get_meta_share(db, game_format=game_format, days=days)
+    matrix = get_matchup_matrix(db, game_format=game_format, perimeter=perimeter, days=days)
+
+    share_by_deck = {row["deck"]: row["meta_share"] for row in meta}
+    games_by_deck = {row["deck"]: row["games"] for row in meta}
+    wr_by_deck = {row["deck"]: row["wr"] for row in meta}
+
+    results = []
+    for deck, share in share_by_deck.items():
+        opp_map = matrix.get(deck, {})
+        weighted_wr = 0.0
+        total_weight = 0.0
+        covered_matchups = 0
+
+        for opp, cell in opp_map.items():
+            if opp == deck:
+                continue
+            if cell["games"] < min_games_per_matchup:
+                continue
+            opp_share = share_by_deck.get(opp, 0)
+            if opp_share <= 0:
+                continue
+            weighted_wr += cell["wr"] * opp_share
+            total_weight += opp_share
+            covered_matchups += 1
+
+        if total_weight > 0:
+            fitness = round(weighted_wr / total_weight, 1)
+        else:
+            fitness = None
+
+        results.append({
+            "deck": deck,
+            "fitness": fitness,
+            "wr_avg": wr_by_deck.get(deck, 0),
+            "meta_share": share,
+            "games_total": games_by_deck.get(deck, 0),
+            "covered_matchups": covered_matchups,
+            "coverage_pct": round(total_weight, 1),
+        })
+
+    # rank: None fitness at the end
+    results.sort(
+        key=lambda r: (r["fitness"] if r["fitness"] is not None else -1),
+        reverse=True,
+    )
+    for i, r in enumerate(results):
+        r["rank"] = i + 1 if r["fitness"] is not None else None
+
+    return results
+
+
 def get_trend(db: Session, game_format: str = "core", days: int = 5):
     """Daily win rate trend per deck over last N days."""
     rows = db.execute(text("""

@@ -34,3 +34,7 @@ output/
 
 # Claude
 .claude/
+
+# Local backups and runtime cache
+*.bak
+scripts/.import_skip_cache

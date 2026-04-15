@@ -211,9 +211,39 @@ async function tcApplySnap(idx, skipAnim) {
 
   // ── Animations on OLD DOM (targets still exist) ──
 
-  // Spell overlay for actions/songs (old DOM has targets for arrows)
-  if (!skipAnim && prev) {
-    await tcShowSpellOverlay(snap, prev);
+  // Card-hero overlay: dramatic close-up for the card that drives the frame.
+  // Triggered for:
+  //   - PLAY_CARD character / item (not song) → 'play' or 'shift'
+  //   - ACTIVATE_ABILITY                       → 'ability' (with ability name)
+  //   - RESPOND_TO_PROMPT with ability_card    → 'ability' (subtle, shorter)
+  // Song / action plays keep the existing tcShowSpellOverlay path (which also
+  // draws arrows to damaged/removed targets).
+  if (!skipAnim && prev && !tcAbort) {
+    const at = snap.action_type;
+    if (at === 'PLAY_CARD') {
+      if (snap.is_song) {
+        await tcShowSpellOverlay(snap, prev);
+      } else if (snap.played_card) {
+        const kind = snap.is_shift ? 'shift' : (snap.is_item ? 'item' : 'play');
+        await tcShowCardHero(snap.played_card, kind, {
+          subtitle: snap.is_shift ? `Shift onto ${snap.shift_base || '?'}` : null,
+          hold: 650,
+        });
+      } else {
+        // Unknown — fall back to legacy spell overlay (hand-diff based)
+        await tcShowSpellOverlay(snap, prev);
+      }
+    } else if (at === 'ACTIVATE_ABILITY' && snap.ability_card) {
+      await tcShowCardHero(snap.ability_card, 'ability', {
+        subtitle: snap.ability_name || 'Ability',
+        hold: 1400,
+      });
+    } else if (at === 'RESPOND_TO_PROMPT' && snap.ability_card) {
+      await tcShowCardHero(snap.ability_card, 'ability', {
+        subtitle: snap.ability_name || null,
+        hold: 700,
+      });
+    }
   }
 
   // Combat arrows — ONLY for ATTACK actions (old DOM has attacker + defender)
@@ -555,7 +585,48 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
   el.innerHTML = newHtml;
 }
 
-// ═══ SPELL OVERLAY ═══
+// ═══ CARD HERO OVERLAY ═══
+// Generic dramatic close-up of a single card. Scales with tcSpeed so the
+// show-case doesn't drag on fast-forward. Kinds map to different glow colors
+// in CSS: 'play' (gold), 'item' (amber), 'shift' (cyan), 'ability' (violet).
+async function tcShowCardHero(cardName, kind, opts) {
+  if (!cardName || tcAbort) return null;
+  const db = (rvCardsDB || {})[cardName] || {};
+  const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+  if (!img) return null;
+
+  const boardWrap = document.getElementById('tc-board-wrap');
+  if (!boardWrap) return null;
+
+  const hold = Math.max(250, (opts?.hold ?? 700) / Math.max(tcSpeed, 0.5));
+  const subtitle = opts?.subtitle || '';
+  const cost = db.cost != null ? db.cost : '';
+
+  const overlay = document.createElement('div');
+  overlay.className = `tc-spell-overlay tc-hero-${kind}`;
+  overlay.innerHTML = `
+    <div class="tc-hero-card tc-hero-${kind}-card">
+      ${cost !== '' ? `<div class="tc-hero-cost">${cost}</div>` : ''}
+      <img src="${img}" alt="${cardName}">
+      <div class="tc-hero-name">${cardName}</div>
+      ${subtitle ? `<div class="tc-hero-sub">${subtitle}</div>` : ''}
+    </div>`;
+  boardWrap.style.position = 'relative';
+  boardWrap.appendChild(overlay);
+
+  // Pop-in (300ms) + hold + fade (300ms). tcAbort can interrupt any of them.
+  const steps = [{t: 300}, {t: hold}];
+  for (const s of steps) {
+    if (tcAbort) break;
+    await new Promise(r => setTimeout(r, s.t));
+  }
+  overlay.style.opacity = '0';
+  await new Promise(r => setTimeout(r, 240));
+  overlay.remove();
+  return overlay;
+}
+
+// ═══ SPELL OVERLAY (song/action, with arrows to damaged targets) ═══
 async function tcShowSpellOverlay(snap, prev) {
   if (!prev || snap.action_type !== 'PLAY_CARD' || tcAbort) return;
   // Find card that left hand but didn't appear on board (= spell)
@@ -1338,13 +1409,30 @@ function wbAddFromDeck(deckIdx) {
     @keyframes tcDrawIn{0%{opacity:0;transform:translateY(-24px) scale(.7);filter:brightness(1.4)}60%{opacity:1;transform:translateY(2px) scale(1.05)}100%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1)}}
     @keyframes tcHandLeave{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-40px) scale(.55);filter:brightness(1.2)}}
 
-    .tc-spell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50;animation:tcFadeIn .25s ease;transition:opacity .3s ease;border-radius:8px}
+    .tc-spell-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:50;animation:tcFadeIn .25s ease;transition:opacity .3s ease;border-radius:8px;backdrop-filter:blur(2px)}
     .tc-spell-card{text-align:center;animation:tcSpellPop .3s cubic-bezier(.34,1.56,.64,1) both}
     .tc-spell-card img{width:140px;border-radius:10px;box-shadow:0 0 30px rgba(168,85,247,.6);border:2px solid rgba(168,85,247,.7)}
     .tc-spell-song img{box-shadow:0 0 30px rgba(59,130,246,.6);border-color:rgba(59,130,246,.7)}
     .tc-spell-name{margin-top:8px;font-size:.75em;font-weight:600;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.8)}
     @keyframes tcSpellPop{0%{opacity:0;transform:scale(.5) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
     @keyframes tcFadeIn{from{opacity:0}to{opacity:1}}
+
+    /* Card hero overlay (used for PLAY_CARD character/item, ACTIVATE_ABILITY, SHIFT) */
+    .tc-hero-card{position:relative;text-align:center;animation:tcHeroPop .35s cubic-bezier(.34,1.56,.64,1) both}
+    .tc-hero-card img{width:200px;border-radius:14px;border:3px solid rgba(255,255,255,.25);display:block;margin:0 auto}
+    .tc-hero-name{margin-top:10px;font-size:.95em;font-weight:700;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.9);letter-spacing:.3px}
+    .tc-hero-sub{margin-top:4px;font-size:.72em;font-weight:600;color:rgba(255,255,255,.85);padding:3px 10px;display:inline-block;border-radius:10px;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);letter-spacing:.4px;text-transform:uppercase}
+    .tc-hero-cost{position:absolute;top:-12px;left:-12px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #5b9bd5, #1e3a5f);color:#fff;font-weight:800;font-size:1.1em;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.6);border:2px solid rgba(255,255,255,.4);z-index:2}
+    /* Color variants */
+    .tc-hero-play-card img{box-shadow:0 0 36px rgba(212,160,58,.65),0 8px 30px rgba(0,0,0,.5);border-color:rgba(212,160,58,.85)}
+    .tc-hero-item-card img{box-shadow:0 0 36px rgba(245,158,11,.65),0 8px 30px rgba(0,0,0,.5);border-color:rgba(245,158,11,.85)}
+    .tc-hero-shift-card img{box-shadow:0 0 36px rgba(34,211,238,.65),0 8px 30px rgba(0,0,0,.5);border-color:rgba(34,211,238,.85);animation:tcHeroShift 1s ease infinite alternate}
+    .tc-hero-ability-card img{box-shadow:0 0 44px rgba(168,85,247,.8),0 8px 30px rgba(0,0,0,.5);border-color:rgba(168,85,247,.95);animation:tcHeroAbilityPulse 1.4s ease-in-out infinite}
+    .tc-hero-ability .tc-hero-sub{background:linear-gradient(90deg, rgba(168,85,247,.85), rgba(139,92,246,.85));border:1px solid rgba(168,85,247,.7);box-shadow:0 0 18px rgba(168,85,247,.5);animation:tcHeroUnderline 1.2s ease-in-out infinite}
+    @keyframes tcHeroPop{0%{opacity:0;transform:scale(.55) translateY(26px) rotateY(-18deg)}60%{opacity:1;transform:scale(1.04) translateY(-4px) rotateY(0)}100%{opacity:1;transform:scale(1) translateY(0) rotateY(0)}}
+    @keyframes tcHeroAbilityPulse{0%,100%{box-shadow:0 0 30px rgba(168,85,247,.55),0 8px 30px rgba(0,0,0,.5)}50%{box-shadow:0 0 56px rgba(168,85,247,1),0 0 90px rgba(168,85,247,.35),0 8px 30px rgba(0,0,0,.5)}}
+    @keyframes tcHeroShift{0%{box-shadow:0 0 28px rgba(34,211,238,.5),0 8px 30px rgba(0,0,0,.5)}100%{box-shadow:0 0 48px rgba(34,211,238,.95),0 0 80px rgba(34,211,238,.35),0 8px 30px rgba(0,0,0,.5)}}
+    @keyframes tcHeroUnderline{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
 
     @media(max-width:767px){
       .tc-hc{width:42px;height:60px}

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
-from backend.services import deck_service, matchup_service
+from backend.services import deck_service, matchup_service, lab_iwd_service
 
 router = APIRouter()
 
@@ -48,6 +48,24 @@ def optimizer(
     if not result:
         raise HTTPException(404, f"No optimizer data for {our_deck} vs {opp_deck}")
     return result
+
+
+@router.get("/iwd/{our_deck}/{opp_deck}")
+def iwd(
+    our_deck: str,
+    opp_deck: str,
+    game_format: str = Query("core"),
+    days: int = Query(14, ge=3, le=60),
+    db: Session = Depends(get_db),
+):
+    """Improvement When Drawn: for each top card in our_deck, how WR changes
+    when the card is seen in hand by T3 vs when it isn't.
+
+    Returns all cards passing min_drawn/min_not_drawn thresholds, sorted by
+    |delta_wr| desc. If total_matches < MIN_TOTAL_MATCHES, returns low_sample=True
+    and cards=[].
+    """
+    return lab_iwd_service.get_iwd(db, our_deck, opp_deck, game_format, days)
 
 
 @router.get("/mulligans/{our_deck}/{opp_deck}")

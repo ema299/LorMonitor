@@ -56,6 +56,32 @@ Dati sorgente:
 - [x] Fase D: Tech tornado da PG (già completata)
 - [x] Fase E: Dashboard blob assemblato live da PG (snapshot_assembler.py, 21 sezioni, ~8 MB, cache 2h stale-while-revalidate)
 
+**UI uniformity pass (14 Apr 2026):**
+- **Pattern `monAccordion` esteso** a tutto Lab (Mulligan Trainer, Card Impact Correlation, Card Impact IWD, Optimized Deck title) e Coach V2 (Opponent Playbook, How to Respond, Killer Curves, Key Threats, Opponent\'s Killer Cards, Trend by Turn)
+- **Uniformità header**: titolo gold 1.1em weight 600, bottone "?" subito dopo (apre bottom-sheet su mobile, modal su desktop), chevron a destra, click header o chevron apre/chiude
+- **Open-by-default desktop solo per KPI principali**: Deck Analysis (Monitor), Mulligan Trainer (Lab), Key Threats (Coach V2). Tutto il resto chiuso di default.
+- **Rimossi**: tutti i `section-title` custom nel Coach V2 + Lab con chevron inline sinistro e onclick toggle non uniforme.
+- **Chart.js dentro accordion chiusi**: risolto via `onOpen: monAccOnExpandResize` che dispatcha `window.resize` post-animazione (340ms). Applicato a: `acc-deck` (Monitor Deck Analysis), `acc-trend` (Coach Trend by Turn).
+
+**Card Impact (IWD) — Lab tab (14 Apr 2026):**
+- **IWD = Improvement When Drawn** (stile 17Lands, adattato a Lorcana). Per ogni carta del nostro deck, misura come cambia la nostra WR quando la carta è vista in mano entro T3.
+- **Definizione "drawn by T3"**: carta appare in `INITIAL_HAND`, `CARD_DRAWN`, `CARD_PLAYED` o `CARD_INKED` per `player=1` con `turnNumber <= 3`. Inferenza da CARD_PLAYED/CARD_INKED necessaria perché TURN_DRAW (draw automatico) ha `cardRefs` vuoto nei log pubblici duels.ink.
+- **Pool candidati**: top 30 carte più viste nei match del matchup (data-driven, no dipendenza da consensus list). Soglia min 20 drawn + 20 not-drawn games per carta.
+- **Soglia matchup**: `MIN_TOTAL_MATCHES=80` sotto cui tutto il matchup è low-sample (output `cards=[]`).
+- **Backend**: `backend/services/lab_iwd_service.get_iwd(db, our, opp, format, days)` + endpoint pubblico `GET /api/v1/lab/iwd/{our}/{opp}`. Query JSONB ~1.3-2s per matchup con 1000+ games. Non cachato server-side (fetch on-demand), ma frontend cachea per session.
+- **Frontend**: nuovo accordion `Card Impact (IWD)` nel Lab, lazy load via `onOpen` callback, sort `|Δ|/+Δ/−Δ/N` + "Show top 5 / Show all". Info "?" spiega differenza con Card Impact correlation esistente (causal vs correlation).
+- **File toccati**: `backend/services/lab_iwd_service.py` (nuovo, 158 LOC), `backend/api/lab.py` (+1 endpoint), `frontend/dashboard.html` (+150 LOC CSS, +130 LOC JS, additive). Endpoint pubblico (no `require_tier`) coerente con dashboard-data.
+- **Zero regressione**: Card Impact esistente (correlation) invariato, nuova sezione additiva.
+
+**Monitor tab redesign (14 Apr 2026):**
+- **Deck Fitness Score**: nuova strip sempre visibile in cima al tab. Card 132×100 per deck, scroll orizzontale, score 0-100 meta-weighted (`Σ (WR vs X · meta_share[X]) / Σ meta_share[X]`, 50 = break-even, min 15 games per matchup). Deck #1 bordo gold + glow. Desktop: wheel→horizontal scroll + frecce navigazione; mobile: touch swipe
+- **Matchup Matrix** (nuovo): accordion chiuso di default ovunque. Desktop = heatmap NxN con sticky row headers + colori rosso/giallo/verde. Mobile = lista filtrata per deck selezionato. Click cella → `switchToTab('coach_v2', {deck, opp})` con sync ink picker nostro+avversario + `localStorage.lorcana_deck_code`
+- **Uniformità accordion**: tutte le sezioni Monitor (Matchup Matrix, Deck Analysis, Best Format Players, Non-Standard Picks) usano pattern `monAccordion()` con titolo gold, bottone "?" subito dopo (bottom-sheet su mobile, modal su desktop), chevron a destra. `desktopOpen: true` solo per Deck Analysis (contiene charts Chart.js)
+- **Rimossa Meta Overview** (tabella piatta): ridondante rispetto alla Fitness strip
+- **Backend**: `snapshot_assembler._compute_fitness()` aggiunge campo `fitness` a ogni perimetro del blob `dashboard-data` (~150 bytes extra per perimetro, cache 2h invariata). Nuovo endpoint dedicato `GET /api/v1/monitor/deck-fitness` per debug/batch
+- **File toccati**: `backend/services/snapshot_assembler.py` (+50 LOC), `backend/services/stats_service.py` (+50 LOC), `backend/api/monitor.py` (+1 endpoint), `frontend/dashboard.html` (~450 LOC tra CSS e JS, additive)
+- **Zero regressione**: tutti i cambi additivi, `monAccordion` retrocompatibile (default `desktopOpen: true` invariato), endpoint esistenti intatti
+
 **Parametri chiave (aggiornati 10 Apr 2026):**
 - **DAYS = 3** — finestra analisi Monitor/Profile/Tech (era 2)
 - **TOP_N = 100, PRO_N = 50** — leaderboard thresholds (era 70/30)
@@ -819,6 +845,7 @@ Quando App_tool sara' completamente indipendente da analisidef:
 │   ├── GET /meta?game_format=core&days=2                                  ✅
 │   ├── GET /deck/{code}?game_format=core&days=7                           ✅
 │   ├── GET /matchup-matrix?game_format=core&days=7                        ✅
+│   ├── GET /deck-fitness?game_format=core&days=7&min_games=15             ✅ (14/04)
 │   ├── GET /winrates?game_format=core&days=2                              ✅
 │   ├── GET /otp-otd?game_format=core&days=7                               ✅
 │   ├── GET /trend?game_format=core&days=5                                 ✅
@@ -833,8 +860,9 @@ Quando App_tool sara' completamente indipendente da analisidef:
 │   ├── GET /history/{our}/{opp}?format=core&days=30                       ✅
 │   └── GET /playbook/{our}/{opp}?format=core                              ✅
 │
-├── lab/                             # ✅ IMPLEMENTATO — [auth: tier pro+]
+├── lab/                             # ✅ IMPLEMENTATO — [auth: tier pro+, tranne iwd public]
 │   ├── GET /card-scores/{our}/{opp}?format=core&days=7                    ✅
+│   ├── GET /iwd/{our}/{opp}?format=core&days=14                           ✅ (14/04, public)
 │   ├── GET /history?perimeter=full&days=30                                ✅
 │   ├── GET /optimizer/{our}/{opp}?format=core                             ✅
 │   └── GET /mulligans/{our}/{opp}?format=core                             ✅
@@ -2111,6 +2139,40 @@ npx cap sync ios
 - 1 codebase per web + iOS + Android
 - Plugin nativi (push, biometrics) senza riscrivere
 
+### 15.3 Replay Viewers — Due viewer distinti
+
+Il frontend ha **due** viewer replay, con fonti dati e livelli di dettaglio diversi.
+Facile confonderli: vivono entrambi nell'area "coach/lab".
+
+| Aspetto            | `rv*` (Lab-tab inline)                              | `tc*` (Team Coaching)                              |
+|--------------------|-----------------------------------------------------|----------------------------------------------------|
+| File               | `frontend/dashboard.html` (~L6159+)                 | `frontend/assets/js/team_coaching.js`              |
+| Data source        | `td.event_log` dai match scrapati (duels.ink)       | Upload `.gz` → `backend/services/replay_service.py`|
+| Parser             | `rvBuildSteps` in JS (port di `build_game_steps.py`)| Patch `.gz` estratti con `singer`/`target`/`damage`|
+| Hand cards         | count only (o 'partial'/'full' se `.gz` abbinato)   | piena: `snap.hand` da patch                        |
+| Carte DB           | `rvCardsDB` condiviso via `/api/replay/cards_db`    | stesso DB (reuso `rvCardImg`, `rvCardsDB`)         |
+| Match coperti      | tutti i ~21K match importati                        | solo quelli caricati dal team via `.gz`            |
+| Coverage eventi    | play/ink/quest/challenge/damage/destroyed/bounce    | + spell overlay, combat arrows, damage transfer   |
+| Animation model    | diff-based highlight (pop-in + stagger, no DOM persist) | DOM-persistent, death anim, hand-out→swap→draw-in |
+
+**Perche' due viewer.** L'`rv*` lavora su qualunque match dei 21K (no `.gz` disponibile),
+quindi resta inevitabilmente limitato alla granularita' del log parsato.
+Il `tc*` sfrutta le patch complete del file `.gz` uploadato: puo' mostrare spell overlay,
+damage transfer, hand piena turn-by-turn. Convergerli significherebbe imporre
+l'upload `.gz` su tutti i 21K match → non fattibile per storage.
+
+**Animazioni (stato 13 Apr 2026).**
+- `tc*`: pipeline sequenziata (`tcApplySnap`) — commit `41428bf` label da patch, `b98dbbb`
+  sequenziamento hand-out → board swap → draw-in stagger.
+- `rv*`: refactor "Option A light" — diff-based `rv-mc-new` (pop-in), `rv-hc-new` stagger
+  su hand card, counter flash su cambio, pause variabile in `rvTick`
+  (ink/draw quieti 0.55x, play/challenge pieni). Niente DOM persist: rerender innerHTML
+  con classi di animazione selettive.
+
+Per un eventuale "Option B" (parita' piena con `tc*`) serve: diff DOM persistente,
+death animation, spell overlay — ~250+ righe JS, da valutare solo se il feel Option A
+non regge sui match lunghi.
+
 ---
 
 ## 16. Pipeline e Workers
@@ -3140,4 +3202,45 @@ Settimana 5: M5 (Cutover)
   Mar: cutover day (spegni cron analisidef)
   Mer-Ven: monitoraggio, fix, merge dev → main
   Ven: tag v1.0.0, merge main
+```
+
+---
+
+## 12. TODO — Feature Frontend non ancora alimentate (14 Apr 2026)
+
+Queste sezioni sono **già implementate nel frontend** (`dashboard.html`), rispettano il pattern `monAccordion` uniforme e compaiono automaticamente **solo quando i dati arrivano**. Finché il backend non popola il campo, l'accordion è silenziosamente nascosto via guardia `if (data.length > 0)` — zero rumore visivo, zero rischio architetturale.
+
+### 12.1 Coach V2 — Sezioni in attesa di Fase B LLM
+
+| Sezione | Campo blob | Status | Sblocco |
+|---------|-----------|--------|---------|
+| **Key Threats** (`acc-kt`) | `matchup_analyzer.<deck>.vs_<opp>.threats_llm.threats[]` | Campo esiste, array vuoto per tutti i matchup | Fase B LLM batch (feature #2 benchmark) |
+| **How to Respond — OTP vs OTD** (`acc-howrespond`) | `matchup_analyzer.<deck>.vs_<opp>.killer_responses[]` | Campo non presente nel blob | Fase B LLM (pass 3 "Risposte dettagliate proattivo/reattivo/punitivo") + importer update |
+
+**Attivazione stimata**: pipeline `run_all_reviews.sh` batch settimanale via OpenAI (~$3-5/mese). Prompt B esteso per emettere blocchi `<!-- THREATS_LLM -->` e `<!-- KILLER_RESPONSES -->` strutturati. Parser in `import_matchup_reports.py` per popolare i campi blob. Stima 4-5 dev days.
+
+### 12.2 Profile tab
+
+| Sezione | Campo blob | Status | Sblocco |
+|---------|-----------|--------|---------|
+| **Best Plays** | `best_plays`, `best_plays_infinity` | dict vuoto top-level | Query Python: estrae le 3 sequenze più devastanti per deck dalle killer curves avversarie esistenti, ranking per complessità. ~1 dev day backend + 0.5 dev day frontend |
+
+### 12.3 Monitor tab
+
+| Sezione | Campo blob | Status | Sblocco |
+|---------|-----------|--------|---------|
+| **Non-Standard Picks** per perimetro | `perimeters.<peri>.tech_choices[]` | Array vuoto | Consumato comunque da `tech_tornado` top-level (dict(6)) che alimenta la sezione. `tech_choices` è duplicato non usato — candidato rimozione lato backend. |
+
+### 12.4 Top-level
+
+| Campo | Status | Azione |
+|-------|--------|--------|
+| `analysis` | `str(0)` vuoto | Probabilmente deprecated. Verificare se qualche tab lo legge, altrimenti rimuovere. |
+
+### 12.5 Principio UX garantito
+
+Ogni nuova feature aggiunta al frontend deve rispettare la regola **"fail closed"**:
+- Se il campo blob manca o è vuoto → accordion **non appare** (niente placeholder "coming soon")
+- Se il campo blob ha dati → accordion appare con stato default (aperto/chiuso) documentato
+- Nessuna regressione quando una feature pipeline si attiva successivamente: l'accordion si popola automaticamente al prossimo rebuild del blob (cache 2h)
 ```

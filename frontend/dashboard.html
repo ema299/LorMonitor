@@ -324,6 +324,423 @@
     border-top-color: var(--border);
   }
 
+  /* ── Deck Fitness Strip (Monitor tab) ── */
+  .fit-section { margin-bottom: 16px; }
+  .fit-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .fit-title {
+    color: var(--gold);
+    font-size: 1.1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fit-info-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 0.75em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .fit-info-btn:hover, .fit-info-btn:focus-visible { border-color: var(--gold); color: var(--gold); outline: none; }
+  .fit-subtitle { font-size: 0.75em; color: var(--text2); }
+  .fit-strip-wrap { position: relative; }
+  .fit-strip {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 4px 4px 12px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scroll-behavior: smooth;
+  }
+  /* Mobile: hide scrollbar for cleaner look (touch scroll) */
+  @media (max-width: 768px) {
+    .fit-strip { scrollbar-width: none; }
+    .fit-strip::-webkit-scrollbar { display: none; }
+  }
+  /* Desktop: thin subtle scrollbar so users know they can scroll */
+  @media (min-width: 769px) {
+    .fit-strip { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .fit-strip::-webkit-scrollbar { height: 6px; }
+    .fit-strip::-webkit-scrollbar-track { background: transparent; }
+    .fit-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .fit-strip::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+  }
+  .fit-strip-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 14px; right: 0;
+    width: 32px;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, var(--bg));
+    opacity: 0.7;
+  }
+  /* Desktop: navigation arrows */
+  .fit-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.15s, border-color 0.15s, opacity 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .fit-arrow:hover { background: var(--bg3); border-color: var(--gold); color: var(--gold); }
+  .fit-arrow:disabled { opacity: 0.3; cursor: default; }
+  .fit-arrow.prev { left: -4px; }
+  .fit-arrow.next { right: -4px; }
+  @media (min-width: 769px) {
+    .fit-arrow { display: inline-flex; }
+  }
+  .fit-card {
+    flex-shrink: 0;
+    width: 132px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    user-select: none;
+    scroll-snap-align: start;
+    text-align: left;
+  }
+  .fit-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+  .fit-card:active { transform: translateY(0) scale(0.97); }
+  .fit-card:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .fit-card.rank1 {
+    border-color: var(--gold);
+    box-shadow: 0 0 14px rgba(212,160,58,0.18);
+  }
+  .fit-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .fit-card-deck {
+    display: flex; align-items: center; gap: 4px;
+    min-width: 0;
+  }
+  .fit-card-name {
+    font-size: 0.78em;
+    color: var(--text2);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fit-rank {
+    font-size: 0.72em;
+    color: var(--text2);
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+  .fit-rank.top { color: var(--gold); }
+  .fit-score {
+    font-size: 2em;
+    font-weight: 800;
+    line-height: 1;
+    margin: 4px 0 8px;
+  }
+  .fit-score.tier-high { color: #3FB950; }
+  .fit-score.tier-mid  { color: #D29922; }
+  .fit-score.tier-low  { color: #F85149; }
+  .fit-score.tier-none { color: var(--text2); font-size: 1.2em; padding: 10px 0 7px; }
+  .fit-bar-bg {
+    height: 5px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .fit-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease-out;
+  }
+  .fit-bar-fill.tier-high { background: linear-gradient(90deg, #3FB950, #56D66D); }
+  .fit-bar-fill.tier-mid  { background: linear-gradient(90deg, #D29922, #E6B13E); }
+  .fit-bar-fill.tier-low  { background: linear-gradient(90deg, #F85149, #FF7068); }
+  .fit-meta { font-size: 0.68em; color: var(--text2); line-height: 1.3; }
+
+  /* ── Card Impact IWD (Lab tab) ── */
+  .iwd-wrap { margin-top: 4px; }
+  .iwd-header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; margin-bottom: 10px;
+    background: var(--bg3); border-radius: 8px; font-size: 0.78em;
+  }
+  .iwd-kpi { color: var(--text); }
+  .iwd-kpi strong { color: var(--gold); font-weight: 700; }
+  .iwd-sort { margin-left: auto; display: inline-flex; gap: 0; }
+  .iwd-sort-btn {
+    background: transparent; border: 1px solid var(--border); color: var(--text2);
+    padding: 3px 10px; font-size: 0.95em; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+  }
+  .iwd-sort-btn:first-child { border-radius: 6px 0 0 6px; }
+  .iwd-sort-btn:last-child { border-radius: 0 6px 6px 0; border-left-width: 0; }
+  .iwd-sort-btn.active { background: var(--bg2); color: var(--gold); border-color: var(--gold); }
+  .iwd-sort-btn:hover { color: var(--gold); }
+
+  .iwd-loading, .iwd-empty {
+    padding: 24px 16px; text-align: center; color: var(--text2); font-size: 0.88em;
+    background: var(--bg2); border: 1px dashed var(--border); border-radius: 10px;
+  }
+  .iwd-empty .iwd-empty-icon { font-size: 1.6em; display: block; margin-bottom: 6px; opacity: 0.6; }
+
+  .iwd-list { display: flex; flex-direction: column; gap: 6px; }
+  .iwd-row {
+    display: grid;
+    grid-template-columns: 1fr 72px 32px;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: border-color 0.15s;
+  }
+  .iwd-row:hover { border-color: rgba(212,160,58,0.3); }
+  .iwd-row.low-conf { opacity: 0.6; }
+  .iwd-row-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .iwd-name {
+    font-size: 0.9em; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .iwd-bars { display: flex; align-items: center; gap: 8px; font-size: 0.74em; }
+  .iwd-bar-label { color: var(--text2); min-width: 56px; }
+  .iwd-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .iwd-bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease-out; }
+  .iwd-bar-fill.drawn { background: #2471A3; }
+  .iwd-bar-fill.not-drawn { background: #6C7A89; opacity: 0.7; }
+  .iwd-bar-val { min-width: 42px; text-align: right; font-family: monospace; color: var(--text); font-size: 0.95em; }
+  .iwd-bar-games { min-width: 48px; text-align: right; color: var(--text2); font-size: 0.9em; font-family: monospace; }
+
+  .iwd-delta {
+    font-size: 1.25em; font-weight: 800; text-align: right; line-height: 1;
+    font-family: monospace;
+  }
+  .iwd-delta.pos { color: #3FB950; }
+  .iwd-delta.neg { color: #F85149; }
+  .iwd-delta.neutral { color: var(--text2); }
+
+  .iwd-conf { display: flex; gap: 3px; align-items: center; justify-content: center; }
+  .iwd-conf-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .iwd-conf-dot.filled { background: var(--gold); }
+  .iwd-conf-dot.empty { background: var(--bg3); border: 1px solid var(--border); }
+
+  .iwd-showmore {
+    display: block; width: 100%;
+    margin-top: 8px; padding: 8px; background: transparent;
+    border: 1px dashed var(--border); color: var(--text2);
+    border-radius: 8px; cursor: pointer; font-size: 0.85em;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .iwd-showmore:hover { color: var(--gold); border-color: var(--gold); }
+
+  @media (max-width: 560px) {
+    .iwd-row { grid-template-columns: 1fr 54px 28px; padding: 8px 10px; gap: 8px; }
+    .iwd-bar-label { display: none; }
+    .iwd-delta { font-size: 1.05em; }
+    .iwd-sort { width: 100%; margin-left: 0; }
+    .iwd-sort-btn { flex: 1; }
+  }
+
+  /* ── Matchup Matrix (NxN heatmap + mobile list) ── */
+  .mm-wrap { margin-top: 8px; }
+  .mm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .mm-toolbar label {
+    font-size: 0.8em;
+    color: var(--text2);
+  }
+  .mm-deck-select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 0.88em;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 32px;
+  }
+  .mm-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    font-size: 0.72em;
+    color: var(--text2);
+  }
+  .mm-legend-swatch {
+    display: inline-block;
+    width: 22px; height: 8px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  /* Desktop heatmap */
+  .mm-heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+  .mm-table { border-collapse: separate; border-spacing: 3px; font-size: 0.78em; }
+  .mm-th {
+    padding: 4px 2px;
+    text-align: center;
+    color: var(--text2);
+    font-weight: 600;
+    font-size: 0.72em;
+    min-width: 44px;
+    white-space: nowrap;
+  }
+  .mm-th .mm-th-icon { display: inline-flex; vertical-align: middle; margin-right: 2px; }
+  .mm-row-header {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg2);
+    padding: 4px 8px 4px 4px;
+    font-weight: 700;
+    font-size: 0.8em;
+    white-space: nowrap;
+    text-align: left;
+    min-width: 64px;
+    border-right: 1px solid var(--border);
+  }
+  .mm-cell {
+    width: 44px; height: 30px;
+    text-align: center;
+    font-weight: 700;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.12s, box-shadow 0.12s;
+    position: relative;
+  }
+  .mm-cell:hover { transform: scale(1.12); box-shadow: 0 3px 10px rgba(0,0,0,0.4); z-index: 3; }
+  .mm-cell:active { transform: scale(1.05); }
+  .mm-cell:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .mm-cell.diag { background: var(--bg3); color: var(--text2); cursor: default; opacity: 0.5; }
+  .mm-cell.diag:hover { transform: none; box-shadow: none; }
+  .mm-cell.empty { background: var(--bg3); color: var(--text2); opacity: 0.35; cursor: default; }
+  .mm-cell.empty:hover { transform: none; box-shadow: none; }
+  .mm-cell.low-sample { opacity: 0.45; }
+  /* Mobile list variant */
+  .mm-list { display: flex; flex-direction: column; gap: 6px; }
+  .mm-list-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 0.72em;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .mm-list-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 64px 56px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .mm-list-row:hover { border-color: var(--gold); }
+  .mm-list-row:active { transform: scale(0.98); }
+  .mm-list-row.empty { opacity: 0.5; cursor: default; }
+  .mm-list-row.empty:hover { border-color: var(--border); }
+  .mm-list-row .mm-opp-name { font-weight: 600; font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mm-list-row .mm-opp-bar-wrap {
+    height: 6px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .mm-list-row .mm-opp-bar {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease-out;
+  }
+  .mm-list-row .mm-opp-wr { text-align: right; font-weight: 700; font-size: 0.95em; }
+  .mm-list-row .mm-opp-games { text-align: right; font-size: 0.72em; color: var(--text2); }
+  .fit-card.skeleton .fit-score,
+  .fit-card.skeleton .fit-bar-fill,
+  .fit-card.skeleton .fit-meta,
+  .fit-card.skeleton .fit-card-name { background: var(--bg3); color: transparent; border-radius: 4px; animation: fitShimmer 1.4s infinite; }
+  @keyframes fitShimmer { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
+
+  /* Fitness info tooltip/sheet */
+  .fit-info-sheet {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 200;
+  }
+  .fit-info-sheet.open { display: flex; }
+  .fit-info-sheet__panel {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    padding: 20px 20px 28px;
+    max-width: 520px;
+    width: 100%;
+    animation: fitSheetIn 250ms cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes fitSheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .fit-info-sheet h3 { margin: 0 0 10px; color: var(--gold); font-size: 1.05em; }
+  .fit-info-sheet p { margin: 6px 0; font-size: 0.88em; color: var(--text); line-height: 1.5; }
+  .fit-info-sheet code { background: var(--bg3); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; color: var(--gold); }
+  .fit-info-sheet__close {
+    display: block;
+    margin: 16px auto 0;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    cursor: pointer;
+  }
+  @media (min-width: 769px) {
+    .fit-info-sheet { align-items: center; }
+    .fit-info-sheet__panel { border-radius: 16px; max-width: 440px; animation: fitSheetInDesktop 180ms ease-out; }
+    @keyframes fitSheetInDesktop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  }
+
   /* ── Monitor accordion (mon-acc) ── */
   .mon-acc { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg2); overflow: hidden; }
   .mon-acc__hdr {
@@ -332,6 +749,7 @@
     -webkit-tap-highlight-color: transparent; user-select: none; min-height: 52px;
   }
   .mon-acc__title { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mon-acc__title-row { display: flex; align-items: center; gap: 0; min-width: 0; }
   .mon-acc__label-text { color: var(--gold); font-size: 1.1em; font-weight: 600; }
   .mon-acc__summary {
     font-size: 0.78em; color: var(--text2); font-weight: 400;
@@ -339,6 +757,29 @@
   }
   .mon-acc__chevron {
     flex-shrink: 0; width: 18px; height: 18px; color: var(--text2); transition: transform 0.25s ease;
+  }
+  .mon-acc__info-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: 0.75em;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    transition: border-color 0.2s, color 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+  }
+  .mon-acc__info-btn:hover, .mon-acc__info-btn:focus-visible {
+    border-color: var(--gold);
+    color: var(--gold);
+    outline: none;
   }
   .mon-acc.is-open .mon-acc__chevron { transform: rotate(180deg); color: var(--gold); }
   .mon-acc.is-open .mon-acc__summary { opacity: 0; pointer-events: none; }
@@ -1469,10 +1910,8 @@
     margin-bottom: 10px;
   }
   .lab-decklist-panel .ldp-title {
-    font-size: 0.8em;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    font-size: 1.1em;
+    font-weight: 600;
     color: var(--gold);
   }
   .lab-decklist-panel .ldp-count {
@@ -1623,7 +2062,7 @@
   .rv-field{padding:5px 6px;border-radius:6px;min-height:50px;display:flex;flex-direction:column;gap:3px}
   .rv-field-active{background:rgba(212,160,58,0.05)}
   .rv-field-inactive{background:rgba(100,100,120,0.03)}
-  .rv-mc{width:64px;height:90px;border-radius:5px;background:var(--bg2);border:2px solid var(--border);position:relative;cursor:default;font-size:0.52rem;overflow:hidden;background-size:cover;background-position:center top;transition:all 0.15s}
+  .rv-mc{width:64px;height:90px;border-radius:5px;background:var(--bg2);border:2px solid var(--border);position:relative;cursor:default;font-size:0.52rem;overflow:hidden;background-size:cover;background-position:center top;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .2s,opacity .22s,filter .25s,border-color .2s}
   .rv-mc:hover{transform:translateY(-2px);box-shadow:0 3px 10px rgba(0,0,0,0.4);z-index:10}
   .rv-mc .rv-ovl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent 0%,rgba(0,0,0,0.85) 30%);padding:2px 3px 3px}
   .rv-mc .rv-cn2{font-weight:600;font-size:0.52rem;line-height:1.1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.8)}
@@ -1654,10 +2093,19 @@
   .rv-hc:hover{transform:translateY(-3px)}
   .rv-hc img{width:100%;height:100%;object-fit:cover}
   .rv-hc-name{display:flex;align-items:center;justify-content:center;text-align:center;font-size:0.45em;padding:3px;height:100%;color:var(--text2);word-break:break-word}
-  .rv-hc-new{animation:rvFadeIn 0.4s ease-out}
+  .rv-hc-new{animation:rvHandSlideIn .48s cubic-bezier(.22,1,.36,1) both}
   .rv-hc-unknown{border-style:dashed;border-color:var(--border)}
   .rv-hc-unknown::after{content:'?';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.2em;color:var(--text2);font-weight:700}
   @keyframes rvFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes rvHandSlideIn{0%{opacity:0;transform:translateY(-22px) scale(.78);filter:brightness(1.3)}60%{opacity:1;transform:translateY(2px) scale(1.05);filter:brightness(1.1)}100%{opacity:1;transform:translateY(0) scale(1);filter:brightness(1)}}
+  /* Newly-appeared board card (diff vs prev step) */
+  .rv-mc-new{animation:rvPopIn .5s cubic-bezier(.22,1,.36,1) both;z-index:5}
+  @keyframes rvPopIn{0%{opacity:0;transform:scale(.55);filter:brightness(1.5) drop-shadow(0 0 12px rgba(212,160,58,.8))}55%{opacity:1;transform:scale(1.1);filter:brightness(1.18)}100%{opacity:1;transform:scale(1);filter:brightness(1)}}
+  /* Counter value softening */
+  .rv-ct .rv-cv{transition:color .2s ease,transform .25s cubic-bezier(.34,1.56,.64,1)}
+  .rv-ct .rv-cv.rv-cv-flash{transform:scale(1.22);color:var(--gold)}
+  /* Field tint transition */
+  .rv-field{transition:background .3s ease}
 
   .deck-table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
   .deck-table th { text-align: left; color: var(--text2); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
@@ -4567,26 +5015,54 @@ function destroyCharts() {
 // === RENDER LADDER (SET11 / PROTOP) ===
 // ── Monitor accordion helpers ──
 const _monAccRegistry = {};
+// Info sheet registry (keyed by accordion id → {title, body})
+const _monAccInfoRegistry = {};
+function monAccShowInfo(id) {
+  const info = _monAccInfoRegistry[id];
+  if (info) showInfoSheet(info.title, info.body);
+}
+
+// Called from onOpen callbacks that contain Chart.js canvases.
+// Triggers a resize event after the accordion animation completes so Chart.js
+// can recompute canvas dimensions (otherwise charts inside a closed accordion
+// were rendered at 0x0 width).
+function monAccOnExpandResize() {
+  setTimeout(() => {
+    try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+  }, 340);
+}
+
 function monAccordion(id, labelHtml, summaryHtml, contentHtml, opts = {}) {
-  const { openOnMobile = false, sub = false } = opts;
+  const { openOnMobile = false, sub = false, desktopOpen = true, info = null } = opts;
   if (opts.onOpen) _monAccRegistry[id] = opts;
+  if (info) _monAccInfoRegistry[id] = info;
   const isOpenClass = openOnMobile ? ' is-open' : '';
+  const desktopOpenClass = desktopOpen ? ' mon-acc--desktop-open' : '';
   const subClass = sub ? ' mon-acc--sub' : '';
   const chevron = '<svg class="mon-acc__chevron" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="mon-acc${subClass} mon-acc--desktop-open${isOpenClass}" id="${id}">
-    <button class="mon-acc__hdr" onclick="monAccToggle('${id}')">
+  const infoBtn = info
+    ? `<button class="mon-acc__info-btn" type="button" onclick="event.stopPropagation();monAccShowInfo('${id}')" aria-label="About this section">?</button>`
+    : '';
+  return `<div class="mon-acc${subClass}${desktopOpenClass}${isOpenClass}" id="${id}">
+    <div class="mon-acc__hdr" role="button" tabindex="0" onclick="monAccToggle('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();monAccToggle('${id}')}">
       <span class="mon-acc__title">
-        <span class="mon-acc__label-text">${labelHtml}</span>
+        <span class="mon-acc__title-row">
+          <span class="mon-acc__label-text">${labelHtml}</span>
+          ${infoBtn}
+        </span>
         ${summaryHtml ? `<span class="mon-acc__summary">${summaryHtml}</span>` : ''}
       </span>${chevron}
-    </button>
+    </div>
     <div class="mon-acc__body"><div class="mon-acc__inner">${contentHtml}</div></div>
   </div>`;
 }
 function monAccToggle(id) {
-  if (window.innerWidth >= 769) return;
   const el = document.getElementById(id);
   if (!el) return;
+  // If accordion is marked desktop-open, the click does nothing on desktop
+  // (CSS forces open state, toggle only relevant on mobile).
+  const hasDesktopOpen = el.classList.contains('mon-acc--desktop-open');
+  if (hasDesktopOpen && window.innerWidth >= 769) return;
   const isOpen = el.classList.contains('is-open');
   if (isOpen) { el.classList.remove('is-open'); }
   else {
@@ -4619,88 +5095,395 @@ function renderLadder(main) {
     if (inks) selectedInks = [...inks];
   }
 
-  // Build compact meta table: deck | share | WR
-  let metaTableRows = '';
-  topDecks.forEach(d => {
-    const sh = pd.meta_share[d];
-    const w = pd.wr[d];
-    const sharePct = sh ? sh.share.toFixed(1) : '-';
-    const wrPct = w ? w.wr.toFixed(1) : '-';
-    const wrVal = w ? w.wr : 50;
-    metaTableRows += `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      ${deckImg(d, 24)}
-      <span style="font-size:1em;font-weight:600;min-width:52px">${d}</span>
-      <span style="margin-left:auto;font-size:1em;font-weight:600;min-width:48px;text-align:right">${sharePct}%</span>
-      <span style="font-size:1em;font-weight:700;min-width:48px;text-align:right;color:${wrColor(wrVal)}">${wrPct}%</span>
-    </div>`;
-  });
-
   main.innerHTML = `
-    <!-- META OVERVIEW — section title tappable, table toggles -->
-    <div class="section">
-      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('meta-table');var c=document.getElementById('meta-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Meta Overview
-        <svg id="meta-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div id="meta-table" style="display:none">
-        <div style="display:flex;align-items:center;gap:10px;padding:6px 0 8px;font-size:0.8em;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px">
-          <span style="flex:1"></span><span style="min-width:48px;text-align:right">Share</span><span style="min-width:48px;text-align:right">WR</span>
+    <!-- DECK FITNESS STRIP -->
+    <div class="section fit-section">
+      <div class="fit-header">
+        <div class="fit-title">
+          Deck Fitness
+          <button class="fit-info-btn" onclick="fitShowInfo()" aria-label="How is Fitness calculated?">?</button>
         </div>
-        ${metaTableRows}
+        <span class="fit-subtitle">meta-weighted · 50 = break-even</span>
       </div>
+      <div class="fit-strip-wrap">
+        <button class="fit-arrow prev" id="fit-arrow-prev" onclick="fitScrollStrip(-1)" aria-label="Scroll left">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M10 4l-4 4 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="fit-arrow next" id="fit-arrow-next" onclick="fitScrollStrip(1)" aria-label="Scroll right">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="fit-strip" id="fit-strip" role="list"></div>
+      </div>
+    </div>
+
+    <!-- MATCHUP MATRIX (collapsible, closed by default on all devices) -->
+    <div class="section">
+      ${monAccordion('acc-mm', 'Matchup Matrix', '', '<div class="mm-wrap" id="mm-wrap"></div>', {
+        desktopOpen: false,
+        onOpen: () => renderMatchupMatrix(getPerimData()),
+        info: { title: 'About Matchup Matrix', body: '<p>Winrate for every deck pair in the current scope.</p><p>• <strong>Desktop</strong>: full heatmap. Click any cell to open that matchup in the Coach tab.</p><p>• <strong>Mobile</strong>: pick your deck from the dropdown and see the opponent list with WR and game count.</p><p>• Colors: <span style="color:#F85149">red &lt;45%</span>, <span style="color:#D29922">yellow ~50%</span>, <span style="color:#3FB950">green &gt;55%</span>.</p><p style="font-size:0.78em;color:var(--text2)">Matchups with fewer than 15 games are shown dimmed.</p>' }
+      })}
     </div>
 
     <!-- DECK DEEP DIVE -->
     <div class="section">
-      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('deck-body');var c=document.getElementById('deck-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Analisi Deck
-        <svg id="deck-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div id="deck-body">
-        <div id="deck-identity"></div>
-        <div id="deck-analysis" class="card" style="margin-bottom:16px;display:none"></div>
-        <div id="deck-trend" style="margin-bottom:16px"></div>
-        <div class="grid-2" id="deck-charts">
-          <div class="chart-box"><h3>Matchup Win Rate</h3><div id="chart-matchup"></div></div>
-          <div class="chart-box"><h3>OTP vs OTD Gap</h3><div id="chart-otpotd"></div></div>
+      ${monAccordion('acc-deck', 'Deck Analysis', '', `
+        <div id="deck-body">
+          <div id="deck-identity"></div>
+          <div id="deck-analysis" class="card" style="margin-bottom:16px;display:none"></div>
+          <div id="deck-trend" style="margin-bottom:16px"></div>
+          <div class="grid-2" id="deck-charts">
+            <div class="chart-box"><h3>Matchup Win Rate</h3><div id="chart-matchup"></div></div>
+            <div class="chart-box"><h3>OTP vs OTD Gap</h3><div id="chart-otpotd"></div></div>
+          </div>
         </div>
-      </div>
+      `, {
+        desktopOpen: true,
+        onOpen: monAccOnExpandResize,
+        info: { title: 'About Deck Analysis', body: '<p>In-depth view of the selected deck in the current meta:</p><p>• <strong>Deck identity</strong> — colors, overall WR, meta share, games</p><p>• <strong>Matchup Win Rate</strong> — WR chart against every opponent</p><p>• <strong>OTP vs OTD Gap</strong> — difference between on-the-play and on-the-draw (positive = the deck wins more when going first)</p>' }
+      })}
     </div>
 
     <!-- TOP PLAYERS -->
     <div class="section">
-      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('players-body');var c=document.getElementById('players-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Best Format Players — <span id="players-deck-label"></span>
-        <svg id="players-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div id="players-body">
-        <div id="deck-compare-strip"></div>
-        <div id="players-list"></div>
-      </div>
+      ${monAccordion('acc-players', 'Best Format Players <span id="players-deck-label" style="font-weight:400;color:var(--text2);font-size:0.85em"></span>', '', `
+        <div id="players-body">
+          <div id="deck-compare-strip"></div>
+          <div id="players-list"></div>
+        </div>
+      `, {
+        desktopOpen: false,
+        onOpen: monAccOnExpandResize,
+        info: { title: 'About Best Format Players', body: '<p>Top players in the selected scope, pulled from the <code>duels.ink</code> leaderboard.</p><p>Only players ranked in the <strong>top 100</strong> (TOP) or <strong>top 50</strong> (PRO) for the format are shown.</p><p>Tap a name to open their details: decklist, WR, matchups, diff vs consensus.</p>' }
+      })}
     </div>
 
     <!-- TECH TORNADO CHART -->
     <div class="section">
-      <div class="section-title" style="cursor:pointer;display:flex;align-items:center;gap:8px" onclick="var b=document.getElementById('tech-body');var c=document.getElementById('tech-chevron');if(b.style.display==='none'){b.style.display='block';c.style.transform='rotate(180deg)'}else{b.style.display='none';c.style.transform=''}">
-        Non-Standard Picks
-        <svg id="tech-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" style="transform:rotate(180deg);transition:transform 0.2s;flex-shrink:0"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
-      <div id="tech-body">
-        <div class="chart-box" id="tech-tornado-box">
-          <h3 id="tech-tornado-title">Adoption %: cards cut (←) vs added (→)</h3>
-          <canvas id="chart-tech-tornado"></canvas>
+      ${monAccordion('acc-tech', 'Non-Standard Picks', '', `
+        <div id="tech-body">
+          <div class="chart-box" id="tech-tornado-box">
+            <h3 id="tech-tornado-title">Adoption %: cards cut (←) vs added (→)</h3>
+            <canvas id="chart-tech-tornado"></canvas>
+          </div>
+          <div style="font-size:0.75em;color:var(--text2);margin-top:6px;padding:0 4px">
+            Bar = % of qualified players | Color = avg WR (green &ge;55%, red &le;48%) | Hover for details
+          </div>
         </div>
-        <div style="font-size:0.75em;color:var(--text2);margin-top:6px;padding:0 4px">
-          Bar = % of qualified players | Color = avg WR (green &ge;55%, red &le;48%) | Hover for details
-        </div>
-      </div>
+      `, {
+        desktopOpen: false,
+        onOpen: monAccOnExpandResize,
+        info: { title: 'About Non-Standard Picks', body: '<p>Cards that diverge from the deck consensus list, used by winning players (WR &ge; 52%, min 15 games).</p><p>• Green: card added (+) with high WR</p><p>• Red: card removed (−) from the consensus</p><p>Merged from PRO + TOP + Community. Max 4 in + 4 out.</p>' }
+      })}
     </div>
   `;
 
   // Render charts (share/WR charts removed — replaced by compact table)
+  renderFitnessStrip(pd);
+  renderMatchupMatrix(pd);
   renderDeckDive(pd);
   renderTechTornado();
 }
+
+// ── Matchup Matrix (desktop heatmap + mobile list) ──
+let _mmSelectedDeck = null;
+
+function mmCellColor(wr) {
+  // Smooth 3-stop gradient: red 40 → yellow 50 → green 60
+  if (wr >= 60) return 'rgba(63,185,80,0.85)';
+  if (wr >= 55) return 'rgba(63,185,80,0.65)';
+  if (wr >= 50) return 'rgba(210,153,34,0.7)';
+  if (wr >= 45) return 'rgba(248,81,73,0.55)';
+  return 'rgba(248,81,73,0.85)';
+}
+
+function renderMatchupMatrix(pd) {
+  const wrap = document.getElementById('mm-wrap');
+  if (!wrap) return;
+  const matrix = pd.matrix || {};
+  const wr = pd.wr || {};
+  // Decks sorted by popularity (total games)
+  const decks = Object.keys(wr)
+    .filter(d => wr[d].games >= 15)
+    .sort((a, b) => wr[b].games - wr[a].games);
+
+  if (!decks.length) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2)">No matchup data available.</div>';
+    return;
+  }
+
+  // Default selected deck = user's selected or EmSa or top
+  if (!_mmSelectedDeck || !decks.includes(_mmSelectedDeck)) {
+    _mmSelectedDeck = (typeof selectedDeck !== 'undefined' && selectedDeck && decks.includes(selectedDeck))
+      ? selectedDeck
+      : (decks.includes('EmSa') ? 'EmSa' : decks[0]);
+  }
+
+  const isMobile = window.innerWidth < 769;
+
+  // Legend is always visible; deck selector only on mobile (where we show a list)
+  const legendHtml = `
+    <span class="mm-legend">
+      <span class="mm-legend-swatch" style="background:rgba(248,81,73,0.85)"></span>&lt;45%
+      <span class="mm-legend-swatch" style="background:rgba(210,153,34,0.7)"></span>50%
+      <span class="mm-legend-swatch" style="background:rgba(63,185,80,0.85)"></span>&gt;55%
+    </span>
+  `;
+  let toolbarHtml;
+  if (isMobile) {
+    const deckOptions = decks.map(d => `<option value="${d}" ${d === _mmSelectedDeck ? 'selected' : ''}>${d} · ${DECK_NAMES[d] || d}</option>`).join('');
+    toolbarHtml = `
+      <div class="mm-toolbar">
+        <label for="mm-deck">Deck:</label>
+        <select class="mm-deck-select" id="mm-deck" onchange="mmOnDeckChange(this.value)">${deckOptions}</select>
+        ${legendHtml}
+      </div>
+    `;
+  } else {
+    toolbarHtml = `
+      <div class="mm-toolbar">
+        <span style="font-size:0.78em;color:var(--text2)">Click any cell to open the matchup in Coach</span>
+        ${legendHtml}
+      </div>
+    `;
+  }
+
+  if (isMobile) {
+    // Mobile: list of opponents for selected deck
+    const row = matrix[_mmSelectedDeck] || {};
+    const opps = decks.filter(d => d !== _mmSelectedDeck);
+    const rowsHtml = opps.map(opp => {
+      const cell = row[opp];
+      const t = cell ? cell.t : 0;
+      const w = cell ? cell.w : 0;
+      const wrVal = t > 0 ? (w / t * 100) : null;
+      if (!cell || t === 0) {
+        return `<div class="mm-list-row empty" aria-label="${opp}: no data">
+          ${deckImg(opp, 24)}
+          <span class="mm-opp-name">${opp} · ${DECK_NAMES[opp] || opp}</span>
+          <span style="color:var(--text2);font-size:0.78em">no data</span>
+          <span></span>
+        </div>`;
+      }
+      const lowSample = t < 15;
+      const color = mmCellColor(wrVal);
+      return `<div class="mm-list-row ${lowSample ? 'low-sample' : ''}"
+           onclick="mmOpenMatchup('${_mmSelectedDeck}', '${opp}')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();mmOpenMatchup('${_mmSelectedDeck}','${opp}')}"
+           role="button" tabindex="0"
+           aria-label="${_mmSelectedDeck} vs ${opp}: ${wrVal.toFixed(1)} percent winrate, ${t} games">
+        ${deckImg(opp, 24)}
+        <div style="min-width:0">
+          <div class="mm-opp-name">${opp}</div>
+          <div class="mm-opp-bar-wrap"><div class="mm-opp-bar" style="width:${Math.max(2, Math.min(100, wrVal))}%;background:${color}"></div></div>
+        </div>
+        <span class="mm-opp-wr" style="color:${color}">${wrVal.toFixed(1)}%</span>
+        <span class="mm-opp-games">${t}g</span>
+      </div>`;
+    }).join('');
+    wrap.innerHTML = `${toolbarHtml}
+      <div class="mm-list-header">
+        <span style="flex:1">Vs · ${_mmSelectedDeck}</span>
+        <span>WR</span><span>Games</span>
+      </div>
+      <div class="mm-list">${rowsHtml}</div>`;
+    return;
+  }
+
+  // Desktop: full heatmap
+  let thead = '<tr><th class="mm-row-header"></th>';
+  decks.forEach(d => {
+    thead += `<th class="mm-th" title="${DECK_NAMES[d] || d}"><span class="mm-th-icon">${deckImg(d, 14)}</span>${d}</th>`;
+  });
+  thead += '</tr>';
+
+  let rowsHtml = '';
+  decks.forEach(rowDeck => {
+    rowsHtml += `<tr><td class="mm-row-header">${deckImg(rowDeck, 14)} ${rowDeck}</td>`;
+    decks.forEach(colDeck => {
+      if (rowDeck === colDeck) {
+        rowsHtml += `<td class="mm-cell diag">—</td>`;
+        return;
+      }
+      const cell = (matrix[rowDeck] || {})[colDeck];
+      const t = cell ? cell.t : 0;
+      const w = cell ? cell.w : 0;
+      if (!cell || t === 0) {
+        rowsHtml += `<td class="mm-cell empty" title="No data">·</td>`;
+        return;
+      }
+      const wrVal = (w / t) * 100;
+      const color = mmCellColor(wrVal);
+      const lowSample = t < 15;
+      rowsHtml += `<td class="mm-cell ${lowSample ? 'low-sample' : ''}"
+         style="background:${color}"
+         title="${rowDeck} vs ${colDeck}: ${wrVal.toFixed(1)}% (${t}g)"
+         onclick="mmOpenMatchup('${rowDeck}','${colDeck}')"
+         onkeydown="if(event.key==='Enter'){mmOpenMatchup('${rowDeck}','${colDeck}')}"
+         tabindex="0"
+         aria-label="${rowDeck} vs ${colDeck}: ${wrVal.toFixed(1)} percent">${wrVal.toFixed(0)}</td>`;
+    });
+    rowsHtml += '</tr>';
+  });
+
+  wrap.innerHTML = `${toolbarHtml}
+    <div class="mm-heatmap-wrap">
+      <table class="mm-table" role="grid" aria-label="Matchup winrate matrix">
+        <thead>${thead}</thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function mmOnDeckChange(deck) {
+  _mmSelectedDeck = deck;
+  const pd = getPerimData();
+  renderMatchupMatrix(pd);
+}
+
+function mmOpenMatchup(our, opp) {
+  // Cross-tab: switch to Coach V2 with this matchup pre-selected.
+  // switchToTab(id, opts) updates selectedDeck/coachDeck/coachOpp/labOpp.
+  // We also sync the ink pickers (our + opp) and localStorage so the Coach tab
+  // renders the correct ink icons without a reset round.
+  const ourInks = DECK_INKS[our];
+  if (ourInks) selectedInks = [...ourInks];
+  if (typeof syncOppInksFromDeck === 'function') syncOppInksFromDeck(opp);
+  try { localStorage.setItem('lorcana_deck_code', our); } catch(e) {}
+  switchToTab('coach_v2', { deck: our, opp: opp });
+}
+
+// ── Deck Fitness Strip ──
+function renderFitnessStrip(pd) {
+  const wrap = document.getElementById('fit-strip');
+  if (!wrap) return;
+  const items = (pd && pd.fitness) ? pd.fitness : [];
+  if (!items.length) {
+    // skeleton fallback (3 cards) if no data yet
+    wrap.innerHTML = Array(4).fill(0).map(() => `
+      <div class="fit-card skeleton" aria-hidden="true">
+        <div class="fit-card-top"><span class="fit-card-name">&nbsp;</span></div>
+        <div class="fit-score">&nbsp;</div>
+        <div class="fit-bar-bg"><div class="fit-bar-fill" style="width:60%"></div></div>
+        <div class="fit-meta">&nbsp;</div>
+      </div>`).join('');
+    return;
+  }
+  // After innerHTML rendering, wire scroll handlers and update arrow state
+  requestAnimationFrame(() => { fitWireStripScroll(); fitUpdateArrows(); });
+  wrap.innerHTML = items.map((r, idx) => {
+    const deck = r.deck;
+    const hasFit = r.fitness !== null && r.fitness !== undefined;
+    let tier = 'none';
+    let scoreText = '—';
+    if (hasFit) {
+      scoreText = r.fitness.toFixed(0);
+      if (r.fitness >= 55) tier = 'high';
+      else if (r.fitness >= 45) tier = 'mid';
+      else tier = 'low';
+    }
+    const barWidth = hasFit ? Math.max(4, Math.min(100, r.fitness)) : 0;
+    const rankClass = (idx === 0 && hasFit) ? 'rank1' : '';
+    const rankBadgeClass = (idx === 0 && hasFit) ? 'fit-rank top' : 'fit-rank';
+    const rankBadge = hasFit ? `#${r.rank}` : '';
+    const name = DECK_NAMES[deck] || deck;
+    const shareTxt = r.meta_share ? `${r.meta_share.toFixed(1)}%` : '–';
+    return `
+      <div class="fit-card ${rankClass}" role="listitem" tabindex="0"
+           onclick="fitSelectDeck('${deck}')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();fitSelectDeck('${deck}')}"
+           aria-label="${deck} fitness ${scoreText}, rank ${rankBadge || 'n/a'}, meta share ${shareTxt}">
+        <div class="fit-card-top">
+          <div class="fit-card-deck">${deckImg(deck, 18)}<span class="fit-card-name">${deck}</span></div>
+          <span class="${rankBadgeClass}">${rankBadge}</span>
+        </div>
+        <div class="fit-score tier-${tier}">${scoreText}</div>
+        <div class="fit-bar-bg"><div class="fit-bar-fill tier-${tier}" style="width:${barWidth}%"></div></div>
+        <div class="fit-meta">Share ${shareTxt} · ${r.games.toLocaleString()}g</div>
+      </div>`;
+  }).join('');
+}
+
+function fitScrollStrip(dir) {
+  const strip = document.getElementById('fit-strip');
+  if (!strip) return;
+  const cardWidth = 142; // 132 width + 10 gap
+  strip.scrollBy({ left: dir * cardWidth * 3, behavior: 'smooth' });
+}
+
+function fitUpdateArrows() {
+  const strip = document.getElementById('fit-strip');
+  const prev = document.getElementById('fit-arrow-prev');
+  const next = document.getElementById('fit-arrow-next');
+  if (!strip || !prev || !next) return;
+  const maxScroll = strip.scrollWidth - strip.clientWidth;
+  prev.disabled = strip.scrollLeft <= 2;
+  next.disabled = strip.scrollLeft >= maxScroll - 2;
+}
+
+function fitWireStripScroll() {
+  const strip = document.getElementById('fit-strip');
+  if (!strip || strip._wired) return;
+  strip._wired = true;
+  // Wheel → horizontal scroll on desktop
+  strip.addEventListener('wheel', (e) => {
+    if (window.innerWidth < 769) return;
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      strip.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
+  strip.addEventListener('scroll', fitUpdateArrows, { passive: true });
+  window.addEventListener('resize', fitUpdateArrows, { passive: true });
+}
+
+function fitSelectDeck(deck) {
+  // Sync cross-tab deck selection via existing helper
+  if (typeof selectDeck === 'function') { selectDeck(deck); return; }
+  if (typeof onDeckSelect === 'function') { onDeckSelect(deck); return; }
+  // Fallback: set global + re-render
+  selectedDeck = deck;
+  const inks = DECK_INKS[deck];
+  if (inks) selectedInks = [...inks];
+  if (typeof renderInkPicker === 'function') renderInkPicker();
+  loadTab();
+}
+
+// Generic info sheet (reusable across sections). bodyHtml may contain <p>, <code>, <strong>.
+function showInfoSheet(title, bodyHtml) {
+  let sheet = document.getElementById('fit-info-sheet');
+  if (!sheet) {
+    sheet = document.createElement('div');
+    sheet.id = 'fit-info-sheet';
+    sheet.className = 'fit-info-sheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-modal', 'true');
+    sheet.setAttribute('aria-labelledby', 'fit-info-title');
+    document.body.appendChild(sheet);
+    sheet.addEventListener('click', (e) => { if (e.target === sheet) hideInfoSheet(); });
+  }
+  sheet.innerHTML = `
+    <div class="fit-info-sheet__panel">
+      <h3 id="fit-info-title">${title}</h3>
+      ${bodyHtml}
+      <button class="fit-info-sheet__close" onclick="hideInfoSheet()">Got it</button>
+    </div>`;
+  sheet.classList.add('open');
+}
+function hideInfoSheet() {
+  const sheet = document.getElementById('fit-info-sheet');
+  if (sheet) sheet.classList.remove('open');
+}
+// Backward-compat: fitShowInfo() triggers the Fitness explanation
+function fitShowInfo() {
+  showInfoSheet('How Deck Fitness works', `
+    <p>A single 0–100 score for each deck in the current meta.</p>
+    <p><code>fitness = Σ (WR vs X · meta_share[X]) / Σ meta_share[X]</code></p>
+    <p><strong>50 = meta break-even.</strong> Higher = deck performs well weighted by how often you meet each opponent.</p>
+    <p style="font-size:0.78em;color:var(--text2)">Matchups with &lt;15 games are excluded.</p>
+  `);
+}
+function fitHideInfo() { hideInfoSheet(); }
 
 function renderShareChart(pd, decks) {
   const top8 = decks.slice(0, 8);
@@ -6348,7 +7131,7 @@ function rvSn(n) {
   return {b: n.length>18?n.slice(0,18)+'..':n, s:''};
 }
 
-function rvRenderCard(entry) {
+function rvRenderCard(entry, isNew) {
   const c = (rvCardsDB||{})[entry.name] || {};
   const ink = RV_IC[(c.ink||'').trim()] || '';
   const {b,s} = rvSn(entry.name);
@@ -6360,6 +7143,7 @@ function rvRenderCard(entry) {
   if (ink) cls += ' rv-ink-' + ink;
   if (entry.exerted) cls += ' rv-exerted';
   if (entry.drying && !entry.exerted) cls += ' rv-drying';
+  if (isNew) cls += ' rv-mc-new';
   const dmgHtml = isCh && dmg > 0 ? `<div class="rv-dmg">-${dmg}</div>` : '';
   const style = imgUrl ? `background-image:url(${imgUrl});background-size:cover;background-position:center 15%` : '';
   return `<div class="${cls}" style="${style}" title="${entry.name}${c.ability?'\n'+c.ability.slice(0,100):''}">
@@ -6368,26 +7152,58 @@ function rvRenderCard(entry) {
     ${isCh?`<div class="rv-stats">${c.str?'<span>⚔'+c.str+'</span>':''}${c.will?`<span>🛡${dmg>0?(will-dmg)+'/'+will:will}</span>`:''}${c.lore?'<span>⭐'+c.lore+'</span>':''}</div>`:''}</div></div>`;
 }
 
-function rvRenderBoard(boardState, step) {
+// Diff previous vs current board by (side, name) multiset — returns {our: Set, opp: Set}
+function rvDiffBoard(prevBoard, currBoard) {
+  const result = {our: new Set(), opp: new Set()};
+  for (const side of ['our','opp']) {
+    const prevCount = {};
+    ((prevBoard && prevBoard[side]) || []).forEach(c => { prevCount[c.name] = (prevCount[c.name]||0) + 1; });
+    const currCount = {};
+    ((currBoard && currBoard[side]) || []).forEach(c => { currCount[c.name] = (currCount[c.name]||0) + 1; });
+    for (const name in currCount) {
+      if ((currCount[name]||0) > (prevCount[name]||0)) result[side].add(name);
+    }
+  }
+  return result;
+}
+
+function rvRenderBoard(boardState, step, newNames) {
   const el = document.getElementById('rv-board'); if (!el) return;
   const g = rvFilteredGames()[rvGameIdx];
+  const nOur = (newNames && newNames.our) || new Set();
+  const nOpp = (newNames && newNames.opp) || new Set();
+  // Only mark the first K duplicates as "new" (K = how many extra appeared this step)
+  const mkRenderer = (side) => {
+    const nameSet = side === 'our' ? nOur : nOpp;
+    const used = {};
+    return (card) => {
+      let isNew = false;
+      if (nameSet.has(card.name)) {
+        used[card.name] = (used[card.name]||0) + 1;
+        isNew = used[card.name] === 1; // first occurrence gets the glow
+      }
+      return rvRenderCard(card, isNew);
+    };
+  };
   let html = '';
   // Opponent field
+  const renderOpp = mkRenderer('opp');
   html += `<div class="rv-blbl"><span>${g?.en||'Opp'}</span> ${step.who==='opp'?'<span class="rv-ap">◀ turn</span>':''}</div>`;
   html += `<div class="rv-field ${step.who==='opp'?'rv-field-active':'rv-field-inactive'}">`;
   const oppCards = boardState.opp || [];
   const oppEx = oppCards.filter(c=>c.exerted), oppRd = oppCards.filter(c=>!c.exerted&&!rvIsItem(c.name)), oppIt = oppCards.filter(c=>rvIsItem(c.name));
-  if (oppEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${oppEx.length})</div><div class="rv-card-row">${oppEx.map(rvRenderCard).join('')}</div></div>`;
-  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${oppRd.length})</div><div class="rv-card-row">${oppRd.map(rvRenderCard).join('')}</div></div>`;
-  if (oppIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${oppIt.map(rvRenderCard).join('')}</div></div>`;
+  if (oppEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${oppEx.length})</div><div class="rv-card-row">${oppEx.map(renderOpp).join('')}</div></div>`;
+  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${oppRd.length})</div><div class="rv-card-row">${oppRd.map(renderOpp).join('')}</div></div>`;
+  if (oppIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${oppIt.map(renderOpp).join('')}</div></div>`;
   html += `</div><hr class="rv-bdiv">`;
   // Our field
+  const renderOur = mkRenderer('our');
   const ourCards = boardState.our || [];
   const ourEx = ourCards.filter(c=>c.exerted), ourRd = ourCards.filter(c=>!c.exerted&&!rvIsItem(c.name)), ourIt = ourCards.filter(c=>rvIsItem(c.name));
   html += `<div class="rv-field ${step.who==='our'?'rv-field-active':'rv-field-inactive'}">`;
-  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${ourRd.length})</div><div class="rv-card-row">${ourRd.map(rvRenderCard).join('')}</div></div>`;
-  if (ourEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${ourEx.length})</div><div class="rv-card-row">${ourEx.map(rvRenderCard).join('')}</div></div>`;
-  if (ourIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${ourIt.map(rvRenderCard).join('')}</div></div>`;
+  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${ourRd.length})</div><div class="rv-card-row">${ourRd.map(renderOur).join('')}</div></div>`;
+  if (ourEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${ourEx.length})</div><div class="rv-card-row">${ourEx.map(renderOur).join('')}</div></div>`;
+  if (ourIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${ourIt.map(renderOur).join('')}</div></div>`;
   html += `</div>`;
   html += `<div class="rv-blbl"><span>${g?.on||'Us'}</span> ${step.who==='our'?'<span class="rv-ap">◀ turn</span>':''}</div>`;
   el.innerHTML = html;
@@ -6419,10 +7235,22 @@ function rvRenderEvents(events) {
   el.innerHTML = html;
 }
 
-function rvUpdateCounters(step) {
+function rvUpdateCounters(step, animate) {
   const ids = ['rv-cOL','rv-cEL','rv-cOI','rv-cEI','rv-cOH','rv-cEH'];
   const vals = [step.lore.our, step.lore.opp, `${step.inkwell.our.spent}/${step.inkwell.our.total}`, `${step.inkwell.opp.spent}/${step.inkwell.opp.total}`, step.hand.our, step.hand.opp];
-  ids.forEach((id,i) => { const el=document.getElementById(id); if(el) el.textContent=vals[i]; });
+  ids.forEach((id,i) => {
+    const el = document.getElementById(id); if (!el) return;
+    const newVal = String(vals[i]);
+    const changed = el.textContent !== newVal;
+    el.textContent = newVal;
+    if (animate && changed) {
+      el.classList.remove('rv-cv-flash');
+      // force reflow to restart transition
+      void el.offsetWidth;
+      el.classList.add('rv-cv-flash');
+      setTimeout(() => el.classList.remove('rv-cv-flash'), 260);
+    }
+  });
   const lbl = document.getElementById('rv-step-label');
   if (lbl) lbl.textContent = step.label;
 }
@@ -6451,7 +7279,14 @@ function rvTick() {
   if (!rvPlaying) return;
   if (rvStepIdx < rvSteps.length - 1) {
     rvGoToStep(rvStepIdx + 1, true);
-    rvPlayTimer = setTimeout(rvTick, rvSpeed);
+    // Variable pause: quieter steps (only ink/draw/discard/pass) get ~0.55x,
+    // meaningful steps (play/challenge/quest/ability/destroyed) get full rvSpeed
+    // so the pop-in and counter flash can settle in the eye.
+    const step = rvSteps[rvStepIdx];
+    const events = (step && step.events) || [];
+    const quiet = events.length === 0 || events.every(e => ['ink','ramp','draw','discard'].includes(e.type));
+    const pause = quiet ? Math.max(280, Math.round(rvSpeed * 0.55)) : rvSpeed;
+    rvPlayTimer = setTimeout(rvTick, pause);
   } else {
     rvStop(); // end of game
   }
@@ -6477,6 +7312,10 @@ function rvFilteredGames() {
 function rvGoToStep(idx, fromAutoplay) {
   if (!rvSteps.length || idx < 0 || idx >= rvSteps.length) return;
   if (!fromAutoplay) rvStop(); // manual navigation stops autoplay
+  const prevIdx = rvStepIdx;
+  const prevStep = (prevIdx !== idx) ? rvSteps[prevIdx] : null;
+  // Animate only on forward-by-one moves (autoplay or "next"), not on jumps/rewind
+  const animate = (idx === prevIdx + 1);
   rvStepIdx = idx;
   const step = rvSteps[idx];
   // Update step buttons + scroll active into view
@@ -6486,13 +7325,14 @@ function rvGoToStep(idx, fromAutoplay) {
   });
   const sn = document.getElementById('rv-step-num');
   if (sn) sn.textContent = `${idx+1}/${rvSteps.length}`;
-  rvRenderBoard(step.board_after, step);
+  const newNames = animate ? rvDiffBoard(prevStep && prevStep.board_after, step.board_after) : null;
+  rvRenderBoard(step.board_after, step, newNames);
   rvRenderEvents(step.events);
-  rvUpdateCounters(step);
-  rvRenderHand(step);
+  rvUpdateCounters(step, animate);
+  rvRenderHand(step, animate);
 }
 
-function rvRenderHand(step) {
+function rvRenderHand(step, animate) {
   const panel = document.getElementById('rv-hand-panel');
   if (!panel) return;
 
@@ -6517,13 +7357,19 @@ function rvRenderHand(step) {
     const prevSet = new Set(prevHand);
 
     cardsEl.innerHTML = hand.map(name => {
-      const isNew = !prevSet.has(name);
+      const isNew = animate && !prevSet.has(name);
       const img = rvCardImgByName(name);
       return `<div class="rv-hc${isNew ? ' rv-hc-new' : ''}" title="${name}">
         ${img ? `<img src="${img}" alt="${name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
         <div class="rv-hc-name" ${img ? 'style="display:none"' : ''}>${name.split(' - ')[0]}</div>
       </div>`;
     }).join('');
+    // Stagger draw-in: each new card picks up an 80ms-per-index delay
+    if (animate) {
+      cardsEl.querySelectorAll('.rv-hc-new').forEach((el, i) => {
+        el.style.animationDelay = (i * 80) + 'ms';
+      });
+    }
 
   } else if (rvHandMode === 'partial') {
     // Partial hand from log (initial hand known, draws unknown)
@@ -6963,19 +7809,9 @@ function renderCoachTab(main) {
     content += `<div class="card" style="padding:12px;margin-bottom:20px"><canvas id="chart-lore" height="100"></canvas></div>`;
   }
 
-  // 2. Playbook Avversario — Collassabile
+  // 2. Playbook Avversario — accordion, closed default
   if (pb.length > 0) {
-    const pbSummary = pb.slice(0,3).map(t => {
-      const top = (t.plays||[]).slice(0,2).map(p => p.card).join(', ');
-      return `<strong>${t.turn}</strong> ${top}`;
-    }).join(' → ');
-    content += `<div class="section-title" style="cursor:pointer" onclick="document.getElementById('playbook-body').style.display=document.getElementById('playbook-body').style.display==='none'?'block':'none';this.querySelector('.pb-toggle').textContent=document.getElementById('playbook-body').style.display==='none'?'▶':'▼'">
-      <span class="pb-toggle" style="font-size:0.8em;color:var(--text2)">▶</span> Playbook Avversario
-      <span style="font-size:0.7em;color:var(--text2);font-weight:400;margin-left:8px">${pbSummary}</span>
-    </div>
-    <div id="playbook-body" style="display:none">
-      <div class="section-subtitle">What to expect turn by turn — click for details</div>
-      <div class="card" style="padding:20px 20px 12px 20px"><div class="playbook">`;
+    let pbBody = `<div class="card" style="padding:20px 20px 12px 20px"><div class="playbook">`;
     pb.forEach((t, i) => {
       const plays = t.plays || [];
       const kills = t.impact?.killed_per_game || 0;
@@ -6984,7 +7820,7 @@ function renderCoachTab(main) {
       const cardsStr = plays.slice(0,3).map(p => `<strong>${p.card}</strong> <span class="pct">${p.pct}%</span>`).join(' · ');
       const statsHtml = (kills > 0 || lore > 0) ? `<div class="pb-stats">${kills > 0 ? `<span class="kill">${kills} kill/g</span>` : ''}${lore > 0 ? `<span class="lore">${lore} lore</span>` : ''}</div>` : '';
 
-      content += `<div class="pb-turn" onclick="this.classList.toggle('open')">
+      pbBody += `<div class="pb-turn" onclick="this.classList.toggle('open')">
         <div class="pb-dot ${danger}"></div>
         <div class="pb-header">
           <span class="pb-turn-num">${t.turn}</span>
@@ -6993,27 +7829,32 @@ function renderCoachTab(main) {
         </div>
         <div class="pb-expand">`;
       if (plays.length > 0) {
-        content += `<table class="deck-table" style="margin-bottom:6px"><tr><th>Carta</th><th>Costo</th><th>Freq</th><th>Effetto</th></tr>`;
-        plays.forEach(p => { content += `<tr><td><strong>${p.card}</strong></td><td>${p.cost}</td><td>${p.pct}%</td><td style="color:var(--text2)">${p.effect}</td></tr>`; });
-        content += `</table>`;
+        pbBody += `<table class="deck-table" style="margin-bottom:6px"><tr><th>Carta</th><th>Costo</th><th>Freq</th><th>Effetto</th></tr>`;
+        plays.forEach(p => { pbBody += `<tr><td><strong>${p.card}</strong></td><td>${p.cost}</td><td>${p.pct}%</td><td style="color:var(--text2)">${p.effect}</td></tr>`; });
+        pbBody += `</table>`;
       }
       if (t.combos && t.combos.length) {
-        content += `<div class="pb-combo"><strong>Combo:</strong> `;
-        content += t.combos.map(c => `${c.cards} (${c.freq}x)`).join(' · ');
-        content += `</div>`;
+        pbBody += `<div class="pb-combo"><strong>Combo:</strong> `;
+        pbBody += t.combos.map(c => `${c.cards} (${c.freq}x)`).join(' · ');
+        pbBody += `</div>`;
       }
       if (t.impact?.killed_top) {
-        content += `<div class="pb-impact">Target: ${t.impact.killed_top}</div>`;
+        pbBody += `<div class="pb-impact">Target: ${t.impact.killed_top}</div>`;
       }
-      content += `</div></div>`;
+      pbBody += `</div></div>`;
     });
-    content += `</div></div></div>`;
+    pbBody += `</div></div>`;
+    content += `<div class="section">
+      ${monAccordion('acc-pb', 'Opponent Playbook', '', pbBody, {
+        desktopOpen: false,
+        info: { title: 'About Opponent Playbook', body: '<p>Turn-by-turn breakdown of what the opponent typically plays in this matchup.</p><p>Each turn shows top cards + frequency, combos, and impact (kills / lore). Click a turn row to see full details.</p><p>Color dots: <span style="color:#F85149">red</span> = high danger turn, <span style="color:#D29922">yellow</span> = mid, <span style="color:var(--text2)">grey</span> = low.</p>' }
+      })}
+    </div>`;
   }
 
-  // 3. Giocate Vincenti vs Trappole (OTP/OTD)
+  // 3. How to Respond — OTP vs OTD — accordion, closed default
   if (kr.length > 0) {
-    content += `<div class="section-title">How to Respond — OTP vs OTD</div>
-      <div class="section-subtitle">For each loss pattern: what to play and what NOT to play, turn by turn</div>`;
+    let krBody = '';
     kr.forEach(k => {
       let kHtml = `<div class="threat-card" onclick="this.classList.toggle('open')">
         <div class="threat-header">
@@ -7039,15 +7880,20 @@ function renderCoachTab(main) {
       }
       if (k.targets) kHtml += `<div style="margin-top:8px;font-size:0.85em"><strong>Target prioritari:</strong> ${k.targets}</div>`;
       kHtml += `</div></div>`;
-      content += kHtml;
+      krBody += kHtml;
     });
+    content += `<div class="section">
+      ${monAccordion('acc-howrespond', 'How to Respond — OTP vs OTD', '', krBody, {
+        desktopOpen: false,
+        info: { title: 'About How to Respond', body: '<p>For each loss pattern in this matchup, what to play and what to avoid — split by OTP (going first) and OTD (going second).</p><p>Click a pattern to see the full turn-by-turn table.</p>' }
+      })}
+    </div>`;
   }
 
-  // 4. Killer Curves (from JSON — detailed worst case sequences)
+  // 4. Killer Curves — accordion, closed default
   const kc = mu.killer_curves || [];
   if (kc.length > 0) {
-    content += `<div class="section-title">Killer Curves — Opponent Worst Case</div>
-      <div class="section-subtitle">Most dangerous opponent sequences with validated responses</div>`;
+    let kcBody = '';
     kc.forEach(curve => {
       const seq = curve.sequence || {};
       const resp = curve.response || {};
@@ -7096,15 +7942,21 @@ function renderCoachTab(main) {
         cHtml += `</div>`;
       }
       cHtml += `</div></div>`;
-      content += cHtml;
+      kcBody += cHtml;
     });
+    content += `<div class="section">
+      ${monAccordion('acc-kc', 'Killer Curves — Opponent Worst Case', '', kcBody, {
+        desktopOpen: false,
+        info: { title: 'About Killer Curves', body: '<p>The most dangerous opponent sequences in this matchup, extracted from real losses.</p><p>Each curve shows: card-by-card turn timeline (with ink cost + lore), critical turn, and a validated <strong>response strategy</strong>.</p><p>Click a curve to expand the full sequence.</p>' }
+      })}
+    </div>`;
   }
 
-  // 4c. Key Threats (LLM tactical analysis)
+  // 4c. Key Threats (LLM tactical analysis) — accordion, OPEN by default on desktop
   const tl = mu.threats_llm || {};
   if (tl.threats && tl.threats.length > 0) {
-    content += `<div class="section-title">Key Threats</div>`;
-    if (tl.type_summary) content += `<div class="section-subtitle" style="font-style:italic;color:var(--gold)">${tl.type_summary}</div>`;
+    let ktBody = '';
+    if (tl.type_summary) ktBody += `<div class="section-subtitle" style="font-style:italic;color:var(--gold)">${tl.type_summary}</div>`;
 
     tl.threats.forEach(t => {
       let tHtml = `<div class="threat-card" onclick="this.classList.toggle('open')">
@@ -7136,38 +7988,53 @@ function renderCoachTab(main) {
       // Mitigation text
       if (t.mitigation) tHtml += `<div style="margin-top:6px;font-size:0.85em;color:var(--text2)"><strong>Mitigation:</strong> ${t.mitigation}</div>`;
       tHtml += `</div></div>`;
-      content += tHtml;
+      ktBody += tHtml;
     });
 
     // Riepilogo table
     if (tl.riepilogo && tl.riepilogo.length > 0) {
-      content += `<div class="card" style="padding:16px;margin-top:12px">
+      ktBody += `<div class="card" style="padding:16px;margin-top:12px">
         <h4 style="color:var(--gold);margin-bottom:10px">Riepilogo Risposte</h4>
         <table class="deck-table"><tr><th>Minaccia</th><th>Turno</th><th style="color:var(--green)">Piano A</th><th style="color:var(--sapphire)">Piano B</th><th style="color:var(--yellow)">Piano C</th></tr>`;
       tl.riepilogo.forEach(r => {
-        content += `<tr><td><strong>${r.threat}</strong></td><td>${r.turn}</td><td style="font-size:0.85em">${r.plan_a}</td><td style="font-size:0.85em">${r.plan_b}</td><td style="font-size:0.85em">${r.plan_c}</td></tr>`;
+        ktBody += `<tr><td><strong>${r.threat}</strong></td><td>${r.turn}</td><td style="font-size:0.85em">${r.plan_a}</td><td style="font-size:0.85em">${r.plan_b}</td><td style="font-size:0.85em">${r.plan_c}</td></tr>`;
       });
-      content += `</table></div>`;
+      ktBody += `</table></div>`;
     }
+    content += `<div class="section">
+      ${monAccordion('acc-kt', 'Key Threats', '', ktBody, {
+        desktopOpen: true,
+        info: { title: 'About Key Threats', body: '<p>Tactical LLM analysis of the biggest threats in this matchup.</p><p>For each threat: critical turn, description, and a plan table split by <strong>Prevention / Response / Mitigation</strong> with Plan A/B/C per turn.</p><p>Bottom summary table pulls everything together for quick pre-match review.</p>' }
+      })}
+    </div>`;
   }
 
-  // 5. Opponent's Killer Cards
+  // 5. Opponent's Killer Cards — accordion, closed default
   if (ac.length > 0) {
-    content += `<div class="section-title">Opponent's Killer Cards</div>
-      <div class="section-subtitle">Cards that appear most often in your losses</div>
-      <div class="card" style="padding:16px"><table class="deck-table"><tr><th>Carta</th><th>Costo</th><th>% Loss</th><th>Ability</th></tr>`;
+    let acBody = `<div class="card" style="padding:16px"><table class="deck-table"><tr><th>Carta</th><th>Costo</th><th>% Loss</th><th>Ability</th></tr>`;
     ac.forEach(c => {
       const cls = c.loss_pct >= 50 ? 'wr-bad' : '';
-      content += `<tr><td><strong>${c.card}</strong></td><td>${c.cost}</td><td class="${cls}">${c.loss_pct}%</td><td style="font-size:0.8em;color:var(--text2)">${c.ability}</td></tr>`;
+      acBody += `<tr><td><strong>${c.card}</strong></td><td>${c.cost}</td><td class="${cls}">${c.loss_pct}%</td><td style="font-size:0.8em;color:var(--text2)">${c.ability}</td></tr>`;
     });
-    content += `</table></div>`;
+    acBody += `</table></div>`;
+    content += `<div class="section">
+      ${monAccordion('acc-ackills', 'Opponent\\u2019s Killer Cards', '', acBody, {
+        desktopOpen: false,
+        info: { title: 'About Killer Cards', body: '<p>The opponent\\u2019s cards that appear most often in <strong>your losses</strong>.</p><p>Ranked by <em>% Loss</em> = percentage of your defeats where this card was played. High values = top priority to remove, bodyguard, or trade against.</p>' }
+      })}
+    </div>`;
   }
 
-  // 6. Trend Components chart
+  // 6. Trend by Turn — accordion, closed default (contains Chart.js canvas)
   if (la.avg_trend_components && Object.keys(la.avg_trend_components).length) {
-    content += `<div class="section-title">Trend by Turn</div>
-      <div class="section-subtitle">Where you gain and lose advantage (draw, board, lore)</div>
-      <div class="card" style="padding:16px"><canvas id="chart-trend" height="180"></canvas></div>`;
+    const trendBody = `<div class="card" style="padding:16px"><canvas id="chart-trend" height="180"></canvas></div>`;
+    content += `<div class="section">
+      ${monAccordion('acc-trend', 'Trend by Turn', '', trendBody, {
+        desktopOpen: false,
+        onOpen: monAccOnExpandResize,
+        info: { title: 'About Trend by Turn', body: '<p>Per-turn breakdown of where you gain or lose advantage across 9 dimensions: board, lore, draw, clock, removal, opponent hand/filter/lore velocity/lore potential.</p><p>Positive bars = you\\u2019re ahead, negative = behind. Use it to spot <em>when</em> the matchup slips (e.g. T4-T5 lore flood, T6 board wipe).</p>' }
+      })}
+    </div>`;
   }
 
   // Replay viewer
@@ -7938,7 +8805,10 @@ function renderLabTab(main) {
 
     rightCol = `<div class="lab-decklist-panel">
       <div class="ldp-header">
-        <span class="ldp-title">Optimized Deck</span>
+        <span class="ldp-title">
+          Optimized Deck
+          <button class="mon-acc__info-btn" type="button" onclick="showInfoSheet('About Optimized Deck', '<p>Decklist tuned specifically for this matchup.</p><p>Starts from the consensus list and applies <strong>add/cut</strong> suggestions based on card scores (winning players in the same matchup).</p><p>• Green <strong>+score</strong> badges: cards the meta winners are including</p><p>• Red badges (in the changes strip): cards being cut</p><p>Tap <em>Copy Deck</em> to get the importable 60-card list.</p>')" aria-label="About Optimized Deck" style="margin-left:6px">?</button>
+        </span>
         <span class="ldp-count">${totalCards}/60</span>
       </div>
       ${manaMini}
@@ -7960,11 +8830,10 @@ function renderLabTab(main) {
   // === BUILD LEFT COLUMN ===
   let leftCol = '';
 
-  // 0. PRO Mulligan Hands — Interactive Carousel
+  // 0. Mulligan Trainer — accordion, desktop-open by default
   const proMulls = mu.pro_mulligans || [];
   if (proMulls.length > 0) {
-    leftCol += `<div class="section-title">Mulligan Trainer</div>
-      <div class="section-subtitle">Select cards to mulligan, then compare with PRO. Blind = unknown MU | OTP/OTD = G2/G3 Bo3</div>
+    const mullBody = `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
         <div class="mull-filter" id="mull-filter">
           <button class="mf-btn active" data-f="blind" onclick="setMullFilter('blind')">Blind</button>
@@ -7985,30 +8854,49 @@ function renderLabTab(main) {
         </div>
         <div id="mull-cards" class="mull-hand"></div>
         <div id="mull-reveal-area"></div>
-      </div>`;
-    leftCol += `<div id="mull-data-holder" data-mulls='${JSON.stringify(proMulls).replace(/'/g, "&#39;")}'></div>`;
+      </div>
+      <div id="mull-data-holder" data-mulls='${JSON.stringify(proMulls).replace(/'/g, "&#39;")}'></div>`;
+    leftCol += `<div class="section">
+      ${monAccordion('acc-mull', 'Mulligan Trainer', '', mullBody, {
+        desktopOpen: true,
+        info: { title: 'About Mulligan Trainer', body: '<p>Real opening hands from <strong>PRO players</strong> in this matchup.</p><p>Tap cards you would mulligan, then reveal to compare with the PRO\\u2019s actual decision and the game outcome.</p><p>• <strong>Blind</strong>: G1 of Bo3 (unknown matchup)</p><p>• <strong>OTP</strong>: G2/G3 when on the play</p><p>• <strong>OTD</strong>: G2/G3 when on the draw</p>' }
+      })}
+    </div>`;
   }
 
-  // 1. Card Impact (inline horizontal bars — replaces old collapsible chart)
+  // 1. Card Impact (correlation) — accordion, closed by default
   const scoreEntries = Object.entries(cs).filter(([,v]) => v.delta !== undefined).sort((a,b) => b[1].delta - a[1].delta);
   if (scoreEntries.length > 0) {
     const maxDelta = Math.max(...scoreEntries.map(([,v]) => Math.abs(v.delta)), 0.01);
-    leftCol += `<div class="section-title">Card Impact</div>
-      <div class="section-subtitle">Correlation between card presence and win/loss in this matchup</div>
-      <div class="lab-impact-list">`;
+    let ciBody = '<div class="lab-impact-list">';
     scoreEntries.slice(0, 24).forEach(([name, v]) => {
       const pct = Math.abs(v.delta) / maxDelta * 50;
       const cls = v.delta >= 0 ? 'pos' : 'neg';
       const val = (v.delta >= 0 ? '+' : '') + (v.delta*100).toFixed(1) + '%';
       const shortName = name.length > 22 ? name.slice(0, 20) + '..' : name;
-      leftCol += `<div class="lab-impact-row">
+      ciBody += `<div class="lab-impact-row">
         <span class="li-name">${shortName}</span>
         <div class="li-bar-wrap"><div class="li-bar-center"></div><div class="li-bar ${cls}" style="width:${pct}%"></div></div>
         <span class="li-val ${cls}">${val}</span>
       </div>`;
     });
-    leftCol += `</div>`;
+    ciBody += '</div>';
+    leftCol += `<div class="section">
+      ${monAccordion('acc-ci-corr', 'Card Impact (Correlation)', '', ciBody, {
+        desktopOpen: false,
+        info: { title: 'About Card Impact (Correlation)', body: '<p>For each card: how often it appears in <strong>winning</strong> vs <strong>losing</strong> games in this matchup.</p><p><code>delta = WR(games with card) - WR(games without)</code></p><p>This is a <strong>correlation</strong> signal — useful to spot cards that tend to appear in wins. For a causal signal (drawing the card early causes wins), see <strong>Card Impact (IWD)</strong> below.</p>' }
+      })}
+    </div>`;
   }
+
+  // 1b. Card Impact (IWD) — causal "drawn by T3" metric, lazy loaded
+  leftCol += `<div class="section">
+    ${monAccordion('acc-iwd', 'Card Impact (IWD)', '', '<div class="iwd-wrap" id="iwd-wrap"></div>', {
+      desktopOpen: false,
+      onOpen: () => iwdLoad(),
+      info: { title: 'About Card Impact (IWD)', body: '<p><strong>IWD = Improvement When Drawn.</strong> For each card: how does our winrate change when the card is seen in hand by turn 3 vs when it isn\\u2019t?</p><p><code>delta = WR(drawn by T3) - WR(not drawn by T3)</code></p><p>This is a <strong>causal</strong> signal (see it early = you win more) — different from the "Card Impact" above which is plain correlation (card present vs absent).</p><p style="font-size:0.78em;color:var(--text2)">"Drawn by T3" here means the card appears in INITIAL_HAND, CARD_DRAWN, CARD_PLAYED or CARD_INKED with turnNumber \\u2264 3. Cards below 20 drawn/not-drawn games are hidden.</p>' }
+    })}
+  </div>`;
 
   // 2. Replay viewer (full width, below both columns)
   const labDeck = coachDeck || selectedDeck;
@@ -8029,6 +8917,130 @@ function renderLabTab(main) {
   if (labDeck && labOppDeck) {
     rvInit(labDeck, labOppDeck);
   }
+}
+
+// ── Card Impact IWD (Lab tab, lazy loaded) ──
+const _iwdCache = {};
+let _iwdSort = 'abs';       // 'abs' | 'pos' | 'neg' | 'sample'
+let _iwdShowAll = false;
+
+async function iwdLoad() {
+  const our = coachDeck || selectedDeck;
+  const opp = labOpp;
+  const wrap = document.getElementById('iwd-wrap');
+  if (!wrap || !our || !opp) return;
+  const key = `${our}_${opp}_${currentFormat || 'core'}`;
+  if (_iwdCache[key]) { iwdRender(_iwdCache[key]); return; }
+  wrap.innerHTML = '<div class="iwd-loading">Computing IWD… this may take a few seconds.</div>';
+  try {
+    const fmt = currentFormat || 'core';
+    const resp = await fetch(`/api/v1/lab/iwd/${encodeURIComponent(our)}/${encodeURIComponent(opp)}?game_format=${fmt}&days=14`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    _iwdCache[key] = data;
+    iwdRender(data);
+  } catch (e) {
+    wrap.innerHTML = `<div class="iwd-empty">IWD data unavailable (${String(e).slice(0,60)}).</div>`;
+  }
+}
+
+function iwdRender(data) {
+  const wrap = document.getElementById('iwd-wrap');
+  if (!wrap) return;
+  if (data.low_sample) {
+    wrap.innerHTML = `<div class="iwd-empty">
+      <span class="iwd-empty-icon">📊</span>
+      Low sample for this matchup (${data.total_matches} games).<br>
+      IWD needs at least ${data.min_total_matches || 80} games to be reliable.
+    </div>`;
+    return;
+  }
+  const cards = (data.cards || []).slice();
+  if (!cards.length) {
+    wrap.innerHTML = `<div class="iwd-empty">
+      <span class="iwd-empty-icon">📊</span>
+      No cards passed the sample threshold (20 drawn / 20 not drawn).
+    </div>`;
+    return;
+  }
+
+  // Apply sort
+  if (_iwdSort === 'pos') {
+    cards.sort((a, b) => b.delta_wr - a.delta_wr);
+  } else if (_iwdSort === 'neg') {
+    cards.sort((a, b) => a.delta_wr - b.delta_wr);
+  } else if (_iwdSort === 'sample') {
+    cards.sort((a, b) => b.drawn_games - a.drawn_games);
+  } else { // abs
+    cards.sort((a, b) => Math.abs(b.delta_wr) - Math.abs(a.delta_wr));
+  }
+
+  const visible = _iwdShowAll ? cards : cards.slice(0, 5);
+
+  const header = `<div class="iwd-header">
+    <span class="iwd-kpi"><strong>${data.total_matches}</strong> games · <strong>${data.overall_wr}%</strong> overall WR</span>
+    <span class="iwd-kpi" style="color:var(--text2)">· last ${data.days}d</span>
+    <div class="iwd-sort" role="group" aria-label="Sort cards">
+      <button class="iwd-sort-btn ${_iwdSort==='abs'?'active':''}"    onclick="iwdSetSort('abs')"    title="Biggest impact, positive or negative">|Δ|</button>
+      <button class="iwd-sort-btn ${_iwdSort==='pos'?'active':''}"    onclick="iwdSetSort('pos')"    title="Best when drawn">+Δ</button>
+      <button class="iwd-sort-btn ${_iwdSort==='neg'?'active':''}"    onclick="iwdSetSort('neg')"    title="Worst when drawn (traps)">−Δ</button>
+      <button class="iwd-sort-btn ${_iwdSort==='sample'?'active':''}" onclick="iwdSetSort('sample')" title="Sort by sample size">N</button>
+    </div>
+  </div>`;
+
+  const rows = visible.map(c => {
+    const deltaSign = c.delta_wr > 0 ? '+' : '';
+    const deltaCls = c.delta_wr > 1.5 ? 'pos' : c.delta_wr < -1.5 ? 'neg' : 'neutral';
+    const confDots = [1, 2, 3].map(i => {
+      const filled = (c.confidence === 'high' && i <= 3) || (c.confidence === 'med' && i <= 2) || (c.confidence === 'low' && i <= 1);
+      return `<span class="iwd-conf-dot ${filled ? 'filled' : 'empty'}"></span>`;
+    }).join('');
+    const lowConfClass = c.confidence === 'low' ? 'low-conf' : '';
+    const drawnW = Math.max(2, Math.min(100, c.wr_drawn));
+    const notW = Math.max(2, Math.min(100, c.wr_not_drawn));
+    const shortName = c.card.length > 44 ? c.card.slice(0, 42) + '…' : c.card;
+    return `<div class="iwd-row ${lowConfClass}" title="${c.card}: WR ${c.wr_drawn}% when drawn (${c.drawn_games}g) vs ${c.wr_not_drawn}% not drawn (${c.not_drawn_games}g)">
+      <div class="iwd-row-main">
+        <span class="iwd-name">${shortName}</span>
+        <div class="iwd-bars">
+          <span class="iwd-bar-label">drawn</span>
+          <div class="iwd-bar-track"><div class="iwd-bar-fill drawn" style="width:${drawnW}%"></div></div>
+          <span class="iwd-bar-val">${c.wr_drawn}%</span>
+          <span class="iwd-bar-games">${c.drawn_games}g</span>
+        </div>
+        <div class="iwd-bars">
+          <span class="iwd-bar-label">not drawn</span>
+          <div class="iwd-bar-track"><div class="iwd-bar-fill not-drawn" style="width:${notW}%"></div></div>
+          <span class="iwd-bar-val">${c.wr_not_drawn}%</span>
+          <span class="iwd-bar-games">${c.not_drawn_games}g</span>
+        </div>
+      </div>
+      <span class="iwd-delta ${deltaCls}">${deltaSign}${c.delta_wr.toFixed(1)}%</span>
+      <span class="iwd-conf" aria-label="confidence ${c.confidence}">${confDots}</span>
+    </div>`;
+  }).join('');
+
+  const showMoreBtn = cards.length > 5
+    ? `<button class="iwd-showmore" onclick="iwdToggleShowAll()">${_iwdShowAll ? 'Show top 5' : `Show all ${cards.length} cards`}</button>`
+    : '';
+
+  wrap.innerHTML = `${header}<div class="iwd-list">${rows}</div>${showMoreBtn}`;
+}
+
+function iwdSetSort(mode) {
+  _iwdSort = mode;
+  const our = coachDeck || selectedDeck;
+  const opp = labOpp;
+  const key = `${our}_${opp}_${currentFormat || 'core'}`;
+  if (_iwdCache[key]) iwdRender(_iwdCache[key]);
+}
+
+function iwdToggleShowAll() {
+  _iwdShowAll = !_iwdShowAll;
+  const our = coachDeck || selectedDeck;
+  const opp = labOpp;
+  const key = `${our}_${opp}_${currentFormat || 'core'}`;
+  if (_iwdCache[key]) iwdRender(_iwdCache[key]);
 }
 
 // === PRE-MATCH CHEATSHEET ===
@@ -10084,10 +11096,11 @@ const TOUR_TAB_STEPS = {
     { target: '.pf-tech-flow', title: 'Non-Standard Picks', body: 'Carte fuori dalla lista standard usate dai player vincenti (WR 52%+). Merge da PRO, TOP e Community con adoption % e confidence.' },
   ],
   monitor: [
-    { target: '#meta-table', title: 'Meta Overview', body: 'Tabella con tutti i deck: meta share, win rate, trend. Clicca un deck per aprirlo nel dettaglio sotto.' },
-    { target: '#deck-body', title: 'Deck Deep Dive', body: 'Dettaglio del deck selezionato: identity card, matchup WR, grafico OTP vs OTD con gap.' },
-    { target: '#players-body', title: 'Best Format Players', body: 'I migliori giocatori dalla leaderboard duels.ink. Solo chi e\' nella top 100 (TOP) o top 50 (PRO).' },
-    { target: '#tech-tornado-box', title: 'Non-Standard Picks', body: 'Carte non-standard aggiunte o standard rimosse dai giocatori vincenti. Verde = WR alto, rosso = WR basso. Max 4+4.' },
+    { target: '#fit-strip', title: 'Deck Fitness', body: '0-100 score per deck, weighted by the current meta (50 = break-even). Scroll to see the full ranking.' },
+    { target: '#mm-wrap', title: 'Matchup Matrix', body: 'Winrate for every deck pair. Desktop: NxN heatmap. Mobile: opponents list for the selected deck. Click any cell to open it in Coach.' },
+    { target: '#deck-body', title: 'Deck Analysis', body: 'Selected deck in detail: identity card, matchup WR, OTP vs OTD gap chart.' },
+    { target: '#players-body', title: 'Best Format Players', body: 'Top players from the duels.ink leaderboard. Only players in the top 100 (TOP) or top 50 (PRO) for the format.' },
+    { target: '#tech-tornado-box', title: 'Non-Standard Picks', body: 'Cards added or cut from the consensus list by winning players. Green = high WR, red = low WR. Max 4+4.' },
   ],
   coach_v2: [
     { target: '.cv2-strip', title: 'KPI Matchup', body: 'Win rate complessivo, OTP/OTD split e gap. Numeri specifici per il matchup selezionato sopra.' },
