@@ -31,13 +31,23 @@ ANALISIDEF_OUTPUT = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/anal
 # Filename: deck_playbook_<DECK>.json (core) o deck_playbook_<DECK>_inf.json (infinity)
 _PATTERN = re.compile(r"^deck_playbook_([A-Za-z]+?)(_inf)?\.json$")
 
+# analisidef usa ES/AS come codici, App_tool usa EmSa/AmSa (vedi DECK_COLORS in
+# scripts/import_matches.py). Mapping da analisidef -> App_tool al momento dell'import,
+# cosi tutto il resto del codice usa un solo schema.
+_DECK_ALIAS = {
+    "ES": "EmSa",
+    "AS": "AmSa",
+}
+
 
 def parse_filename(name: str) -> tuple[str, str] | None:
-    """Estrae (deck, format) dal nome file. None se non matcha."""
+    """Estrae (deck, format) dal nome file. None se non matcha.
+    Applica alias analisidef -> App_tool (ES -> EmSa, AS -> AmSa).
+    """
     m = _PATTERN.match(name)
     if not m:
         return None
-    deck = m.group(1)
+    deck = _DECK_ALIAS.get(m.group(1), m.group(1))
     game_format = "infinity" if m.group(2) else "core"
     return deck, game_format
 
