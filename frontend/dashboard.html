@@ -10650,9 +10650,9 @@ function _bpStrategicHeader(sf) {
   if (!sf || sf.error) return '';
   const tierClass = ({top:'top', competitive:'competitive', mid:'mid', fringe:'fringe'})[sf.tier] || 'mid';
   const skillClass = ({low:'low', medium:'medium', high:'high'})[sf.skill_dependency] || 'medium';
-  const arch = sf.archetype ? `<span class="bp-sf-chip arch" title="Archetipo">${_bpEsc(sf.archetype)}</span>` : '';
-  const tier = sf.tier ? `<span class="bp-sf-chip tier ${tierClass}" title="Tier meta">${_bpEsc(sf.tier)}</span>` : '';
-  const skill = sf.skill_dependency ? `<span class="bp-sf-chip skill ${skillClass}" title="Dipendenza dallo skill del pilot">skill: ${_bpEsc(sf.skill_dependency)}</span>` : '';
+  const arch = sf.archetype ? `<span class="bp-sf-chip arch" title="Archetype">${_bpEsc(sf.archetype)}</span>` : '';
+  const tier = sf.tier ? `<span class="bp-sf-chip tier ${tierClass}" title="Meta tier">${_bpEsc(sf.tier)}</span>` : '';
+  const skill = sf.skill_dependency ? `<span class="bp-sf-chip skill ${skillClass}" title="Pilot skill dependency">skill: ${_bpEsc(sf.skill_dependency)}</span>` : '';
   const oneLiner = sf.one_liner ? `<div class="bp-sf-oneliner">&ldquo;${_bpEsc(sf.one_liner)}&rdquo;</div>` : '';
   const principles = Array.isArray(sf.key_principles) && sf.key_principles.length
     ? `<ul class="bp-sf-principles">${sf.key_principles.map(p => `<li>${_bpEsc(p)}</li>`).join('')}</ul>`
@@ -10763,14 +10763,14 @@ function _renderBlindPlaybook(data, host) {
 
   // Placeholder esplicativo quando narrative manca ma c'e' lo strategic frame
   const noNarrativeNote = (!narrativeHtml && sf)
-    ? `<div class="bp-narrative"><p style="opacity:0.65;font-style:italic">Narrativa in arrivo nel prossimo batch settimanale.</p></div>`
+    ? `<div class="bp-narrative"><p style="opacity:0.65;font-style:italic">Narrative coming in the next weekly batch.</p></div>`
     : '';
 
   host.innerHTML = `<div class="pf-kpi-card bp-row">
     <div class="bp-header">
       <div>
         <div class="bp-title">How to Pilot &mdash; Blind Guide</div>
-        <div class="bp-subtitle">Come giochi senza info avversario</div>
+        <div class="bp-subtitle">How to play without info on your opponent</div>
       </div>
       ${_bpWeeklyTechBadge(wt)}
     </div>
