@@ -10751,31 +10751,20 @@ function _renderBlindPlaybook(data, host) {
   const wt = data.weekly_tech || null;
   const proRefs = data.pro_references || pb.pro_references || [];
 
-  // Narrative (schema v2): se presente, prosa libera. Altrimenti sezioni strutturate.
+  // Narrative-first (allineato analisidef): se presente prosa, mostra prosa.
+  // Se la prosa manca, mostra solo strategic_frame + placeholder.
   const narrativeRaw = (pb.narrative || '').trim();
   const narrativeHtml = narrativeRaw
     ? `<div class="bp-narrative">${narrativeRaw.split(/\n\s*\n/).filter(Boolean).map(p => `<p>${_bpEsc(p.trim())}</p>`).join('')}</div>`
     : '';
 
-  // Sezioni strutturate (schema v1, sempre disponibili nei nostri JSON oggi)
-  const summary = pb.summary || '';
-  const summaryHtml = summary ? `<div class="bp-narrative"><p>${_bpEsc(summary)}</p></div>` : '';
-  const wcText = pb.win_condition || '';
-  const planBText = pb.plan_b || '';
+  // Fail closed totale: nessun dato utile -> nasconde tutto
+  if (!sf && !narrativeHtml && !proRefs.length) return;
 
-  const accItems = [
-    _bpAccItem('&#127919;', 'Mulligan blind', _bpMulligan(pb.mulligan_blind), true),
-    _bpAccItem('&#9203;', 'Target curves T1-T5', _bpCurves(pb.target_curves), false),
-    _bpAccItem('&#127942;', 'Win condition', wcText ? `<div class="bp-curve-text">${_bpEsc(wcText)}</div>` : '', false),
-    _bpAccItem('&#128260;', 'Plan B', planBText ? `<div class="bp-curve-text">${_bpEsc(planBText)}</div>` : '', false),
-    _bpAccItem('&#10024;', 'Key combos', _bpCombos(pb.key_combos), false),
-    _bpAccItem('&#128737;', 'Threat answers', _bpPills(pb.threat_answers), false),
-    _bpAccItem('&#9888;', 'Trap plays', _bpTrapPlays(pb.trap_plays), false),
-    _bpAccItem('&#9989;', 'Blind checklist', _bpChecklist(pb.blind_checklist_5), false),
-  ].filter(Boolean).join('');
-
-  // Fail closed: se non c'e' nulla di significativo, container vuoto
-  if (!sf && !narrativeHtml && !summaryHtml && !accItems && !proRefs.length) return;
+  // Placeholder esplicativo quando narrative manca ma c'e' lo strategic frame
+  const noNarrativeNote = (!narrativeHtml && sf)
+    ? `<div class="bp-narrative"><p style="opacity:0.65;font-style:italic">Narrativa in arrivo nel prossimo batch settimanale.</p></div>`
+    : '';
 
   host.innerHTML = `<div class="pf-kpi-card bp-row">
     <div class="bp-header">
@@ -10786,8 +10775,7 @@ function _renderBlindPlaybook(data, host) {
       ${_bpWeeklyTechBadge(wt)}
     </div>
     ${_bpStrategicHeader(sf)}
-    ${narrativeHtml || summaryHtml}
-    ${accItems}
+    ${narrativeHtml || noNarrativeNote}
     ${_bpProRefs(proRefs)}
   </div>`;
 }

@@ -29,7 +29,9 @@ from backend.services.playbook_service import upsert_playbook
 ANALISIDEF_OUTPUT = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef/output")
 
 # Filename: deck_playbook_<DECK>.json (core) o deck_playbook_<DECK>_inf.json (infinity)
-_PATTERN = re.compile(r"^deck_playbook_([A-Za-z]+?)(_inf)?\.json$")
+# Accetta anche varianti DOSSIER_TEST (es. deck_playbook_RS.DOSSIER_TEST.json) — schema v2
+# con campo `narrative` popolato. Se presenti, vincono sui file standard (piu' recenti).
+_PATTERN = re.compile(r"^deck_playbook_([A-Za-z]+?)(_inf)?(?:\.DOSSIER_TEST)?\.json$")
 
 # analisidef usa ES/AS come codici, App_tool usa EmSa/AmSa (vedi DECK_COLORS in
 # scripts/import_matches.py). Mapping da analisidef -> App_tool al momento dell'import,
@@ -98,7 +100,11 @@ def main():
         print(f"ERR: source dir not found: {ANALISIDEF_OUTPUT}")
         sys.exit(1)
 
-    files = sorted(ANALISIDEF_OUTPUT.glob("deck_playbook_*.json"))
+    # DOSSIER_TEST in fondo: cosi vincono sui file standard (upsert sovrascrive su
+    # stesso (deck, fmt) anche se generated_at e' diverso, perche' marca is_current=false
+    # i precedenti).
+    files = sorted(ANALISIDEF_OUTPUT.glob("deck_playbook_*.json"),
+                   key=lambda p: (".DOSSIER_TEST" in p.name, p.name))
     if args.deck:
         files = [f for f in files if f.name.startswith(f"deck_playbook_{args.deck}.")
                  or f.name.startswith(f"deck_playbook_{args.deck}_")]
