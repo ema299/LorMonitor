@@ -5,11 +5,8 @@ Ports `analisidef/lib/gen_deck_playbook.py` (1573 LOC) into App_tool. Behaviour
 is identical to the source modulo two adaptations:
 
 1. Path constants adapted:
-   - BASE points at App_tool root (digests and `output/` still live on the
-     shared filesystem — keeping the analisidef output tree as bridge until
-     Fase F moves per-matchup digests into PG).
-   - DASHBOARD_DATA stays on the shared filesystem (analisidef daily output)
-     until migrated in a later phase.
+   - Digests read from App_tool/output/digests/ (DIGEST_SOURCE=native, D1 cutover).
+   - Pro references fetched from PG (no more dashboard_data.json dependency).
    - CARDS_DB_PATH and SNAPSHOT_DIR are shared filesystem paths (unchanged).
 
 2. Prompt rewritten in ENGLISH. Analisidef forced 'italiano fluido'; App_tool
@@ -64,9 +61,8 @@ BASE = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/App_tool")
 ANALISIDEF_BASE = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef")
 NATIVE_DIGESTS_DIR = BASE / "output" / "digests"
 
-# Shared filesystem paths (unchanged from analisidef source).
+# Shared filesystem paths.
 SNAPSHOT_DIR = Path("/mnt/HC_Volume_104764377/finanza/Lor/decks_db/history")
-DASHBOARD_DATA = ANALISIDEF_BASE / "daily/output/dashboard_data.json"
 CARDS_DB_PATH = Path("/mnt/HC_Volume_104764377/finanza/Lor/cards_db.json")
 
 DECK_COLORS = {
@@ -689,36 +685,53 @@ def _normalize_deck_key(k):
 
 
 def load_pro_references(deck, game_format, min_games=20, top_n=3):
-    if not DASHBOARD_DATA.exists():
-        return []
+    """Load top pro players for a deck from PG (no analisidef dependency)."""
     try:
-        with open(DASHBOARD_DATA) as f:
-            data = json.load(f)
+        from backend.models import SessionLocal
+        from sqlalchemy import text as sa_text
+        db = SessionLocal()
+        try:
+            # Find high-MMR players who play this deck
+            rows = db.execute(sa_text("""
+                SELECT name, wins, total FROM (
+                    SELECT player_a_name AS name,
+                           SUM(CASE WHEN winner = 'deck_a' THEN 1 ELSE 0 END) AS wins,
+                           COUNT(*) AS total
+                    FROM matches
+                    WHERE deck_a = :deck AND game_format = :fmt
+                      AND player_a_mmr >= 1300
+                      AND played_at >= NOW() - INTERVAL '30 days'
+                    GROUP BY player_a_name
+                    UNION ALL
+                    SELECT player_b_name AS name,
+                           SUM(CASE WHEN winner = 'deck_b' THEN 1 ELSE 0 END) AS wins,
+                           COUNT(*) AS total
+                    FROM matches
+                    WHERE deck_b = :deck AND game_format = :fmt
+                      AND player_b_mmr >= 1300
+                      AND played_at >= NOW() - INTERVAL '30 days'
+                    GROUP BY player_b_name
+                ) sub
+                WHERE total >= :min_games
+                ORDER BY (wins::float / total) DESC, total DESC
+                LIMIT :top_n
+            """), {"deck": deck, "fmt": game_format, "min_games": min_games, "top_n": top_n}).fetchall()
+
+            refs = []
+            for r in rows:
+                wr = round(r.wins / r.total * 100, 1) if r.total else 0
+                refs.append({
+                    "name": r.name or "?",
+                    "games": r.total,
+                    "wr_pct": wr,
+                    "wins": r.wins,
+                    "losses": r.total - r.wins,
+                })
+            return refs
+        finally:
+            db.close()
     except Exception:
         return []
-
-    pros = data.get("pro_players", []) or []
-    refs = []
-    for p in pros:
-        decks = p.get("decks", {}) or {}
-        decks_norm = {_normalize_deck_key(k): v for k, v in decks.items()}
-        entry = decks_norm.get(deck)
-        if not entry:
-            continue
-        w = entry.get("w", 0)
-        l = entry.get("l", 0)
-        g = w + l
-        if g < min_games:
-            continue
-        wr = round(w / g * 100, 1) if g else 0
-        refs.append({
-            "name": p.get("name", "?"),
-            "games": g,
-            "wr_pct": wr,
-            "wins": w, "losses": l,
-        })
-    refs.sort(key=lambda r: (-r["wr_pct"], -r["games"]))
-    return refs[:top_n]
 
 
 # ---------------------------------------------------------------------------
