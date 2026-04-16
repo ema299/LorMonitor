@@ -338,7 +338,7 @@ Sostituisce e dettaglia Fase F-G. Dual-run e shadow mode obbligatori per ogni cu
 | **P2.5b** | KC spy reader → PG | basso-medio | ✅ FATTO (commit `8c2b84a`, cron 04:05 attivo) |
 | **P2.5c** | llm_worker cleanup | basso | ✅ FATTO (commit `9ec0f45`, file rimosso) |
 | **P2** | KC pipeline nativa (D2) | medio | ✅ FATTO (16/04 — vendorized + runner nativo, E2E verde) |
-| **P3** | Matchup reports / analyzer_v3 (D3, 12K LOC, vendored + adapter) | alto | DA FARE |
+| **P3** | Matchup reports nativi (D3) | alto | ✅ FATTO (16/04 — generator nativo da digest + turns PG, 7 report types) |
 | **P4** | Decommission analisidef | basso | DA FARE (dopo P2+P3 stabili ≥4 settimane) |
 | **P5** | lorcana_monitor failover (opzionale, robustezza) | alto | FUTURO |
 
@@ -488,7 +488,7 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 |---|---|---|---|
 | D1 | `pipelines/playbook/generator.py` | ~~legge `analisidef/output/digest_*.json`~~ | ✅ CHIUSO 16/04 — `DIGEST_SOURCE=native` default, legge `App_tool/output/digests/` |
 | D2 | `scripts/generate_killer_curves.py` | ~~legge `analisidef/output/killer_curves_*.json`~~ | ✅ CHIUSO 16/04 — pipeline nativa: digest PG → OpenAI → PG `killer_curves` |
-| D3 | `scripts/import_matchup_reports.py` | legge `Daily_routine/output/dashboard_data.json` | DA FARE — target **P3** |
+| D3 | `scripts/generate_matchup_reports.py` | ~~legge `dashboard_data.json`~~ | ✅ CHIUSO 16/04 — 7 report types nativi da digest PG + turns JSONB |
 
 ### Legacy script da rimuovere in P4 (non attivi runtime, ma coupling residuo)
 
@@ -526,13 +526,13 @@ Checklist fine giornata 15/04/2026:
 - [x] C1 Digest generator senza import da analisidef
 - [x] D1 Playbook generator senza `analisidef/output/digest_*.json` → **CHIUSO 16/04** (`DIGEST_SOURCE=native`)
 - [x] D2 KC pipeline nativa → **CHIUSO 16/04** (E2E: digest PG → OpenAI → PG, $0.034/matchup)
-- [ ] D3 Matchup reports analyzer nativi → target P3
+- [x] D3 Matchup reports nativi → **CHIUSO 16/04** (132 matchup, 924 reports, 0 errors)
 
 **Risposta alla domanda Liberation Day 16/04: AVANZATA**.
 - Runtime (richieste utente): ✅ SÌ — nessun endpoint o assembler rompe se analisidef è down
 - Playbook batch: ✅ SÌ — digest nativi da PG, zero dipendenza analisidef
 - KC batch: ✅ SÌ — `generate_killer_curves.py` nativo (digest PG → OpenAI → PG)
-- Matchup reports batch: ❌ NO — `import_matchup_reports.py` legge `dashboard_data.json` (target P3)
+- Matchup reports batch: ✅ SÌ — `generate_matchup_reports.py` nativo (digest PG + turns JSONB)
 
 **Traguardo Liberation Day completo = tutte le caselle verdi**, sbloccato dopo D1/D2/D3.
 
@@ -660,9 +660,9 @@ Questi item possono essere presi da un secondo agente o in parallelo senza tocca
 | C1 Digest generator code | ✅ CHIUSO |
 | **D1 Playbook → digest** | ✅ **CHIUSO** (oggi) |
 | **D2 KC pipeline** | ✅ **CHIUSO** (oggi) |
-| D3 Matchup reports | DA FARE (P3) |
+| **D3 Matchup reports** | ✅ **CHIUSO** (oggi) |
 
-**Score: 6/7 coupling chiusi.** Restano D2 (KC import bridge) e D3 (matchup reports bridge).
+**Score: 7/7 coupling chiusi. LIBERATION DAY COMPLETO.** Restano D2 (KC import bridge) e D3 (matchup reports bridge).
 
 ### Debito tecnico emerso da review (backlog)
 
