@@ -143,6 +143,23 @@ Prossimi step consigliati:
 | UI Monitor "Emerging / Rogue / Tier-0 Killers" | `frontend/dashboard.html` | 1-2 dev days | accordion chiuso di default |
 | Decide porting `gen_meta_deck.py` | discovery | 1 dev day | farlo solo dopo valutazione stabilita di `rogue_scout` |
 
+## 4.2. Lab tab — Deck Comparator (piramide)
+
+Endpoint backend pronto: `GET /api/v1/lab/tournament-lists/{deck}` (15 liste da inkdecks snapshot).
+
+**Layout**:
+- **Desktop**: piramide — My List centrata in alto (griglia carte max 3-4 colonne, immagini zoomabili), sotto max 4 liste torneo affiancate con diff evidenziata (verde = add, rosso = cut)
+- **Mobile**: My List in alto + 4 badge cliccabili sotto; click badge → overlay fullscreen con lista + diff
+- Stesso formato carte del Profile (gallery thumbnails zoomabili)
+- My List da saved deck Profile (o consensus/standard se nessun saved deck)
+- Filtro liste torneo da dropdown (player + evento + data)
+
+| Task | Dove | Effort | Note |
+|------|------|--------|------|
+| Frontend comparatore desktop (piramide + diff) | `frontend/dashboard.html` Lab tab | 30 min | CSS griglia + JS fetch + diff calc |
+| Frontend comparatore mobile (badge → fullscreen) | `frontend/dashboard.html` | 15 min | Bottom-sheet overlay |
+| Integrare in Lab tab come prima sezione | `frontend/dashboard.html` | 10 min | Prima di Mulligan Trainer |
+
 ---
 
 ## 5. Infrastruttura — pre go-pubblico serio
