@@ -33,3 +33,5 @@ from backend.models.community import Video, Tournament  # noqa: E402, F401
 from backend.models.report import MatchupReport  # noqa: E402, F401
 from backend.models.playbook import DeckPlaybook  # noqa: E402, F401
 from backend.models.meta_epoch import MetaEpoch  # noqa: E402, F401
+from backend.models.log_feature import MatchLogFeature  # noqa: E402, F401
+from backend.models.news_feed import NewsFeedItem  # noqa: E402, F401

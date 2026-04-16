@@ -631,7 +631,7 @@ Questi item possono essere presi da un secondo agente o in parallelo senza tocca
 
 ## 📋 Bilancio giornata 16/04/2026
 
-### Fatto oggi
+### Fatto oggi (sessione 1: Liberation Day)
 
 1. **D1 cutover CHIUSO** ✅ — `pipelines/playbook/generator.py` ora legge da `App_tool/output/digests/` (digest nativi PG-first). Flag `DIGEST_SOURCE` in `backend/config.py` (default `"native"`, rollback via `DIGEST_SOURCE=legacy` env var).
 2. **Full batch digest nativi** — generati tutti i digest core+infinity da PG (200K+ match, window 30gg). Dati 5x più freschi dei legacy stale dal 28/03.
@@ -664,6 +664,15 @@ Questi item possono essere presi da un secondo agente o in parallelo senza tocca
 
 **Score: 7/7 coupling chiusi. LIBERATION DAY COMPLETO.** Restano D2 (KC import bridge) e D3 (matchup reports bridge).
 
+### Fatto oggi (sessione 2: Meta Ticker + UI polish)
+
+1. **Meta Ticker** ✅ — news feed scrolling Bloomberg-style in Monitor tab (tabella PG `news_feed`, YouTube RSS 13 canali + Twitch ready, cron 3h, frontend CSS+JS)
+2. **Format toggle in tab bar** ✅ — Core/Infinity spostato a dx nella tab bar desktop, format-bar solo mobile
+3. **Copy decklist pulito** ✅ — rimossi `*` e `?` dal copy (Monitor Best Players), rimosso CSS `::after *` (Lab Optimized Deck)
+4. **Copy buttons mobile** ✅ — layout responsive con bottoni full-width su mobile
+5. **Standard List senza scroll** ✅ — rimosso max-height/overflow, blocco unico
+6. **Rimosso toggle Core/Infinity duplicato** da Profile header
+
 ### Debito tecnico emerso da review (backlog)
 
 | Item | Effort | Sprint suggerito |
@@ -674,3 +683,26 @@ Questi item possono essere presi da un secondo agente o in parallelo senza tocca
 | Cleanup worktree artifacts | 10 min | Immediato |
 | Frontend: rimuovere 5 API wrapper dead | 15 min | Prossimo frontend sprint |
 | Frontend: sanitize innerHTML in team_coaching.js | 1h | Prossimo frontend sprint |
+
+---
+
+## Nuove feature infra aggiunte 16/04/2026
+
+### Meta Ticker (news feed scrolling)
+
+Componente Bloomberg-style in cima al Monitor tab. Due stream:
+- **META** (gold) — auto-generato client-side dal blob dashboard (fitness, meta share, WR swings)
+- **Editorial** (VIDEO/NEWS/BUZZ/LIVE) — da tabella PG `news_feed`, alimentata da cron ogni 3h
+
+**Stack:**
+- Tabella `news_feed` (migration `f1a2b3c4d5e6`)
+- Service `backend/services/news_feed_service.py` — CRUD + upsert dedup + cleanup expired
+- API `backend/api/news.py` — GET `/ticker` (pub, cache 5min), POST (admin), DELETE (admin)
+- Cron `scripts/fetch_news_feed.py` — YouTube RSS (13 canali, filtro keyword multi-TCG) + Twitch Helix (pronto, attende credenziali) + Reddit (bloccato da IP datacenter)
+- Frontend: CSS ticker + JS `buildMetaTickerItems()` + `fetchEditorialItems()` + `renderMetaTicker()`
+
+**Canali YouTube tracciati:** Lorcana Academy, Lorcana Goons, The Forbidden Mountain, The Illumiteers, DMArmada, Team Covenant, Ready Set Draw TCG, The Inkwell, phonetiic, Mushu Report, Inkborn Heroes, Tales of Lorcana (it), Inked Broom (it)
+
+**Twitch:** Lorecast (disneylorcana) — LIVE pulse + VOD. Setup: `echo 'CLIENT_ID:SECRET' > /tmp/.twitch_creds`
+
+**Crontab:** `0 */3 * * * cd .../App_tool && venv/bin/python scripts/fetch_news_feed.py`

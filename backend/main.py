@@ -9,13 +9,15 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile
+from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile, news
 from backend.config import CORS_ALLOW_CREDENTIALS, CORS_ALLOW_ORIGINS
 from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
 from backend.middleware.rate_limit import RateLimitMiddleware
-from backend.services import replay_archive_service
+from backend.services import replay_archive_service, match_log_features_service
+from backend.models.match import Match
+from backend.models.log_feature import MatchLogFeature
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
@@ -54,6 +56,7 @@ app.include_router(admin.router, prefix="/api/v1/admin", tags=["Admin"])
 app.include_router(team.router, prefix="/api/v1/team", tags=["Team"])
 app.include_router(user.router, prefix="/api/v1/user", tags=["User"])
 app.include_router(community.router, prefix="/api/v1/community", tags=["Community"])
+app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["Profile"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["Dashboard"])
@@ -143,6 +146,35 @@ def replay_game(
     if game is None:
         return JSONResponse({"error": "game index out of range"}, 404)
     return JSONResponse(game)
+
+
+@app.get("/api/replay/public-log")
+def replay_public_log(
+    match_id: int = 0,
+    db: Session = Depends(get_db),
+):
+    """Normalized viewer-safe public log extracted from matches.turns."""
+    if not match_id:
+        return JSONResponse({"error": "match_id required"}, 400)
+    row = db.query(MatchLogFeature).filter(MatchLogFeature.match_id == match_id).first()
+    if not row or (row.extractor_version or 0) < match_log_features_service.EXTRACTOR_VERSION:
+        match = db.query(Match).filter(Match.id == match_id).first()
+        if match:
+            row = match_log_features_service.upsert_match_log_features(db, match)
+            db.commit()
+            db.refresh(row)
+    if not row:
+        return JSONResponse({"error": "public log not found"}, 404)
+    return JSONResponse(
+        {
+            "match_id": row.match_id,
+            "extractor_version": row.extractor_version,
+            "match_summary": row.match_summary,
+            "viewer_public_log": row.viewer_public_log,
+            "player1_features": row.player1_features,
+            "player2_features": row.player2_features,
+        }
+    )
 
 
 # Serve all frontend static files (icons, manifest, chart.js, assets/)

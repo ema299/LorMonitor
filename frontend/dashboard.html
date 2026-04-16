@@ -107,6 +107,22 @@
   }
   .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
   .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  /* Format toggle inside tabs bar (desktop only) */
+  .format-seg--tabs {
+    margin-left: auto;
+    align-self: center;
+    flex-shrink: 0;
+    border-bottom: none;
+  }
+  .format-seg--tabs .format-btn { padding: 5px 14px; font-size: 0.8em; }
+  /* Mobile: hide tabs-inline toggle, show bar toggle */
+  @media (max-width: 768px) {
+    .format-seg--tabs { display: none !important; }
+  }
+  /* Desktop: hide bar toggle, show tabs-inline toggle */
+  @media (min-width: 769px) {
+    .format-seg--bar { display: none !important; }
+  }
 
   /* === PERIMETER SELECTOR === */
   .perimeter-bar {
@@ -324,8 +340,86 @@
     border-top-color: var(--border);
   }
 
-  /* ── Deck Fitness Strip (Monitor tab) ── */
-  .fit-section { margin-bottom: 16px; }
+  /* ── Meta Ticker (Monitor tab) ── */
+  .meta-ticker {
+    position: relative;
+    overflow: hidden;
+    height: 32px;
+    background: linear-gradient(90deg, rgba(13,17,23,.95), rgba(22,27,34,.95));
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 14px;
+    white-space: nowrap;
+    font-size: 0.82em;
+    line-height: 32px;
+  }
+  .meta-ticker__track {
+    display: inline-flex;
+    gap: 28px;
+    animation: tickerScroll var(--ticker-dur, 45s) linear infinite;
+    will-change: transform;
+  }
+  .meta-ticker:hover .meta-ticker__track,
+  .meta-ticker:active .meta-ticker__track {
+    animation-play-state: paused;
+  }
+  .meta-ticker__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    flex-shrink: 0;
+    cursor: default;
+    text-decoration: none;
+    color: var(--text);
+    transition: color 0.15s;
+  }
+  a.meta-ticker__item { cursor: pointer; }
+  a.meta-ticker__item:hover { color: var(--gold); }
+  .meta-ticker__label {
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .meta-ticker__label--meta  { background: #D4A03A; color: #0D1117; }
+  .meta-ticker__label--news  { background: #388BFD; color: #fff; }
+  .meta-ticker__label--event { background: #3FB950; color: #0D1117; }
+  .meta-ticker__label--video { background: #F85149; color: #fff; }
+  .meta-ticker__label--buzz  { background: #A371F7; color: #fff; }
+  .meta-ticker__label--live  { background: #E91916; color: #fff; animation: livePulse 1.5s ease-in-out infinite; }
+  @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .meta-ticker__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 380px;
+  }
+  .meta-ticker__sep {
+    color: var(--border);
+    user-select: none;
+    flex-shrink: 0;
+  }
+  @keyframes tickerScroll {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  @media (max-width: 640px) {
+    .meta-ticker { height: 28px; font-size: 0.74em; border-radius: 6px; }
+    .meta-ticker__text { max-width: 220px; }
+  }
+
+  /* ── Deck Fitness + Emerging unified block (Monitor tab) ── */
+  .fit-section {
+    margin-bottom: 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
   .fit-header {
     display: flex;
     align-items: center;
@@ -361,18 +455,16 @@
     display: flex;
     gap: 10px;
     overflow-x: auto;
-    padding: 4px 4px 12px;
+    padding: 4px 2px 12px;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
     scroll-behavior: smooth;
   }
-  /* Mobile: hide scrollbar for cleaner look (touch scroll) */
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     .fit-strip { scrollbar-width: none; }
     .fit-strip::-webkit-scrollbar { display: none; }
   }
-  /* Desktop: thin subtle scrollbar so users know they can scroll */
-  @media (min-width: 769px) {
+  @media (min-width: 641px) {
     .fit-strip { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
     .fit-strip::-webkit-scrollbar { height: 6px; }
     .fit-strip::-webkit-scrollbar-track { background: transparent; }
@@ -385,10 +477,9 @@
     top: 0; bottom: 14px; right: 0;
     width: 32px;
     pointer-events: none;
-    background: linear-gradient(to right, transparent, var(--bg));
+    background: linear-gradient(to right, transparent, var(--bg2));
     opacity: 0.7;
   }
-  /* Desktop: navigation arrows */
   .fit-arrow {
     position: absolute;
     top: 50%;
@@ -408,15 +499,16 @@
   }
   .fit-arrow:hover { background: var(--bg3); border-color: var(--gold); color: var(--gold); }
   .fit-arrow:disabled { opacity: 0.3; cursor: default; }
-  .fit-arrow.prev { left: -4px; }
-  .fit-arrow.next { right: -4px; }
+  .fit-arrow.prev { left: -18px; }
+  .fit-arrow.next { right: -18px; }
   @media (min-width: 769px) {
     .fit-arrow { display: inline-flex; }
+    .fit-strip-wrap { margin: 0 24px; }
   }
   .fit-card {
     flex-shrink: 0;
     width: 132px;
-    background: var(--bg2);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 10px 12px;
@@ -438,10 +530,10 @@
     align-items: center;
     justify-content: space-between;
     gap: 6px;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .fit-card-deck {
-    display: flex; align-items: center; gap: 4px;
+    display: flex; align-items: center; gap: 5px;
     min-width: 0;
   }
   .fit-card-name {
@@ -451,40 +543,81 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color 0.2s;
   }
+  .fit-card:hover .fit-card-name { color: var(--text); }
   .fit-rank {
-    font-size: 0.72em;
+    font-size: 0.7em;
     color: var(--text2);
     font-weight: 600;
     flex-shrink: 0;
+    opacity: 0.7;
   }
-  .fit-rank.top { color: var(--gold); }
+  .fit-rank.top { color: var(--gold); opacity: 1; }
   .fit-score {
-    font-size: 2em;
+    font-size: 2.1em;
     font-weight: 800;
     line-height: 1;
-    margin: 4px 0 8px;
+    margin: 6px 0 10px;
+    letter-spacing: -0.02em;
   }
-  .fit-score.tier-high { color: #3FB950; }
-  .fit-score.tier-mid  { color: #D29922; }
-  .fit-score.tier-low  { color: #F85149; }
-  .fit-score.tier-none { color: var(--text2); font-size: 1.2em; padding: 10px 0 7px; }
+  .fit-score.tier-high { color: #3FB950; text-shadow: 0 0 20px rgba(63,185,80,0.2); }
+  .fit-score.tier-mid  { color: #D29922; text-shadow: 0 0 20px rgba(210,153,34,0.2); }
+  .fit-score.tier-low  { color: #F85149; text-shadow: 0 0 20px rgba(248,81,73,0.2); }
+  .fit-score.tier-none { color: var(--text2); font-size: 1.2em; padding: 10px 0 7px; text-shadow: none; }
   .fit-bar-bg {
-    height: 5px;
-    background: var(--bg3);
-    border-radius: 3px;
+    height: 4px;
+    background: rgba(33,38,45,0.8);
+    border-radius: 2px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   .fit-bar-fill {
     height: 100%;
-    border-radius: 3px;
-    transition: width 0.5s ease-out;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
   }
-  .fit-bar-fill.tier-high { background: linear-gradient(90deg, #3FB950, #56D66D); }
-  .fit-bar-fill.tier-mid  { background: linear-gradient(90deg, #D29922, #E6B13E); }
-  .fit-bar-fill.tier-low  { background: linear-gradient(90deg, #F85149, #FF7068); }
-  .fit-meta { font-size: 0.68em; color: var(--text2); line-height: 1.3; }
+  .fit-bar-fill.tier-high { background: linear-gradient(90deg, #3FB950, #56D66D); box-shadow: 0 0 8px rgba(63,185,80,0.3); }
+  .fit-bar-fill.tier-mid  { background: linear-gradient(90deg, #D29922, #E6B13E); box-shadow: 0 0 8px rgba(210,153,34,0.3); }
+  .fit-bar-fill.tier-low  { background: linear-gradient(90deg, #F85149, #FF7068); box-shadow: 0 0 8px rgba(248,81,73,0.3); }
+  .fit-meta {
+    font-size: 0.68em;
+    color: var(--text2);
+    line-height: 1.35;
+    opacity: 0.8;
+  }
+
+  /* ── Emerging & Rogue tiles (inside fitness block) ── */
+  .emg-divider { border: none; border-top: 1px solid var(--border); margin: 10px 0 8px; opacity: 0.4; }
+  .emg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .emg-title { font-weight: 700; font-size: 0.9em; color: var(--gold); }
+  .emg-subtitle { font-size: 0.72em; color: var(--text2); }
+  .emg-strip {
+    display: flex; gap: 10px; overflow-x: auto; padding: 4px 0 4px;
+    scroll-snap-type: x mandatory; justify-content: center; flex-wrap: wrap;
+  }
+  @media (max-width: 640px) {
+    .emg-strip { justify-content: flex-start; flex-wrap: nowrap; scrollbar-width: none; }
+    .emg-strip::-webkit-scrollbar { display: none; }
+  }
+  .emg-tile {
+    flex-shrink: 0; width: 148px; background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 10px 12px; scroll-snap-align: start;
+    transition: border-color 0.2s, transform 0.15s;
+  }
+  .emg-tile:hover { transform: translateY(-2px); }
+  .emg-badge {
+    display: inline-block; font-size: 0.65em; font-weight: 700; padding: 2px 6px;
+    border-radius: 8px; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px;
+  }
+  .emg-badge.off_meta { background: rgba(248,81,73,0.15); color: #F85149; }
+  .emg-badge.brew { background: rgba(63,185,80,0.15); color: #3FB950; }
+  .emg-badge.new_colors { background: rgba(212,160,58,0.15); color: var(--gold); }
+  .emg-deck { font-weight: 700; font-size: 0.95em; margin: 2px 0; }
+  .emg-label { font-size: 0.75em; color: var(--text2); margin-bottom: 4px; }
+  .emg-wr { font-size: 1.4em; font-weight: 800; line-height: 1; margin: 2px 0; }
+  .emg-detail { font-size: 0.7em; color: var(--text2); }
+  .emg-cards { font-size: 0.68em; color: var(--text2); margin-top: 4px; line-height: 1.3; }
 
   /* ── Card Impact IWD (Lab tab) ── */
   .iwd-wrap { margin-top: 4px; }
@@ -1512,30 +1645,46 @@
     border-top: none;
     border-radius: 0 0 8px 8px;
     flex-wrap: wrap;
+    align-items: center;
   }
   .deck-diff-footer .ddf-info {
-    flex: 1;
+    flex: 1 1 100%;
     font-size: 0.75em;
     color: var(--text2);
     display: flex;
     align-items: center;
   }
+  .deck-diff-footer .ddf-btns {
+    display: flex;
+    gap: 8px;
+    flex: 1 1 100%;
+  }
   .deck-diff-copy-btn {
-    padding: 4px 14px;
+    flex: 1;
+    padding: 7px 12px;
     border-radius: 6px;
     border: 1px solid var(--border);
     background: var(--bg2);
     color: var(--text2);
-    font-size: 0.75em;
+    font-size: 0.78em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.15s;
+    text-align: center;
+    white-space: nowrap;
+    min-height: 34px;
   }
   .deck-diff-copy-btn:hover { border-color: var(--gold); color: var(--gold); }
   .deck-diff-copy-btn.std   { border-color: var(--sapphire); color: var(--sapphire); }
   .deck-diff-copy-btn.std:hover { background: rgba(36,113,163,0.15); }
   .deck-diff-copy-btn.player { border-color: var(--gold); color: var(--gold); }
   .deck-diff-copy-btn.player:hover { background: rgba(212,160,58,0.12); }
+  /* Desktop: info + buttons on same row */
+  @media (min-width: 641px) {
+    .deck-diff-footer .ddf-info { flex: 1 1 auto; }
+    .deck-diff-footer .ddf-btns { flex: 0 0 auto; }
+    .deck-diff-copy-btn { flex: 0 0 auto; }
+  }
 
   /* === MOBILE OPTIMIZATION (iPhone 375-430px) === */
   @media (max-width: 600px) {
@@ -1936,8 +2085,7 @@
   .lab-dl-row .dl-score.pos { color: var(--green); }
   .lab-dl-row .dl-score.neg { color: var(--red); }
   .lab-dl-row.is-cut { text-decoration: line-through; opacity: 0.45; }
-  .lab-dl-row.is-add { background: rgba(63,185,80,0.08); }
-  .lab-dl-row.is-add .dl-name::after { content: ' *'; color: var(--green); font-weight: 700; }
+  .lab-dl-row.is-add { background: rgba(63,185,80,0.08); border-left: 2px solid var(--green); }
 
   /* Mana curve inline mini */
   .lab-mana-mini { display: flex; align-items: flex-end; gap: 3px; height: 40px; margin: 10px 0 6px; }
@@ -1990,6 +2138,101 @@
   .lab-change-badge.cut { background: rgba(248,81,73,0.12); color: var(--red); }
   .lab-change-badge.add { background: rgba(63,185,80,0.12); color: var(--green); }
 
+  /* ── Deck Browser ── */
+  .db-filter-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .db-ink-filter {
+    display: flex; align-items: center; gap: 6px;
+  }
+  .db-ink-filter .ink-icon-wrap { width: 36px; height: 36px; }
+  .db-ink-filter .ink-icon-wrap svg { width: 20px; height: 20px; }
+  .db-rank-filter {
+    display: flex; gap: 4px;
+  }
+  .db-rank-btn {
+    padding: 4px 12px; border-radius: 14px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2); font-size: 0.78em; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .db-rank-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .db-rank-btn.active { background: rgba(212,160,58,0.15); border-color: var(--gold); color: var(--gold); }
+  .db-clear-filter {
+    padding: 3px 10px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2); font-size: 0.72em; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .db-clear-filter:hover { border-color: var(--red); color: var(--red); }
+  .db-pills {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px;
+  }
+  .db-deck-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 5px 12px; border-radius: 16px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2); font-size: 0.82em; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .db-deck-pill:hover { border-color: var(--gold); color: var(--gold); }
+  .db-deck-pill.active { background: rgba(212,160,58,0.15); border-color: var(--gold); color: var(--gold); }
+  .db-ref-dot {
+    display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--green); margin-left: 2px; vertical-align: middle;
+  }
+  .db-decks-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px; max-width: 100%;
+  }
+  .db-deck-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .db-deck-hdr {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .db-deck-name { font-weight: 700; font-size: 1.05em; color: var(--gold); display: flex; align-items: center; gap: 5px; }
+  .db-deck-total { font-size: 0.78em; color: var(--text2); margin-left: auto; }
+  .db-deck-close {
+    background: none; border: none; color: var(--text2); font-size: 1.3em;
+    cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s;
+  }
+  .db-deck-close:hover { color: var(--red); }
+  .db-source { font-size: 0.8em; color: var(--text); margin-bottom: 2px; }
+  .db-event { font-size: 0.72em; color: var(--text2); margin-bottom: 8px; font-style: italic; }
+  .db-deck-footer { margin-top: 10px; display: flex; justify-content: flex-end; }
+  .db-copy-btn {
+    padding: 5px 16px; border-radius: 6px; border: 1px solid var(--gold);
+    background: rgba(212,160,58,0.1); color: var(--gold); font-size: 0.78em;
+    font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .db-copy-btn:hover { background: rgba(212,160,58,0.2); }
+  .db-player-tabs {
+    display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .db-ptab {
+    padding: 3px 8px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text2); font-size: 0.72em; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; font-family: inherit;
+  }
+  .db-ptab:hover { border-color: var(--gold); color: var(--gold); }
+  .db-ptab.active { background: rgba(212,160,58,0.15); border-color: var(--gold); color: var(--gold); }
+  .db-ptab small { font-weight: 400; opacity: 0.7; }
+  /* Gallery inside deck browser: compact grid, contained height */
+  .db-deck-card .pf-std-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 8px 6px;
+  }
+  .db-deck-card .pf-std-vcard { font-size: 0.85em; }
+  .db-deck-card .pf-std-vart { border-radius: 6px; }
+  .db-deck-card .pf-std-vname { font-size: 0.65em; }
+  .db-deck-card .pf-std-vqty { font-size: 0.65em; padding: 1px 4px; }
+  @media (max-width: 640px) {
+    .db-decks-row { grid-template-columns: 1fr; }
+    .db-pills { gap: 4px; }
+    .db-deck-pill { padding: 4px 10px; font-size: 0.76em; }
+    .db-ink-filter .ink-icon-wrap { width: 40px; height: 40px; }
+    .db-deck-card .pf-std-gallery { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 6px 4px; }
+  }
+
   /* Card impact bars (left column) */
   .lab-impact-list { display: flex; flex-direction: column; gap: 3px; }
   .lab-impact-row {
@@ -2027,8 +2270,8 @@
   .rv-info{color:var(--text2);font-size:0.75rem;margin-left:auto}
   .rv-steps{background:var(--bg2);padding:6px 12px;display:flex;flex-direction:column;gap:4px;border-bottom:1px solid var(--border)}
   .rv-controls{display:flex;align-items:center;gap:4px}
-  .rv-step-scroll{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0;align-items:center;scrollbar-width:thin}
-  .rv-sb{background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:4px;height:24px;padding:0 5px;font-size:0.68rem;cursor:pointer;display:flex;align-items:center;gap:2px;white-space:nowrap}
+  .rv-step-scroll{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 0;align-items:center;scrollbar-width:thin}
+  .rv-sb{background:var(--bg3);color:var(--text2);border:1px solid var(--border);border-radius:6px;min-height:30px;padding:4px 9px;font-size:0.66rem;cursor:pointer;display:flex;align-items:center;justify-content:center;white-space:nowrap}
   .rv-sb:hover{border-color:var(--text);color:var(--text)}
   .rv-sb.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
   .rv-sb.rv-opp{background:var(--bg3)}
@@ -2039,9 +2282,10 @@
   #rv-play:hover{background:rgba(63,185,80,0.2);border-color:var(--green)}
   #rv-speed{font-weight:700;color:var(--yellow);border-color:rgba(210,153,34,0.3)}
   .rv-ssep{width:1px;height:18px;background:var(--border);margin:0 1px}
-  .rv-body{display:grid;grid-template-columns:1fr 260px;min-height:400px;max-height:600px;overflow:hidden}
-  @media(max-width:900px){.rv-body{grid-template-columns:1fr;max-height:none}.rv-events{max-height:200px}}
-  .rv-board{padding:8px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+  .rv-body{display:grid;grid-template-columns:minmax(0,1fr) 340px;min-height:400px;max-height:600px;overflow:hidden}
+  @media(max-width:900px){.rv-body{grid-template-columns:1fr;max-height:none}.rv-events{max-height:320px}}
+  .rv-board{padding:8px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .rv-events.rv-step-enter,.rv-hand-cards.rv-step-enter{animation:rvStepFade .32s cubic-bezier(.22,1,.36,1)}
   .rv-counters{background:var(--bg2);border-bottom:1px solid var(--border);padding:6px 12px;display:flex;justify-content:center;gap:0}
   .rv-cs{flex:1;display:flex;gap:5px;align-items:stretch;padding:5px 8px;border-radius:5px}
   .rv-cs.rv-ours{background:rgba(212,160,58,0.06);justify-content:flex-start}
@@ -2056,29 +2300,126 @@
   .rv-blbl{font-size:0.6rem;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2);display:flex;align-items:center;gap:5px}
   .rv-blbl .rv-ap{color:var(--gold);font-weight:700}
   .rv-bdiv{border:none;border-top:2px solid var(--border);margin:2px 0}
-  .rv-zone{margin-bottom:3px}
-  .rv-zone-label{font-size:0.5rem;text-transform:uppercase;letter-spacing:0.6px;color:var(--text2);opacity:0.6;margin-bottom:2px}
-  .rv-card-row{display:flex;flex-wrap:wrap;gap:3px;min-height:28px;align-content:flex-start}
-  .rv-field{padding:5px 6px;border-radius:6px;min-height:50px;display:flex;flex-direction:column;gap:3px}
-  .rv-field-active{background:rgba(212,160,58,0.05)}
+  .rv-ink-zone{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid rgba(88,166,255,0.15);border-radius:12px;background:linear-gradient(180deg,rgba(88,166,255,0.08),rgba(255,255,255,0.02))}
+  .rv-ink-meta{display:flex;flex-direction:column;gap:2px;font-size:0.62rem;color:var(--text2);min-width:70px}
+  .rv-ink-count{font-size:0.82rem;font-weight:800;color:var(--sapphire)}
+  .rv-ink-spent{font-size:0.6rem;color:var(--text2)}
+  .rv-ink-fan{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;align-items:flex-end}
+  .rv-ink-card{width:38px;height:54px;border-radius:7px;position:relative;border:1px solid rgba(255,255,255,0.1);box-shadow:0 4px 12px rgba(0,0,0,0.18);overflow:hidden;transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .2s}
+  .rv-ink-card::before{content:'';position:absolute;inset:0;background:
+    radial-gradient(circle at 30% 28%, rgba(255,255,255,0.18), transparent 18%),
+    linear-gradient(135deg, rgba(212,160,58,0.85), rgba(88,166,255,0.85));
+  }
+  .rv-ink-card::after{content:'';position:absolute;inset:4px;border-radius:5px;border:1px solid rgba(255,255,255,0.35);background:
+    repeating-linear-gradient(45deg, rgba(0,0,0,0.15), rgba(0,0,0,0.15) 4px, rgba(255,255,255,0.05) 4px, rgba(255,255,255,0.05) 8px)}
+  .rv-ink-card.spent{transform:rotate(90deg) translateX(4px);transform-origin:center center;opacity:.82}
+  .rv-zone-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .rv-pile{padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);display:flex;flex-direction:column;gap:4px}
+  .rv-pile-label{font-size:0.54rem;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2)}
+  .rv-pile-count{font-size:0.9rem;font-weight:800;color:var(--text)}
+  .rv-pile-sub{font-size:0.58rem;color:var(--text2)}
+  .rv-zone{margin-bottom:6px;padding:6px 7px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)}
+  .rv-zone.ready{background:rgba(63,185,80,0.05)}
+  .rv-zone.exerted{background:rgba(248,81,73,0.06)}
+  .rv-zone.items{background:rgba(210,153,34,0.05)}
+  .rv-zone-label{font-size:0.56rem;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);opacity:0.9;margin-bottom:4px;font-weight:700}
+  .rv-card-row{display:flex;flex-wrap:wrap;gap:6px;min-height:32px;align-content:flex-start}
+  .rv-arena{display:grid;grid-template-rows:auto 1fr auto 1fr auto;gap:8px;padding:8px;border:1px solid rgba(255,255,255,0.06);border-radius:14px;background:
+    radial-gradient(circle at 50% 50%, rgba(212,160,58,0.06), transparent 32%),
+    linear-gradient(180deg, rgba(248,81,73,0.035), rgba(255,255,255,0.01) 22%, rgba(255,255,255,0.01) 78%, rgba(212,160,58,0.04));
+  }
+  .rv-side{display:grid;grid-template-columns:130px minmax(0,1fr);gap:10px;align-items:start}
+  .rv-side.ours{grid-template-columns:minmax(0,1fr) 130px}
+  .rv-side-meta{display:flex;flex-direction:column;gap:8px}
+  .rv-side.ours .rv-side-meta{order:2}
+  .rv-side.ours .rv-field{order:1}
+  .rv-centerline{height:42px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);background:
+    linear-gradient(90deg, rgba(248,81,73,0.08), rgba(255,255,255,0.03) 35%, rgba(255,255,255,0.03) 65%, rgba(212,160,58,0.08));
+    display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:0.64rem;letter-spacing:1px;text-transform:uppercase}
+  .rv-field{padding:8px;border-radius:10px;min-height:50px;display:flex;flex-direction:column;gap:8px;border:1px solid rgba(255,255,255,0.06)}
+  .rv-field-active{background:rgba(212,160,58,0.05);border-color:rgba(212,160,58,0.18)}
   .rv-field-inactive{background:rgba(100,100,120,0.03)}
-  .rv-mc{width:64px;height:90px;border-radius:5px;background:var(--bg2);border:2px solid var(--border);position:relative;cursor:default;font-size:0.52rem;overflow:hidden;background-size:cover;background-position:center top;transition:transform .22s cubic-bezier(.22,1,.36,1),box-shadow .2s,opacity .22s,filter .25s,border-color .2s}
+  .rv-battle-mid{display:grid;grid-template-columns:minmax(0,1fr) 170px;gap:8px;align-items:start}
+  .rv-utility-col{display:flex;flex-direction:column;gap:8px}
+  .rv-board-overlay{display:flex;flex-direction:column;gap:8px;margin:4px 0 8px;animation:rvOverlayRise .34s cubic-bezier(.22,1,.36,1)}
+  .rv-board-banner{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid rgba(212,160,58,0.18);background:linear-gradient(90deg,rgba(212,160,58,0.12),rgba(255,255,255,0.02))}
+  .rv-board-phase{font-size:0.72rem;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:0.9px}
+  .rv-board-summary{font-size:0.74rem;color:var(--text)}
+  .rv-board-seq{font-size:0.6rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px}
+  .rv-board-overlay.attack .rv-board-banner{border-color:rgba(248,81,73,0.28);background:linear-gradient(90deg,rgba(248,81,73,0.16),rgba(255,255,255,0.02))}
+  .rv-board-overlay.effect .rv-board-banner{border-color:rgba(163,113,247,0.26);background:linear-gradient(90deg,rgba(163,113,247,0.18),rgba(255,255,255,0.02))}
+  .rv-board-overlay.quest .rv-board-banner{border-color:rgba(212,160,58,0.28)}
+  .rv-board-overlay.ink .rv-board-banner{border-color:rgba(88,166,255,0.24);background:linear-gradient(90deg,rgba(88,166,255,0.12),rgba(255,255,255,0.02))}
+  .rv-action-ribbon{display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);margin:6px auto 10px;max-width:680px}
+  .rv-action-part{font-size:0.68rem;line-height:1.2}
+  .rv-action-part strong{color:var(--text);font-weight:800}
+  .rv-action-side{font-size:0.54rem;text-transform:uppercase;letter-spacing:0.8px;color:var(--text2);display:block}
+  .rv-action-arrow{display:flex;align-items:center;justify-content:center;color:var(--gold);min-width:42px}
+  .rv-action-arrow svg{width:40px;height:14px;overflow:visible}
+  .rv-action-arrow line{stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+  .rv-action-note{font-size:0.62rem;color:var(--text2);padding:3px 8px;border-radius:999px;background:rgba(0,0,0,0.18);border:1px solid rgba(255,255,255,0.06)}
+  .rv-mc{width:64px;height:90px;border-radius:5px;background:var(--bg2);border:2px solid var(--border);position:relative;cursor:default;font-size:0.52rem;overflow:hidden;background-size:cover;background-position:center top;transition:transform .18s cubic-bezier(.22,1,.36,1),box-shadow .18s,opacity .18s,filter .2s,border-color .18s}
   .rv-mc:hover{transform:translateY(-2px);box-shadow:0 3px 10px rgba(0,0,0,0.4);z-index:10}
+  .rv-mc.rv-flip-move{transition:transform .46s cubic-bezier(.22,1,.36,1),box-shadow .22s,opacity .22s,filter .25s,border-color .2s}
+  .rv-mc.rv-focus-source{border-color:var(--gold);box-shadow:0 0 0 2px rgba(212,160,58,0.18),0 6px 18px rgba(212,160,58,0.2)}
+  .rv-mc.rv-focus-target{border-color:var(--red);box-shadow:0 0 0 2px rgba(248,81,73,0.16),0 6px 18px rgba(248,81,73,0.14)}
+  .rv-mc.rv-focus-source.rv-focus-target{border-color:var(--yellow)}
+  .rv-mc.rv-focus-source{animation:rvSourcePulse .95s ease-out}
+  .rv-mc.rv-focus-target{animation:rvTargetPulse 1.05s ease-out}
+  .rv-mc .rv-fx-tag{position:absolute;top:2px;right:2px;z-index:21;font-size:0.5rem;font-weight:800;padding:1px 4px;border-radius:999px;background:rgba(0,0,0,0.78);border:1px solid rgba(255,255,255,0.12);color:#fff}
+  .rv-mc .rv-fx-tag.src{color:var(--gold)}
+  .rv-mc .rv-fx-tag.tgt{color:var(--red)}
   .rv-mc .rv-ovl{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent 0%,rgba(0,0,0,0.85) 30%);padding:2px 3px 3px}
   .rv-mc .rv-cn2{font-weight:600;font-size:0.52rem;line-height:1.1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.8)}
   .rv-mc .rv-cost{position:absolute;top:2px;left:2px;background:rgba(0,0,0,0.7);border-radius:50%;width:14px;height:14px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.55rem;color:#fff}
   .rv-mc .rv-stats{display:flex;gap:3px;font-size:0.5rem;color:rgba(255,255,255,0.85);margin-top:1px}
-  .rv-mc.rv-exerted{transform:rotate(90deg);opacity:0.7;margin:-10px 12px}
-  .rv-mc.rv-drying{opacity:0.6;border-style:dashed}
+  .rv-mc.rv-exerted{transform:rotate(90deg) scale(.94);opacity:0.82;margin:0 18px;transform-origin:center center;filter:saturate(.78)}
+  .rv-mc.rv-drying{opacity:0.7;border-style:dashed;filter:brightness(.88)}
   .rv-mc .rv-dmg{position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);background:rgba(220,38,38,0.92);color:#fff;border-radius:5px;padding:1px 5px;font-size:0.7rem;font-weight:800;border:2px solid rgba(153,27,27,0.9);z-index:20;box-shadow:0 2px 6px rgba(0,0,0,0.4)}
+  .rv-mc .rv-hit-pop{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);z-index:24;padding:2px 6px;border-radius:999px;font-size:0.62rem;font-weight:900;letter-spacing:0.3px;color:#fff;pointer-events:none;animation:rvHitPop 1.1s ease-out forwards;box-shadow:0 8px 16px rgba(0,0,0,0.25)}
+  .rv-mc .rv-hit-pop.damage{background:rgba(220,38,38,0.95)}
+  .rv-mc .rv-hit-pop.lore{background:rgba(212,160,58,0.95)}
+  .rv-mc .rv-hit-pop.effect{background:rgba(163,113,247,0.92)}
+  .rv-mc .rv-hit-pop.draw{background:rgba(88,166,255,0.92)}
+  @keyframes rvSourcePulse{0%{transform:scale(.92)}65%{transform:scale(1.05)}100%{transform:scale(1)}}
+  @keyframes rvTargetPulse{0%{transform:scale(.88)}55%{transform:scale(1.06)}100%{transform:scale(1)}}
+  @keyframes rvLanePulse{0%,100%{transform:translateX(0);opacity:.8}50%{transform:translateX(2px);opacity:1}}
+  @keyframes rvHitPop{0%{opacity:0;transform:translate(-50%,-20%) scale(.55)}15%{opacity:1}60%{opacity:1;transform:translate(-50%,-90%) scale(1)}100%{opacity:0;transform:translate(-50%,-138%) scale(1.06)}}
   .rv-ink-amber{border-color:var(--amber)} .rv-ink-amethyst{border-color:var(--amethyst)} .rv-ink-emerald{border-color:var(--emerald)}
   .rv-ink-ruby{border-color:var(--ruby)} .rv-ink-sapphire{border-color:var(--sapphire)} .rv-ink-steel{border-color:var(--steel)}
-  .rv-events{background:var(--bg2);border-left:1px solid var(--border);padding:8px 8px;overflow-y:auto;display:flex;flex-direction:column;gap:2px}
-  .rv-events h4{font-size:0.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:3px}
-  .rv-ev{display:flex;gap:4px;padding:1px 0;font-size:0.68rem;line-height:1.2;align-items:flex-start}
+  .rv-events{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(0,0,0,0.08));border-left:1px solid var(--border);padding:10px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+  .rv-events h4{font-size:0.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px;margin:0}
+  .rv-ev-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .rv-ev-turn{font-size:0.65rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px}
+  .rv-ev-type{font-size:0.6rem;padding:2px 7px;border:1px solid var(--border);border-radius:999px;background:rgba(255,255,255,0.03);color:var(--text2)}
+  .rv-ev-shell{display:flex;flex-direction:column;gap:10px;animation:rvStepFade .38s cubic-bezier(.22,1,.36,1)}
+  .rv-ev-main{border:1px solid rgba(255,255,255,0.08);border-radius:12px;background:rgba(0,0,0,0.14);padding:10px;display:flex;flex-direction:column;gap:10px}
+  .rv-ev-flow{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);gap:8px;align-items:center}
+  .rv-ev-node{border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px;background:rgba(255,255,255,0.03);min-width:0}
+  .rv-ev-node.ghost{opacity:0.55;border-style:dashed}
+  .rv-ev-role{font-size:0.55rem;text-transform:uppercase;letter-spacing:0.9px;color:var(--text2);margin-bottom:5px}
+  .rv-ev-name{font-size:0.75rem;font-weight:700;line-height:1.2}
+  .rv-ev-side{font-size:0.58rem;color:var(--text2);margin-top:4px}
+  .rv-ev-arrow{display:flex;align-items:center;justify-content:center;font-size:1.15rem;color:var(--gold);opacity:0.9}
+  .rv-ev-meta{display:flex;flex-wrap:wrap;gap:6px}
+  .rv-ev-chip{font-size:0.58rem;padding:3px 7px;border-radius:999px;background:rgba(212,160,58,0.1);color:var(--gold);border:1px solid rgba(212,160,58,0.22)}
+  .rv-ev-text{font-size:0.72rem;line-height:1.35;color:var(--text)}
+  .rv-ev-text strong{color:var(--gold)}
+  .rv-ev-list{display:flex;flex-direction:column;gap:6px}
+  .rv-ev{display:flex;gap:6px;padding:1px 0;font-size:0.68rem;line-height:1.25;align-items:flex-start}
   .rv-ev .rv-ei{flex-shrink:0;width:12px;text-align:center;font-size:0.65rem}
   .rv-ep-play{color:var(--green)} .rv-ep-quest{color:var(--gold)} .rv-ep-chal{color:var(--red)}
   .rv-ep-ab{color:var(--amethyst)} .rv-ep-dead{color:#888} .rv-ep-draw{color:var(--sapphire)}
+  .rv-ev-focus{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;align-items:start;border:1px solid rgba(255,255,255,0.08);border-radius:12px;background:rgba(255,255,255,0.025);padding:10px}
+  .rv-ev-focus-art{width:92px;height:128px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:var(--bg3);background-size:cover;background-position:center 18%;box-shadow:0 8px 24px rgba(0,0,0,0.24)}
+  .rv-ev-focus-fallback{display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;font-size:0.7rem;color:var(--text2)}
+  .rv-ev-focus-copy{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .rv-ev-focus-title{font-size:0.82rem;font-weight:800;line-height:1.2}
+  .rv-ev-focus-sub{font-size:0.62rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.8px}
+  .rv-ev-focus-lines{display:flex;flex-wrap:wrap;gap:6px}
+  .rv-ev-focus-line{font-size:0.6rem;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--text2)}
+  .rv-ev-focus-text{font-size:0.67rem;line-height:1.35;color:var(--text)}
+  .rv-ev-empty{font-size:0.68rem;color:var(--text2);padding:10px;border:1px dashed var(--border);border-radius:10px}
   .rv-loading{padding:40px;text-align:center;color:var(--text2)}
   .rv-empty{padding:24px;text-align:center;color:var(--text2);font-size:0.85rem}
   .rv-hand-panel{border-top:2px solid var(--gold);padding:8px 10px;background:rgba(212,160,58,0.04)}
@@ -2104,8 +2445,17 @@
   /* Counter value softening */
   .rv-ct .rv-cv{transition:color .2s ease,transform .25s cubic-bezier(.34,1.56,.64,1)}
   .rv-ct .rv-cv.rv-cv-flash{transform:scale(1.22);color:var(--gold)}
+  .rv-ct.rv-ct-step{animation:rvCounterSoft .48s cubic-bezier(.22,1,.36,1)}
   /* Field tint transition */
   .rv-field{transition:background .3s ease}
+  @keyframes rvCounterSoft{0%{transform:translateY(4px);opacity:.55}100%{transform:translateY(0);opacity:1}}
+  @keyframes rvStepFade{0%{opacity:.25;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+  @keyframes rvOverlayRise{0%{opacity:.35;transform:translateY(10px) scale(.985)}100%{opacity:1;transform:translateY(0) scale(1)}}
+  @media(max-width:900px){
+    .rv-side,.rv-side.ours{grid-template-columns:1fr}
+    .rv-side.ours .rv-side-meta,.rv-side.ours .rv-field{order:initial}
+    .rv-battle-mid{grid-template-columns:1fr}
+  }
 
   .deck-table { width: 100%; border-collapse: collapse; font-size: 0.88em; }
   .deck-table th { text-align: left; color: var(--text2); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
@@ -3674,8 +4024,9 @@
     .pf-radar-stat-val { font-size: 0.92em; }
     .pf-radar-name { font-size: 0.8em; }
     .pf-radar-line2 { font-size: 0.66em; }
-    .pf-std-list { max-height: 240px; }
-    .pf-std-row { font-size: 0.75em; }
+    .pf-std-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; }
+    .pf-std-vname { font-size: 0.62em; min-height: 2.35em; }
+    .pf-mycurve-step { min-width: 80px; max-width: 92px; padding: 7px 7px 9px; }
     .pf-tech-card { width: 76px; padding: 6px 4px 8px; }
     .pf-tech-img-wrap { width: 58px; height: 81px; }
     .pf-tech-name { font-size: 0.62em; }
@@ -3699,26 +4050,96 @@
   }
   .pf-std-list {
     margin-top: 10px;
-    max-height: 320px; overflow-y: auto; scrollbar-width: thin;
-    scrollbar-color: var(--border) transparent;
   }
-  .pf-std-list::-webkit-scrollbar { width: 4px; }
-  .pf-std-list::-webkit-scrollbar-track { background: transparent; }
-  .pf-std-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .pf-std-row {
-    display: flex; align-items: center; gap: 6px; padding: 4px 0;
-    border-bottom: 1px solid rgba(48,54,61,0.5); font-size: 0.8em;
-    transition: background 0.1s; border-radius: 4px; padding-left: 4px;
+  .pf-std-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+    gap: 12px 10px;
+    align-items: start;
   }
-  .pf-std-row:last-child { border-bottom: none; }
-  .pf-std-row:hover { background: rgba(212,160,58,0.05); }
-  .pf-std-qty {
-    flex-shrink: 0; width: 16px; text-align: right;
-    font-weight: 700; color: var(--gold); font-size: 0.9em;
+  .pf-std-vcard {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
   }
-  .pf-std-name {
-    flex: 1; color: var(--text); line-height: 1.35; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
+  .pf-std-vart {
+    position: relative;
+    aspect-ratio: 0.715;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.15));
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.18);
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .pf-std-vart:hover {
+    transform: translateY(-3px);
+    border-color: rgba(212,160,58,0.5);
+    box-shadow: 0 16px 32px rgba(0,0,0,0.28);
+  }
+  .pf-std-vart img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .pf-std-vph {
+    width: 100%;
+    height: 100%;
+    padding: 10px 8px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.28));
+    color: var(--text);
+    font-size: 0.72em;
+    line-height: 1.25;
+  }
+  .pf-std-vqty {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    min-width: 28px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: rgba(8,10,14,0.88);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    font-size: 0.72em;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+  .pf-std-vtech {
+    position: absolute;
+    left: 6px;
+    bottom: 6px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(63,185,80,0.16);
+    border: 1px solid rgba(63,185,80,0.32);
+    color: var(--green);
+    font-size: 0.6em;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    z-index: 2;
+  }
+  .pf-std-vname {
+    color: var(--text);
+    font-size: 0.68em;
+    line-height: 1.25;
+    text-align: center;
+    min-height: 2.5em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .pf-std-tech-badge {
     flex-shrink: 0; font-size: 0.62em; font-weight: 700;
@@ -3731,6 +4152,122 @@
   .pf-std-total {
     font-size: 0.7em; color: var(--text2); margin-top: 8px; text-align: right;
     padding-top: 6px; border-top: 1px solid var(--border);
+  }
+  .pf-mycurve {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(212,160,58,0.12);
+  }
+  .pf-mycurve-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .pf-mycurve-title {
+    font-size: 0.72em;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.45px;
+    font-weight: 700;
+  }
+  .pf-mycurve-sub {
+    font-size: 0.68em;
+    color: var(--text2);
+  }
+  .pf-mycurve-timeline {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .pf-mycurve-timeline::-webkit-scrollbar { display: none; }
+  .pf-mycurve-step {
+    min-width: 88px;
+    max-width: 104px;
+    padding: 8px 8px 10px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.08));
+    border: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+  .pf-mycurve-turn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .pf-mycurve-turn b {
+    color: var(--gold);
+    font-size: 0.82em;
+    letter-spacing: 0.3px;
+  }
+  .pf-mycurve-turn span {
+    color: var(--text2);
+    font-size: 0.62em;
+  }
+  .pf-mycurve-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .pf-mycurve-card {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 0.715;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+  }
+  .pf-mycurve-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .pf-mycurve-card-ph {
+    width: 100%;
+    height: 100%;
+    padding: 8px 6px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.22));
+    color: var(--text);
+    font-size: 0.62em;
+    line-height: 1.2;
+  }
+  .pf-mycurve-cardqty {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    min-width: 24px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: rgba(8,10,14,0.88);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #fff;
+    font-size: 0.64em;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pf-mycurve-empty {
+    min-height: 92px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: 1px dashed rgba(255,255,255,0.08);
+    color: var(--text2);
+    font-size: 0.68em;
   }
 
   /* ── META DECK PANEL ── */
@@ -4335,12 +4872,17 @@
   <div class="tab" data-tab="team" role="tab" aria-selected="false" tabindex="-1">Team</div>
   <div class="tab" data-tab="community" role="tab" aria-selected="false" tabindex="-1">Community</div>
   <div class="tab" data-tab="events" role="tab" aria-selected="false" tabindex="-1">Events</div>
+  <!-- Format toggle (desktop: inline right, mobile: hidden here, shown in format-bar) -->
+  <div class="format-seg format-seg--tabs" id="format-seg-tabs">
+    <button class="format-btn active" data-format="core">Core</button>
+    <button class="format-btn" data-format="infinity">Infinity</button>
+  </div>
 </div>
 
 <!-- FORMAT SELECTOR + INK PICKER -->
 <div class="format-bar" id="format-bar">
-  <span class="label">Format:</span>
-  <div class="format-seg">
+  <!-- Mobile-only format toggle (desktop: hidden, uses the one in tabs) -->
+  <div class="format-seg format-seg--bar" id="format-seg-bar">
     <button class="format-btn active" data-format="core">Core-Constructed</button>
     <button class="format-btn" data-format="infinity">Infinity</button>
   </div>
@@ -4611,6 +5153,7 @@ async function loadData() {
       '<div class="card" style="text-align:center;padding:40px"><h2>Loading error</h2><p>Could not fetch dashboard data from API. Please try again later.</p></div>';
     return;
   }
+  fetchEditorialItems(); // pre-fetch news ticker (async, non-blocking)
   initKPI();
   initFormat();
   render();
@@ -5166,6 +5709,109 @@ function monAccordionInit() {
   });
 }
 
+// ── Meta Ticker ──
+let _editorialItems = null;
+let _editorialTs = 0;
+const _EDITORIAL_TTL = 300000; // 5 min
+
+async function fetchEditorialItems() {
+  const now = Date.now();
+  if (_editorialItems && (now - _editorialTs) < _EDITORIAL_TTL) return _editorialItems;
+  try {
+    const r = await fetch('/api/v1/news/ticker');
+    if (!r.ok) return _editorialItems || [];
+    _editorialItems = await r.json();
+    _editorialTs = now;
+  } catch(e) { _editorialItems = _editorialItems || []; }
+  return _editorialItems;
+}
+
+function buildMetaTickerItems() {
+  if (!DATA || !DATA.perimeters) return [];
+  const items = [];
+  const perimKey = currentPerim || 'set11';
+  const pd = DATA.perimeters[perimKey];
+  if (!pd) return [];
+
+  // 1. Fitness top 3
+  if (pd.fitness && pd.fitness.length) {
+    const top3 = pd.fitness.slice(0, 3);
+    top3.forEach((f, i) => {
+      if (f.fitness != null)
+        items.push({ label: 'META', text: `#${i+1} Fitness: ${f.deck} (${f.fitness.toFixed(1)})` });
+    });
+  }
+
+  // 2. Meta share leaders
+  if (pd.meta_share) {
+    const shares = Object.entries(pd.meta_share)
+      .filter(([,v]) => v.share > 10)
+      .sort((a,b) => b[1].share - a[1].share)
+      .slice(0, 2);
+    shares.forEach(([dk, v]) => {
+      items.push({ label: 'META', text: `${dk}: ${v.share.toFixed(1)}% meta share` });
+    });
+  }
+
+  // 3. WR swings (biggest deltas)
+  if (DATA.matchup_trend && DATA.matchup_trend[perimKey]) {
+    const mt = DATA.matchup_trend[perimKey];
+    const swings = [];
+    for (const dk in mt) {
+      for (const opp in mt[dk]) {
+        const d = mt[dk][opp];
+        if (d.delta != null && Math.abs(d.delta) >= 8 && d.recent_games >= 5)
+          swings.push({ dk, opp, delta: d.delta });
+      }
+    }
+    swings.sort((a,b) => Math.abs(b.delta) - Math.abs(a.delta));
+    swings.slice(0, 2).forEach(s => {
+      const sign = s.delta > 0 ? '+' : '';
+      items.push({ label: 'META', text: `${s.dk} vs ${s.opp}: ${sign}${s.delta.toFixed(0)}pp WR shift` });
+    });
+  }
+
+  return items.slice(0, 6); // cap META items
+}
+
+function renderMetaTicker(mount) {
+  if (!mount) return;
+  const metaItems = buildMetaTickerItems();
+  const _channelAbbr = {
+    'Lorcana Academy': 'LAc', 'Lorcana Goons': 'LGo', 'The Forbidden Mountain': 'TFM',
+    'The Illumiteers': 'Ill', 'DMArmada': 'DMA', 'Team Covenant': 'TCo',
+    'Ready Set Draw TCG': 'RSD', 'The Inkwell': 'Ink', 'phonetiic': 'Pho',
+    'Mushu Report': 'Msh', 'Inkborn Heroes': 'IbH',
+    'Tales of Lorcana': 'ToL', 'Inked Broom': 'IkB',
+    'Lorecast': 'LCt',
+  };
+  const editorial = (_editorialItems || []).map(e => {
+    const lang = (e.meta && e.meta.lang) || 'en';
+    const abbr = _channelAbbr[e.channel] || (e.channel || '').slice(0, 3);
+    return { label: e.label, text: `(${lang}) ${abbr}: ${e.title}`, url: e.url };
+  });
+  const all = [...metaItems, ...editorial].slice(0, 12);
+  if (all.length < 2) { mount.innerHTML = ''; return; }
+
+  const sep = '<span class="meta-ticker__sep">\u00b7</span>';
+  function itemHtml(it) {
+    const cls = 'meta-ticker__label--' + it.label.toLowerCase();
+    if (it.url) {
+      return `<a class="meta-ticker__item" href="${it.url}" target="_blank" rel="noopener">` +
+        `<span class="meta-ticker__label ${cls}">${it.label}</span>` +
+        `<span class="meta-ticker__text">${it.text}</span></a>`;
+    }
+    return `<span class="meta-ticker__item">` +
+      `<span class="meta-ticker__label ${cls}">${it.label}</span>` +
+      `<span class="meta-ticker__text">${it.text}</span></span>`;
+  }
+
+  const inner = all.map(itemHtml).join(sep);
+  const dur = Math.max(25, all.length * 4); // seconds
+  mount.innerHTML = `<div class="meta-ticker" style="--ticker-dur:${dur}s">` +
+    `<div class="meta-ticker__track">${inner}${sep}${inner}${sep}</div></div>`;
+}
+
 function renderLadder(main) {
   const pd = getPerimData();
   const decks = Object.keys(pd.wr).sort((a,b) => pd.wr[b].games - pd.wr[a].games);
@@ -5179,6 +5825,9 @@ function renderLadder(main) {
   }
 
   main.innerHTML = `
+    <!-- META TICKER -->
+    <div id="meta-ticker-mount"></div>
+
     <!-- DECK FITNESS STRIP -->
     <div class="section fit-section">
       <div class="fit-header">
@@ -5197,6 +5846,8 @@ function renderLadder(main) {
         </button>
         <div class="fit-strip" id="fit-strip" role="list"></div>
       </div>
+      <!-- EMERGING & ROGUE (inside fitness block) -->
+      <div id="emerging-section" style="display:none"></div>
     </div>
 
     <!-- MATCHUP MATRIX (collapsible, closed by default on all devices) -->
@@ -5262,10 +5913,62 @@ function renderLadder(main) {
   `;
 
   // Render charts (share/WR charts removed — replaced by compact table)
+  renderMetaTicker(document.getElementById('meta-ticker-mount'));
   renderFitnessStrip(pd);
+  renderEmergingDecks();
   renderMatchupMatrix(pd);
   renderDeckDive(pd);
   renderTechTornado();
+}
+
+// ── Emerging & Rogue ──
+function renderEmergingDecks() {
+  const el = document.getElementById('emerging-section');
+  if (!el) return;
+
+  const emg = DATA.emerging_decks || {};
+  const fmt = currentFormat === 'infinity' ? 'infinity' : 'core';
+  const tiles = emg[fmt] || [];
+
+  if (!tiles.length) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const badgeCfg = {
+    off_meta:   { icon: '\u2694\uFE0F', label: 'Off-Meta',   border: '#F85149' },
+    brew:       { icon: '\uD83E\uDDEA',  label: 'Brew',       border: '#3FB950' },
+    new_colors: { icon: '\uD83D\uDD25',  label: 'New Colors', border: 'var(--gold)' },
+  };
+
+  let html = `<hr class="emg-divider"><div class="emg-header">
+    <span class="emg-title">Emerging & Rogue</span>
+    <span class="emg-subtitle">${tiles.length} signal${tiles.length > 1 ? 's' : ''} this week</span>
+  </div><div class="emg-strip">`;
+
+  tiles.forEach(t => {
+    const cfg = badgeCfg[t.type] || { icon: '', label: t.type, border: 'var(--border)' };
+    const wr = t.wr != null ? Math.round(t.wr * 100) : '?';
+    const wrClass = wr >= 55 ? 'tier-high' : wr >= 48 ? 'tier-mid' : 'tier-low';
+    const inks = DECK_INKS[t.deck] || [];
+    const dots = inks.map(i => `<span class="ink-dot" style="background:var(--${i})"></span>`).join('');
+    const cards = (t.cards || []).slice(0, 3).map(c => c.split(' - ')[0]).join(', ');
+    const player = t.label || '';
+    const playerShort = player.length > 16 ? player.slice(0, 15) + '\u2026' : player;
+
+    html += `<div class="emg-tile" style="border-color:${cfg.border}">
+      <span class="emg-badge ${t.type}">${cfg.icon} ${cfg.label}</span>
+      <div class="emg-deck">${dots} ${t.deck}</div>
+      <div class="emg-label" title="${player}">${playerShort}</div>
+      <div class="emg-wr ${wrClass}">${wr}%</div>
+      <div class="emg-detail">${t.games}g${t.mmr ? ' · ' + t.mmr + ' MMR' : ''}</div>
+      ${cards ? `<div class="emg-cards">${cards}</div>` : ''}
+    </div>`;
+  });
+
+  html += '</div>';
+  el.innerHTML = html;
+  el.style.display = '';
 }
 
 // ── Matchup Matrix (desktop heatmap + mobile list) ──
@@ -6191,8 +6894,10 @@ function buildUnifiedDiff(stdCards, playerCards, stdLabel, playerLabel, footerIn
   // Footer
   html += `<div class="deck-diff-footer">
     <span class="ddf-info">${footerInfoHtml}</span>
-    <button class="deck-diff-copy-btn std" onclick="event.stopPropagation();copyTextToClipboard('${stdCopyId}',this,'Standard copiato!')">Copia Standard</button>
-    <button class="deck-diff-copy-btn player" onclick="event.stopPropagation();copyTextToClipboard('${playerCopyId}',this,'Player copiato!')">Copia Player</button>
+    <div class="ddf-btns">
+      <button class="deck-diff-copy-btn std" onclick="event.stopPropagation();copyTextToClipboard('${stdCopyId}',this,'Copied!')">Copy Standard</button>
+      <button class="deck-diff-copy-btn player" onclick="event.stopPropagation();copyTextToClipboard('${playerCopyId}',this,'Copied!')">Copy Player</button>
+    </div>
   </div>`;
 
   // Hidden copy text
@@ -6340,11 +7045,8 @@ function buildDeckCompare(playerName, deck, totalGames) {
   const confLabel = confidence >= 70 ? 'Alta' : confidence >= 40 ? 'Media' : 'Bassa';
   const confColor = confidence >= 70 ? 'var(--green)' : confidence >= 40 ? 'var(--yellow)' : 'var(--red)';
 
-  // Build text for copy
-  const estLines = estDeckList.map(c => {
-    const tag = c.source === 'added' ? ' *' : c.source === 'assumed' ? ' ?' : '';
-    return `${c.qty} ${c.card}${tag}`;
-  });
+  // Build text for copy (clean format: "qty Name" — no markers, import-friendly)
+  const estLines = estDeckList.map(c => `${c.qty} ${c.card}`);
   const estText = estLines.join('\n');
 
   // Build card dicts for unified diff
@@ -7029,12 +7731,14 @@ let rvGameList = null; // cached game list for current matchup
 let rvDeck = null, rvOpp = null; // current matchup
 let rvGame = null; // current loaded game
 let rvSteps = []; // computed steps
+let rvTurnGroups = [];
 let rvStepIdx = 0;
 let rvFilter = 'all';
+let rvPublicLog = null; // PG-derived normalized public log
 let rvHandData = null; // hand_at_turn from .gz replay (null = not available)
 let rvHandMode = 'none'; // 'full' (from .gz) | 'partial' (from log INITIAL_HAND) | 'none'
 
-const RV_SET_MAP = {TFC:1,ROTF:2,ITI:3,URR:4,SHS:5,AZS:6,ARI:7,ROJ:8,FAB:9,WITW:10,WIS:11,WUN:12};
+const RV_SET_MAP = {TFC:1,ROTF:2,ITI:3,URR:4,SHS:5,AZS:6,ARI:7,ROJ:8,FAB:9,WITW:10,WIS:11,WUN:12,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12};
 const RV_IC = {Amber:'amber',Amethyst:'amethyst',Emerald:'emerald',Ruby:'ruby',Sapphire:'sapphire',Steel:'steel'};
 
 function rvCardImg(card) {
@@ -7192,6 +7896,272 @@ function rvBuildSteps(game) {
   }
   return steps;
 }
+
+function rvVirtualizeTimelineStep(baseStep) {
+  const ev = baseStep.timeline_event || {};
+  const fx = ev.fx || {};
+  const steps = [];
+  const pushVirtual = (subkind, phase, summary, extra) => {
+    steps.push({
+      ...baseStep,
+      label: `T${baseStep.turn} ${baseStep.who === 'our' ? 'Us' : 'Opp'} • ${phase}${summary ? ` • ${summary}` : ''}`,
+      phase,
+      summary,
+      substep_kind: subkind,
+      ...(extra || {}),
+    });
+  };
+
+  if (ev.type === 'CARD_ATTACK') {
+    pushVirtual('attack_declare', 'Attack', baseStep.summary || 'declare attack');
+    const targetDamage = Number(fx.damage_to_target || 0);
+    const sourceDamage = Number(fx.damage_to_source || 0);
+    if (targetDamage > 0 || sourceDamage > 0) {
+      pushVirtual('attack_damage', 'Damage', `exchange ${targetDamage || 0}/${sourceDamage || 0}`);
+    }
+    if (fx.target_destroyed || fx.source_destroyed) {
+      const pieces = [];
+      if (fx.target_destroyed) pieces.push('target banished');
+      if (fx.source_destroyed) pieces.push('source banished');
+      pushVirtual('attack_banish', 'Banish', pieces.join(' • '));
+    }
+    return steps;
+  }
+
+  if (ev.type === 'CARD_QUEST' && Number(fx.lore_gained || 0) > 0) {
+    pushVirtual('quest_declare', 'Quest', baseStep.summary || 'declare quest');
+    pushVirtual('quest_lore', 'Lore', `+${fx.lore_gained} lore`);
+    return steps;
+  }
+
+  if (ev.type === 'CARD_PLAYED' && baseStep.events && baseStep.events[0] && baseStep.events[0].spell && (ev.effect_text || '').trim()) {
+    pushVirtual('spell_play', 'Play', baseStep.summary || 'cast spell');
+    pushVirtual('spell_effect', 'Effect', ev.effect_text);
+    return steps;
+  }
+
+  if ((ev.type === 'ABILITY_TRIGGERED' || ev.type === 'ABILITY_ACTIVATED') && (ev.effect_text || '').trim()) {
+    pushVirtual('ability_trigger', 'Effect', baseStep.summary || 'ability triggered');
+    pushVirtual('ability_resolve', 'Resolve', ev.effect_text);
+    return steps;
+  }
+
+  return [baseStep];
+}
+
+function rvDeduplicateVirtualSteps(steps) {
+  const deduped = [];
+  for (const step of (steps || [])) {
+    const prev = deduped[deduped.length - 1];
+    const ev = step && step.timeline_event;
+    const prevEv = prev && prev.timeline_event;
+    const effectText = ((ev && ev.effect_text) || '').trim();
+    const prevEffectText = ((prevEv && prevEv.effect_text) || '').trim();
+    const sourceCard = ((ev && ev.source) || {}).card || '';
+    const prevSourceCard = ((prevEv && prevEv.source) || {}).card || '';
+    const sameAdjacentEffect =
+      prev &&
+      ev &&
+      prevEv &&
+      step.turn === prev.turn &&
+      step.who === prev.who &&
+      sourceCard &&
+      sourceCard === prevSourceCard &&
+      effectText &&
+      effectText === prevEffectText &&
+      step.substep_kind &&
+      prev.substep_kind &&
+      (
+        (step.substep_kind === 'ability_resolve' && prev.substep_kind === 'ability_trigger') ||
+        (step.substep_kind === 'spell_effect' && prev.substep_kind === 'spell_play')
+      );
+    if (sameAdjacentEffect) continue;
+    deduped.push(step);
+  }
+  return deduped;
+}
+
+function rvBuildStepsFromPublicLog(publicLog) {
+  const timeline = (publicLog && publicLog.viewer_timeline) || [];
+  const discard = {our: 0, opp: 0};
+  const built = timeline.flatMap(ev => {
+    const who = ev.side === 'our' ? 'our' : 'opp';
+    const res = ev.resources || {};
+    const fx = ev.fx || {};
+    const data = (ev.raw && ev.raw.data) || {};
+    const source = ev.source || {};
+    const firstTarget = (ev.targets && ev.targets[0]) || {};
+    const card = source.card || firstTarget.card || '';
+    const renderEvent = {
+      type: 'ability',
+      side: who,
+      card,
+      effect: ev.effect_text || ev.label || '',
+      ability_name: ev.type || '',
+      source_card: source.card || '',
+      target_cards: (ev.targets || []).map(t => t.card).filter(Boolean),
+      fx,
+    };
+
+    if (ev.type === 'CARD_PLAYED') {
+      renderEvent.type = 'play';
+      renderEvent.card = source.card || '';
+      renderEvent.cost = data.cardCost || 0;
+      renderEvent.spell = !rvIsPersistent(renderEvent.card || '');
+      renderEvent.shift = false;
+      renderEvent.sung = false;
+      renderEvent.singer = null;
+    } else if (ev.type === 'CARD_INKED' || ev.type === 'CARD_PUT_INTO_INKWELL') {
+      renderEvent.type = 'ink';
+      renderEvent.card = source.card || '';
+    } else if (ev.type === 'CARD_DRAWN' || ev.type === 'TURN_DRAW') {
+      renderEvent.type = 'draw';
+      renderEvent.card = source.card || '';
+    } else if (ev.type === 'CARD_QUEST') {
+      renderEvent.type = 'quest';
+      renderEvent.card = source.card || '';
+      renderEvent.lore = data.loreGained || (fx && fx.lore_gained) || 0;
+    } else if (ev.type === 'CARD_ATTACK') {
+      renderEvent.type = 'challenge';
+      renderEvent.attacker = source.card || '';
+      renderEvent.defender = firstTarget.card || '';
+      renderEvent.def_killed = !!(fx && fx.target_destroyed);
+      renderEvent.atk_killed = !!(fx && fx.source_destroyed);
+      renderEvent.damage_to_target = fx.damage_to_target;
+      renderEvent.damage_to_source = fx.damage_to_source;
+    } else if (ev.type === 'CARD_DESTROYED') {
+      renderEvent.type = 'destroyed';
+      renderEvent.card = source.card || '';
+    } else if (ev.type === 'CARD_DISCARDED') {
+      renderEvent.type = 'discard';
+      renderEvent.card = source.card || '';
+    } else if (ev.type === 'CARD_RETURNED') {
+      renderEvent.type = 'bounce';
+      renderEvent.card = source.card || '';
+    }
+
+    if (ev.type === 'CARD_DESTROYED' || ev.type === 'CARD_DISCARDED') {
+      discard[who] += 1;
+    } else if (ev.type === 'CARD_PLAYED' && renderEvent.spell) {
+      discard[who] += 1;
+    }
+
+    const phase = rvTimelinePhase(ev);
+    const summary = rvTimelineSummary(ev);
+    const boardAfter = ev.board_after || {our: [], opp: []};
+    const boardCounts = {
+      our: ((boardAfter.our || []).length),
+      opp: ((boardAfter.opp || []).length),
+    };
+    const zones = {
+      discard: {our: discard.our, opp: discard.opp},
+      deck: {
+        our: Math.max(0, 60 - ((res.hand || {}).our || 0) - ((res.inkwell || {}).our || 0) - boardCounts.our - discard.our),
+        opp: Math.max(0, 60 - ((res.hand || {}).opp || 0) - ((res.inkwell || {}).opp || 0) - boardCounts.opp - discard.opp),
+      },
+    };
+    const baseStep = {
+      turn: ev.turn,
+      who,
+      label: `T${ev.turn} ${who === 'our' ? 'Us' : 'Opp'} • ${phase}${summary ? ` • ${summary}` : ''}`,
+      board_start: ev.board_before || {our: [], opp: []},
+      board_after: boardAfter,
+      inkwell: {
+        our: {total: ((res.inkwell||{}).our)||0, spent: who === 'our' ? (renderEvent.cost || 0) : 0},
+        opp: {total: ((res.inkwell||{}).opp)||0, spent: who === 'opp' ? (renderEvent.cost || 0) : 0},
+      },
+      lore: (res.lore || {our:0, opp:0}),
+      hand: (res.hand || {our:0, opp:0}),
+      zones,
+      events: [renderEvent],
+      timeline_event: ev,
+      phase,
+      summary,
+    };
+    return rvVirtualizeTimelineStep(baseStep);
+  });
+  return rvDeduplicateVirtualSteps(built);
+}
+
+function rvTimelinePhase(ev) {
+  const t = (ev && ev.type) || '';
+  if (t === 'TURN_READY') return 'Ready';
+  if (t === 'TURN_DRAW' || t === 'CARD_DRAWN') return 'Draw';
+  if (t === 'CARD_INKED' || t === 'CARD_PUT_INTO_INKWELL') return 'Ink';
+  if (t === 'CARD_PLAYED') return 'Play';
+  if (t === 'CARD_QUEST' || t === 'LORE_GAINED') return 'Quest';
+  if (t === 'CARD_ATTACK') return 'Attack';
+  if (t === 'ABILITY_TRIGGERED' || t === 'ABILITY_ACTIVATED') return 'Effect';
+  if (t === 'CARD_DESTROYED') return 'Banish';
+  if (t === 'CARD_DISCARDED') return 'Discard';
+  if (t === 'CARD_RETURNED') return 'Bounce';
+  return t.replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function rvTimelineSummary(ev) {
+  if (!ev) return '';
+  const source = (ev.source && ev.source.card) || '';
+  const target = ((ev.targets || [])[0] || {}).card || '';
+  const sn = n => rvSn(n || '').b;
+  switch (ev.type) {
+    case 'TURN_READY':
+      return 'untap / ready board';
+    case 'TURN_DRAW':
+      return 'automatic draw';
+    case 'CARD_DRAWN':
+      return source ? sn(source) : 'named draw';
+    case 'CARD_INKED':
+    case 'CARD_PUT_INTO_INKWELL':
+      return source ? sn(source) : 'ink';
+    case 'CARD_PLAYED':
+      return source ? sn(source) : 'card enters play';
+    case 'CARD_QUEST':
+      return source ? sn(source) : 'quest';
+    case 'CARD_ATTACK':
+      return source && target ? `${sn(source)} -> ${sn(target)}` : (source || target ? sn(source || target) : 'challenge');
+    case 'ABILITY_TRIGGERED':
+    case 'ABILITY_ACTIVATED':
+      return source ? sn(source) : 'ability';
+    case 'CARD_DESTROYED':
+      return source ? sn(source) : 'banish';
+    case 'CARD_DISCARDED':
+      return source ? sn(source) : 'discard';
+    case 'CARD_RETURNED':
+      return source ? sn(source) : 'bounce';
+    default:
+      return ev.label || '';
+  }
+}
+
+function rvStepButtonLabel(step) {
+  if (!step) return 'T?';
+  return `T${rvEscapeHtml(step.turn)}`;
+}
+
+function rvBuildTurnGroups(steps) {
+  const groups = [];
+  let current = null;
+  (steps || []).forEach((step, idx) => {
+    const key = `${step.turn}|${step.who}`;
+    if (!current || current.key !== key) {
+      current = {
+        key,
+        turn: step.turn,
+        who: step.who,
+        start: idx,
+        end: idx,
+      };
+      groups.push(current);
+    } else {
+      current.end = idx;
+    }
+  });
+  return groups;
+}
+
+function rvPhaseClassName(phase) {
+  return String(phase || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
 function rvSnap(board) {
   const r = {};
   for (const s of ['our','opp']) r[s] = board[s].map(e => ({...e}));
@@ -7214,7 +8184,8 @@ function rvSn(n) {
   return {b: n.length>18?n.slice(0,18)+'..':n, s:''};
 }
 
-function rvRenderCard(entry, isNew) {
+function rvRenderCard(entry, isNew, opts) {
+  opts = opts || {};
   const c = (rvCardsDB||{})[entry.name] || {};
   const ink = RV_IC[(c.ink||'').trim()] || '';
   const {b,s} = rvSn(entry.name);
@@ -7227,10 +8198,21 @@ function rvRenderCard(entry, isNew) {
   if (entry.exerted) cls += ' rv-exerted';
   if (entry.drying && !entry.exerted) cls += ' rv-drying';
   if (isNew) cls += ' rv-mc-new';
+  if (opts.isSource) cls += ' rv-focus-source';
+  if (opts.isTarget) cls += ' rv-focus-target';
   const dmgHtml = isCh && dmg > 0 ? `<div class="rv-dmg">-${dmg}</div>` : '';
   const style = imgUrl ? `background-image:url(${imgUrl});background-size:cover;background-position:center 15%` : '';
-  return `<div class="${cls}" style="${style}" title="${entry.name}${c.ability?'\n'+c.ability.slice(0,100):''}">
-    <div class="rv-cost">${c.cost||'?'}</div>${dmgHtml}
+  let fxTag = '';
+  if (opts.isSource && opts.isTarget) fxTag = '<div class="rv-fx-tag src">SRC/TGT</div>';
+  else if (opts.isSource) fxTag = '<div class="rv-fx-tag src">SRC</div>';
+  else if (opts.isTarget) fxTag = '<div class="rv-fx-tag tgt">TGT</div>';
+  let hitPop = '';
+  if (opts.hitText) {
+    hitPop = `<div class="rv-hit-pop ${opts.hitKind || 'effect'}">${opts.hitText}</div>`;
+  }
+  const keyAttr = opts.cardKey ? ` data-card-key="${rvEscapeHtml(opts.cardKey)}"` : '';
+  return `<div class="${cls}"${keyAttr} style="${style}" title="${entry.name}${c.ability?'\n'+c.ability.slice(0,100):''}">
+    <div class="rv-cost">${c.cost||'?'}</div>${fxTag}${dmgHtml}${hitPop}
     <div class="rv-ovl"><div class="rv-cn2">${b}</div>${s?`<div style="font-size:0.45rem;color:rgba(255,255,255,0.6)">${s}</div>`:''}
     ${isCh?`<div class="rv-stats">${c.str?'<span>⚔'+c.str+'</span>':''}${c.will?`<span>🛡${dmg>0?(will-dmg)+'/'+will:will}</span>`:''}${c.lore?'<span>⭐'+c.lore+'</span>':''}</div>`:''}</div></div>`;
 }
@@ -7250,8 +8232,147 @@ function rvDiffBoard(prevBoard, currBoard) {
   return result;
 }
 
+function rvBoardOverlay(step) {
+  const ev = step && step.timeline_event;
+  if (!ev) return '';
+  const phase = step.phase || rvTimelinePhase(ev);
+  const summary = step.summary || rvTimelineSummary(ev);
+  const effectText = (ev.effect_text || '').trim();
+  const phaseClass = rvPhaseClassName(phase);
+  return `<div class="rv-board-overlay ${phaseClass}">
+    <div class="rv-board-banner">
+      <div>
+        <div class="rv-board-phase">${rvEscapeHtml(phase)}</div>
+        <div class="rv-board-summary">${rvEscapeHtml(summary || ev.label || ev.type || 'Event')}</div>
+        ${effectText ? `<div class="rv-board-summary" style="margin-top:4px;color:var(--text2);font-size:0.66rem">${rvEscapeHtml(effectText)}</div>` : ''}
+      </div>
+      <div class="rv-board-seq">Turn ${rvEscapeHtml(step.turn)} • Seq ${rvEscapeHtml(ev.seq)}</div>
+    </div>
+  </div>`;
+}
+
+function rvRenderBoardAction(step) {
+  const ev = step && step.timeline_event;
+  if (!ev) return '';
+  const source = ev.source || {};
+  const target = ((ev.targets || [])[0]) || {};
+  const sourceCard = source.card || '';
+  const targetCard = target.card || '';
+  const arrow = ((ev.fx || {}).arrow || targetCard)
+    ? '<svg viewBox="0 0 40 14" aria-hidden="true"><defs><marker id="rv-arrow-head-center" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><polygon points="0 0, 6 3.5, 0 7" fill="currentColor"></polygon></marker></defs><line x1="2" y1="7" x2="34" y2="7" marker-end="url(#rv-arrow-head-center)"></line></svg>'
+    : '•';
+  const note = step.summary || ev.label || ev.type || '';
+  if (!sourceCard && !targetCard && !note) return '';
+  return `<div class="rv-action-ribbon">
+    <div class="rv-action-part">
+      <span class="rv-action-side">${rvEscapeHtml(rvEventSideLabel(source.side || step.who))}</span>
+      <strong>${rvEscapeHtml(sourceCard || 'System')}</strong>
+    </div>
+    <div class="rv-action-arrow">${arrow}</div>
+    <div class="rv-action-part">
+      <span class="rv-action-side">${rvEscapeHtml(targetCard ? rvEventSideLabel(target.side || '') : 'Action')}</span>
+      <strong>${rvEscapeHtml(targetCard || note)}</strong>
+    </div>
+    ${ev.effect_text ? `<div class="rv-action-note">${rvEscapeHtml(ev.effect_text)}</div>` : ''}
+  </div>`;
+}
+
+function rvRenderInkwell(side, total, spent, active) {
+  const label = side === 'our' ? 'Our Ink' : 'Opp Ink';
+  const safeTotal = Math.max(0, Number(total || 0));
+  const safeSpent = Math.max(0, Math.min(safeTotal, Number(spent || 0)));
+  const cards = [];
+  for (let i = 0; i < safeTotal; i++) {
+    cards.push(`<div class="rv-ink-card${i < safeSpent ? ' spent' : ''}" title="${label}${i < safeSpent ? ' (used)' : ' (ready)'}"></div>`);
+  }
+  return `<div class="rv-ink-zone"${active ? ' style="border-color:rgba(212,160,58,0.24)"' : ''}>
+    <div class="rv-ink-meta">
+      <span class="rv-ink-count">${safeTotal}</span>
+      <span>${label}</span>
+      <span class="rv-ink-spent">${safeSpent} spent</span>
+    </div>
+    <div class="rv-ink-fan">${cards.join('')}</div>
+  </div>`;
+}
+
+function rvRenderPileMeta(label, count, subtitle) {
+  return `<div class="rv-pile">
+    <div class="rv-pile-label">${rvEscapeHtml(label)}</div>
+    <div class="rv-pile-count">${rvEscapeHtml(count)}</div>
+    <div class="rv-pile-sub">${rvEscapeHtml(subtitle || '')}</div>
+  </div>`;
+}
+
+function rvBoardFocusFlags(step, side, cardName, counts) {
+  const ev = step && step.timeline_event;
+  if (!ev) return {isSource:false, isTarget:false};
+  const source = ev.source || {};
+  const targets = Array.isArray(ev.targets) ? ev.targets : [];
+  let isSource = false;
+  let isTarget = false;
+  if (source.card === cardName && (source.side || step.who) === side) {
+    counts.source[cardName] = (counts.source[cardName] || 0) + 1;
+    isSource = counts.source[cardName] === 1;
+  }
+  const matchingTargets = targets.filter(t => t.card === cardName && t.side === side);
+  if (matchingTargets.length) {
+    counts.target[cardName] = (counts.target[cardName] || 0) + 1;
+    isTarget = counts.target[cardName] <= matchingTargets.length;
+  }
+  let hitText = '';
+  let hitKind = '';
+  const fx = (ev && ev.fx) || {};
+  const sub = (step && step.substep_kind) || '';
+  if (isTarget && fx.damage_to_target != null && Number(fx.damage_to_target) > 0) {
+    hitText = `-${fx.damage_to_target}`;
+    hitKind = 'damage';
+  } else if (isSource && fx.damage_to_source != null && Number(fx.damage_to_source) > 0) {
+    hitText = `-${fx.damage_to_source}`;
+    hitKind = 'damage';
+  } else if (isSource && fx.lore_gained != null && Number(fx.lore_gained) > 0) {
+    hitText = `+${fx.lore_gained} lore`;
+    hitKind = 'lore';
+  } else if (isSource && (sub === 'ability_trigger' || sub === 'spell_effect')) {
+    hitText = 'effect';
+    hitKind = 'effect';
+  } else if (isSource && (ev.type === 'CARD_DRAWN' || ev.type === 'TURN_DRAW')) {
+    hitText = 'draw';
+    hitKind = 'draw';
+  }
+  return {isSource, isTarget, hitText, hitKind};
+}
+
+function rvCaptureBoardPositions(root) {
+  const out = {};
+  if (!root) return out;
+  root.querySelectorAll('[data-card-key]').forEach(node => {
+    out[node.dataset.cardKey] = node.getBoundingClientRect();
+  });
+  return out;
+}
+
+function rvAnimateBoardFlip(root, prevRects) {
+  if (!root || !prevRects) return;
+  root.querySelectorAll('[data-card-key]').forEach(node => {
+    const key = node.dataset.cardKey;
+    const prev = prevRects[key];
+    if (!prev) return;
+    const next = node.getBoundingClientRect();
+    const dx = prev.left - next.left;
+    const dy = prev.top - next.top;
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    node.classList.add('rv-flip-move');
+    node.style.transform = `translate(${dx}px, ${dy}px)`;
+    requestAnimationFrame(() => {
+      node.style.transform = '';
+    });
+    setTimeout(() => node.classList.remove('rv-flip-move'), 520);
+  });
+}
+
 function rvRenderBoard(boardState, step, newNames) {
   const el = document.getElementById('rv-board'); if (!el) return;
+  const prevRects = rvCaptureBoardPositions(el);
   const g = rvFilteredGames()[rvGameIdx];
   const nOur = (newNames && newNames.our) || new Set();
   const nOpp = (newNames && newNames.opp) || new Set();
@@ -7259,60 +8380,118 @@ function rvRenderBoard(boardState, step, newNames) {
   const mkRenderer = (side) => {
     const nameSet = side === 'our' ? nOur : nOpp;
     const used = {};
+    const focusCounts = {source:{}, target:{}};
+    const cardCounts = {};
     return (card) => {
       let isNew = false;
       if (nameSet.has(card.name)) {
         used[card.name] = (used[card.name]||0) + 1;
         isNew = used[card.name] === 1; // first occurrence gets the glow
       }
-      return rvRenderCard(card, isNew);
+      cardCounts[card.name] = (cardCounts[card.name] || 0) + 1;
+      const cardKey = `${side}:${card.name}:${cardCounts[card.name]}`;
+      const focus = rvBoardFocusFlags(step, side, card.name, focusCounts);
+      return rvRenderCard(card, isNew, {...focus, cardKey});
     };
   };
-  let html = '';
+  let html = '<div class="rv-arena">';
   // Opponent field
   const renderOpp = mkRenderer('opp');
-  html += `<div class="rv-blbl"><span>${g?.en||'Opp'}</span> ${step.who==='opp'?'<span class="rv-ap">◀ turn</span>':''}</div>`;
+  html += `<div class="rv-side opp">
+    <div class="rv-side-meta">
+      <div class="rv-zone-meta">
+        ${rvRenderPileMeta('Opp Deck', step.zones?.deck?.opp ?? '?', 'cards left')}
+        ${rvRenderPileMeta('Opp Discard', step.zones?.discard?.opp ?? 0, 'discard pile')}
+      </div>
+      <div class="rv-blbl"><span>${g?.en||'Opp'}</span> ${step.who==='opp'?'<span class="rv-ap">◀ turn</span>':''}</div>
+    </div>`;
   html += `<div class="rv-field ${step.who==='opp'?'rv-field-active':'rv-field-inactive'}">`;
   const oppCards = boardState.opp || [];
   const oppEx = oppCards.filter(c=>c.exerted), oppRd = oppCards.filter(c=>!c.exerted&&!rvIsItem(c.name)), oppIt = oppCards.filter(c=>rvIsItem(c.name));
-  if (oppEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${oppEx.length})</div><div class="rv-card-row">${oppEx.map(renderOpp).join('')}</div></div>`;
-  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${oppRd.length})</div><div class="rv-card-row">${oppRd.map(renderOpp).join('')}</div></div>`;
-  if (oppIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${oppIt.map(renderOpp).join('')}</div></div>`;
-  html += `</div><hr class="rv-bdiv">`;
+  if (oppEx.length) html += `<div class="rv-zone exerted"><div class="rv-zone-label">Exerted Characters (${oppEx.length})</div><div class="rv-card-row">${oppEx.map(renderOpp).join('')}</div></div>`;
+  html += `<div class="rv-battle-mid">
+    <div class="rv-zone ready"><div class="rv-zone-label">Ready Characters (${oppRd.length})</div><div class="rv-card-row">${oppRd.map(renderOpp).join('')}</div></div>
+    <div class="rv-utility-col">
+      <div class="rv-zone items"><div class="rv-zone-label">Items / Locations (${oppIt.length})</div><div class="rv-card-row">${oppIt.map(renderOpp).join('')}</div></div>
+    </div>
+  </div>`;
+  html += rvRenderInkwell('opp', step.inkwell?.opp?.total || 0, step.inkwell?.opp?.spent || 0, step.who === 'opp');
+  html += `</div></div>`;
+  html += `<div class="rv-centerline">Battlefield</div>`;
   // Our field
   const renderOur = mkRenderer('our');
   const ourCards = boardState.our || [];
   const ourEx = ourCards.filter(c=>c.exerted), ourRd = ourCards.filter(c=>!c.exerted&&!rvIsItem(c.name)), ourIt = ourCards.filter(c=>rvIsItem(c.name));
+  html += `<div class="rv-side ours">`;
   html += `<div class="rv-field ${step.who==='our'?'rv-field-active':'rv-field-inactive'}">`;
-  html += `<div class="rv-zone"><div class="rv-zone-label">Ready (${ourRd.length})</div><div class="rv-card-row">${ourRd.map(renderOur).join('')}</div></div>`;
-  if (ourEx.length) html += `<div class="rv-zone"><div class="rv-zone-label">Exerted (${ourEx.length})</div><div class="rv-card-row">${ourEx.map(renderOur).join('')}</div></div>`;
-  if (ourIt.length) html += `<div class="rv-zone"><div class="rv-zone-label">Items</div><div class="rv-card-row">${ourIt.map(renderOur).join('')}</div></div>`;
+  if (ourEx.length) html += `<div class="rv-zone exerted"><div class="rv-zone-label">Exerted Characters (${ourEx.length})</div><div class="rv-card-row">${ourEx.map(renderOur).join('')}</div></div>`;
+  html += `<div class="rv-battle-mid">
+    <div class="rv-zone ready"><div class="rv-zone-label">Ready Characters (${ourRd.length})</div><div class="rv-card-row">${ourRd.map(renderOur).join('')}</div></div>
+    <div class="rv-utility-col">
+      <div class="rv-zone items"><div class="rv-zone-label">Items / Locations (${ourIt.length})</div><div class="rv-card-row">${ourIt.map(renderOur).join('')}</div></div>
+    </div>
+  </div>`;
+  html += rvRenderInkwell('our', step.inkwell?.our?.total || 0, step.inkwell?.our?.spent || 0, step.who === 'our');
   html += `</div>`;
-  html += `<div class="rv-blbl"><span>${g?.on||'Us'}</span> ${step.who==='our'?'<span class="rv-ap">◀ turn</span>':''}</div>`;
+  html += `<div class="rv-side-meta">
+    <div class="rv-zone-meta">
+      ${rvRenderPileMeta('Our Deck', step.zones?.deck?.our ?? '?', 'cards left')}
+      ${rvRenderPileMeta('Our Discard', step.zones?.discard?.our ?? 0, 'discard pile')}
+    </div>
+    <div class="rv-blbl"><span>${g?.on||'Us'}</span> ${step.who==='our'?'<span class="rv-ap">◀ turn</span>':''}</div>
+  </div>`;
+  html += `</div></div>`;
   el.innerHTML = html;
+  rvAnimateBoardFlip(el, prevRects);
 }
 
-function rvRenderEvents(events) {
+function rvRenderEvents(events, step) {
   const el = document.getElementById('rv-events'); if (!el) return;
+  if (step && step.timeline_event) {
+    el.innerHTML = rvRenderTimelineEvent(step);
+    return;
+  }
   const iconMap = {play:'▶',ability:'✨',damage:'💥',destroyed:'☠',quest:'⭐',challenge:'⚔',bounce:'↩',draw:'🃏',ink:'●',ramp:'●',discard:'✖',support:'❤'};
   const clsMap = {play:'rv-ep-play',ability:'rv-ep-ab',damage:'rv-ep-dead',destroyed:'rv-ep-dead',quest:'rv-ep-quest',challenge:'rv-ep-chal',draw:'rv-ep-draw'};
   let html = '<h4 id="rv-step-label"></h4>';
+  const sn = n => rvSn(n||'').b;
+  const preview = (name) => {
+    if (!name) return '';
+    const img = rvCardImgByName(name);
+    if (!img) return `<div style="min-width:54px;height:72px;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px;font-size:.58rem;line-height:1.1;color:var(--text2);display:flex;align-items:center;justify-content:center;text-align:center">${sn(name)}</div>`;
+    return `<div style="min-width:54px;height:72px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background-image:url(${img});background-size:cover;background-position:center 20%;box-shadow:0 4px 18px rgba(0,0,0,.25)"></div>`;
+  };
   for (const ev of events) {
     const icon = iconMap[ev.type]||'•';
     const cls = clsMap[ev.type]||'';
     let txt = '';
-    const sn = n => rvSn(n).b;
+    let cardPreview = preview(ev.card || ev.source_card || '');
     if (ev.type==='play') txt=`<b>${sn(ev.card)}</b> (${ev.cost})${ev.spell?' [SPELL]':''}${ev.sung?' [SONG]':''}${ev.shift?' [SHIFT]':''}`;
-    else if (ev.type==='ability') txt=`<b>${sn(ev.card)}</b>: ${ev.effect||ev.ability_name||''}`;
+    else if (ev.type==='ability') {
+      const targets = (ev.target_cards || []).map(sn).join(' → ');
+      txt=`<b>${sn(ev.card||ev.source_card)}</b>: ${ev.effect||ev.ability_name||''}${targets?`<div style="margin-top:4px;color:var(--text2)">→ ${targets}</div>`:''}`;
+    }
     else if (ev.type==='damage') txt=`<b>${sn(ev.card)}</b> -${ev.amount} (${ev.total})`;
     else if (ev.type==='destroyed') txt=`<b>${sn(ev.card)}</b> dies`;
     else if (ev.type==='quest') txt=`<b>${sn(ev.card)}</b> +${ev.lore} lore`;
-    else if (ev.type==='challenge') txt=`<b>${sn(ev.attacker)}</b> → <b>${sn(ev.defender)}</b>${ev.def_killed?' ☠':''}`;
+    else if (ev.type==='challenge') {
+      txt=`<b>${sn(ev.attacker)}</b> → <b>${sn(ev.defender)}</b>${ev.def_killed?' ☠':''}`;
+      if (ev.damage_to_target != null || ev.damage_to_source != null) {
+        txt += `<div style="margin-top:4px;color:var(--text2)">DMG ${ev.damage_to_target ?? '?'} / ${ev.damage_to_source ?? '?'}</div>`;
+      }
+      cardPreview = `<div style="display:flex;gap:8px;align-items:center">${preview(ev.attacker)}${ev.defender?`<div style="color:var(--text2);font-size:1rem">→</div>${preview(ev.defender)}`:''}</div>`;
+    }
     else if (ev.type==='bounce') txt=`<b>${sn(ev.card)}</b> bounced`;
     else if (ev.type==='draw') txt=`Draw: <b>${sn(ev.card)}</b>`;
     else if (ev.type==='ink'||ev.type==='ramp') txt=`Ink: ${sn(ev.card)}`;
     else txt = ev.type;
-    html += `<div class="rv-ev"><span class="rv-ei ${cls}">${icon}</span><span>${txt}</span></div>`;
+    html += `<div class="rv-ev" style="display:flex;align-items:flex-start;gap:10px;justify-content:space-between">
+      <div style="display:flex;gap:10px;min-width:0;flex:1 1 auto">
+        <span class="rv-ei ${cls}">${icon}</span>
+        <span style="min-width:0">${txt}</span>
+      </div>
+      <div style="flex:0 0 auto">${cardPreview}</div>
+    </div>`;
   }
   if (!events.length) html += '<div style="color:var(--text2);font-size:0.72rem">No events</div>';
   el.innerHTML = html;
@@ -7323,9 +8502,16 @@ function rvUpdateCounters(step, animate) {
   const vals = [step.lore.our, step.lore.opp, `${step.inkwell.our.spent}/${step.inkwell.our.total}`, `${step.inkwell.opp.spent}/${step.inkwell.opp.total}`, step.hand.our, step.hand.opp];
   ids.forEach((id,i) => {
     const el = document.getElementById(id); if (!el) return;
+    const box = el.closest('.rv-ct');
     const newVal = String(vals[i]);
     const changed = el.textContent !== newVal;
     el.textContent = newVal;
+    if (box && animate) {
+      box.classList.remove('rv-ct-step');
+      void box.offsetWidth;
+      box.classList.add('rv-ct-step');
+      setTimeout(() => box.classList.remove('rv-ct-step'), 520);
+    }
     if (animate && changed) {
       el.classList.remove('rv-cv-flash');
       // force reflow to restart transition
@@ -7338,37 +8524,50 @@ function rvUpdateCounters(step, animate) {
   if (lbl) lbl.textContent = step.label;
 }
 
+function rvAnimateStepContainers() {
+  ['rv-board', 'rv-events', 'rv-hand-cards'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('rv-step-enter');
+    void el.offsetWidth;
+    el.classList.add('rv-step-enter');
+    setTimeout(() => el.classList.remove('rv-step-enter'), 460);
+  });
+}
+
 let rvPlaying = false;
 let rvPlayTimer = null;
-let rvSpeed = 1500; // ms per step
-const RV_SPEEDS = [3000, 1500, 800, 400];
-const RV_SPEED_LABELS = ['0.5x', '1x', '2x', '4x'];
-let rvSpeedIdx = 1; // default 1x
+let rvPlayToIdx = null;
+let rvSpeed = 3200; // ms base step
+const RV_SPEEDS = [5200, 3200, 1800, 950];
+const RV_SPEED_LABELS = ['0.35x', '0.6x', '1x', '2x'];
+let rvSpeedIdx = 1; // default slow
 
 function rvPlay() {
   if (rvPlaying) { rvStop(); return; }
   rvPlaying = true;
+  rvPlayToIdx = null;
   const btn = document.getElementById('rv-play');
   if (btn) { btn.textContent = '⏸'; btn.title = 'Pause'; }
   rvTick();
 }
 function rvStop() {
   rvPlaying = false;
+  rvPlayToIdx = null;
   if (rvPlayTimer) { clearTimeout(rvPlayTimer); rvPlayTimer = null; }
   const btn = document.getElementById('rv-play');
   if (btn) { btn.textContent = '▶'; btn.title = 'Play'; }
 }
 function rvTick() {
   if (!rvPlaying) return;
+  if (rvPlayToIdx != null && rvStepIdx >= rvPlayToIdx) {
+    rvStop();
+    return;
+  }
   if (rvStepIdx < rvSteps.length - 1) {
     rvGoToStep(rvStepIdx + 1, true);
-    // Variable pause: quieter steps (only ink/draw/discard/pass) get ~0.55x,
-    // meaningful steps (play/challenge/quest/ability/destroyed) get full rvSpeed
-    // so the pop-in and counter flash can settle in the eye.
     const step = rvSteps[rvStepIdx];
-    const events = (step && step.events) || [];
-    const quiet = events.length === 0 || events.every(e => ['ink','ramp','draw','discard'].includes(e.type));
-    const pause = quiet ? Math.max(280, Math.round(rvSpeed * 0.55)) : rvSpeed;
+    const pause = rvAutoplayDelay(step);
     rvPlayTimer = setTimeout(rvTick, pause);
   } else {
     rvStop(); // end of game
@@ -7379,6 +8578,43 @@ function rvCycleSpeed() {
   rvSpeed = RV_SPEEDS[rvSpeedIdx];
   const btn = document.getElementById('rv-speed');
   if (btn) btn.textContent = RV_SPEED_LABELS[rvSpeedIdx];
+}
+
+function rvAutoplayDelay(step) {
+  if (!step || !step.timeline_event) return rvSpeed;
+  const sub = step.substep_kind || '';
+  if (sub === 'attack_declare') return Math.round(rvSpeed * 1.45);
+  if (sub === 'attack_damage') return Math.round(rvSpeed * 1.55);
+  if (sub === 'attack_banish') return Math.round(rvSpeed * 1.3);
+  if (sub === 'quest_declare') return Math.round(rvSpeed * 1.15);
+  if (sub === 'quest_lore') return Math.round(rvSpeed * 1.2);
+  if (sub === 'spell_play') return Math.round(rvSpeed * 1.2);
+  if (sub === 'spell_effect') return Math.round(rvSpeed * 1.45);
+  if (sub === 'ability_trigger') return Math.round(rvSpeed * 1.2);
+  if (sub === 'ability_resolve') return Math.round(rvSpeed * 1.45);
+  const type = step.timeline_event.type || '';
+  if (type === 'TURN_READY') return Math.round(rvSpeed * 0.95);
+  if (type === 'TURN_DRAW' || type === 'CARD_DRAWN') return Math.round(rvSpeed * 0.9);
+  if (type === 'CARD_INKED' || type === 'CARD_PUT_INTO_INKWELL') return Math.round(rvSpeed * 1.05);
+  if (type === 'CARD_PLAYED') return Math.round(rvSpeed * 1.35);
+  if (type === 'ABILITY_TRIGGERED' || type === 'ABILITY_ACTIVATED') return Math.round(rvSpeed * 1.55);
+  if (type === 'CARD_ATTACK') return Math.round(rvSpeed * 1.7);
+  if (type === 'CARD_DESTROYED') return Math.round(rvSpeed * 1.25);
+  if (type === 'CARD_QUEST' || type === 'LORE_GAINED') return Math.round(rvSpeed * 1.2);
+  return rvSpeed;
+}
+
+function rvPlayTurnGroup(groupIdx) {
+  const group = rvTurnGroups[groupIdx];
+  if (!group) return;
+  rvStop();
+  rvGoToStep(group.start, false);
+  if (group.start >= group.end) return;
+  rvPlaying = true;
+  rvPlayToIdx = group.end;
+  const btn = document.getElementById('rv-play');
+  if (btn) { btn.textContent = '⏸'; btn.title = 'Pause'; }
+  rvTick();
 }
 
 let rvGameIdx = 0;
@@ -7402,17 +8638,19 @@ function rvGoToStep(idx, fromAutoplay) {
   rvStepIdx = idx;
   const step = rvSteps[idx];
   // Update step buttons + scroll active into view
+  const activeGroupIdx = rvTurnGroups.findIndex(g => idx >= g.start && idx <= g.end);
   document.querySelectorAll('.rv-sb').forEach((b,i)=>{
-    b.classList.toggle('active',i===idx);
-    if (i===idx) b.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+    b.classList.toggle('active',i===activeGroupIdx);
+    if (i===activeGroupIdx) b.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
   });
   const sn = document.getElementById('rv-step-num');
   if (sn) sn.textContent = `${idx+1}/${rvSteps.length}`;
   const newNames = animate ? rvDiffBoard(prevStep && prevStep.board_after, step.board_after) : null;
   rvRenderBoard(step.board_after, step, newNames);
-  rvRenderEvents(step.events);
+  rvRenderEvents(step.events, step);
   rvUpdateCounters(step, animate);
   rvRenderHand(step, animate);
+  if (animate) rvAnimateStepContainers();
 }
 
 function rvRenderHand(step, animate) {
@@ -7520,6 +8758,154 @@ function rvCardImgByName(name) {
   return rvCardImg(rvCardsDB[name]);
 }
 
+function rvCardDetailsByName(name) {
+  if (!rvCardsDB || !name || !rvCardsDB[name]) return null;
+  const c = rvCardsDB[name];
+  return {
+    name,
+    image: rvCardImg(c),
+    cost: c.cost || '?',
+    type: c.type || '',
+    ink: (c.ink || '').trim(),
+    strength: c.str || '',
+    willpower: c.will || '',
+    lore: c.lore || '',
+    ability: c.ability || c.text || '',
+  };
+}
+
+function rvEscapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function rvEventSideLabel(side) {
+  if (side === 'our') return 'Us';
+  if (side === 'opp') return 'Opp';
+  return side || 'Unknown';
+}
+
+function rvRenderFocusCard(name, subtitle, effectText, extraChips) {
+  if (!name) return '';
+  const meta = rvCardDetailsByName(name);
+  const safeSubtitle = rvEscapeHtml(subtitle || '');
+  const chips = [];
+  if (meta) {
+    if (meta.cost) chips.push(`Cost ${rvEscapeHtml(meta.cost)}`);
+    if (meta.type) chips.push(rvEscapeHtml(meta.type));
+    if (meta.ink) chips.push(rvEscapeHtml(meta.ink));
+    if (meta.strength || meta.willpower) chips.push(`Stats ${rvEscapeHtml(meta.strength || '?')}/${rvEscapeHtml(meta.willpower || '?')}`);
+    if (meta.lore) chips.push(`Lore ${rvEscapeHtml(meta.lore)}`);
+  }
+  (extraChips || []).forEach(chip => { if (chip) chips.push(rvEscapeHtml(chip)); });
+  const focusText = effectText || (meta && meta.ability) || '';
+  const art = meta && meta.image
+    ? `<div class="rv-ev-focus-art" style="background-image:url(${meta.image})"></div>`
+    : `<div class="rv-ev-focus-art rv-ev-focus-fallback">${rvEscapeHtml(rvSn(name).b)}</div>`;
+  return `<div class="rv-ev-focus">
+    ${art}
+    <div class="rv-ev-focus-copy">
+      <div class="rv-ev-focus-title">${rvEscapeHtml(name)}</div>
+      <div class="rv-ev-focus-sub">${safeSubtitle}</div>
+      ${chips.length ? `<div class="rv-ev-focus-lines">${chips.map(chip => `<span class="rv-ev-focus-line">${chip}</span>`).join('')}</div>` : ''}
+      ${focusText ? `<div class="rv-ev-focus-text">${rvEscapeHtml(focusText)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+function rvRenderTimelineEvent(step) {
+  const ev = step && step.timeline_event;
+  if (!ev) return '';
+
+  const iconMap = {CARD_PLAYED:'▶',CARD_INKED:'●',CARD_PUT_INTO_INKWELL:'●',CARD_DRAWN:'🃏',TURN_DRAW:'🃏',CARD_QUEST:'⭐',CARD_ATTACK:'⚔',ABILITY_TRIGGERED:'✨',ABILITY_ACTIVATED:'✨',CARD_DESTROYED:'☠',CARD_DISCARDED:'✖',CARD_RETURNED:'↩',LORE_GAINED:'⭐'};
+  const source = ev.source || {};
+  const targets = Array.isArray(ev.targets) ? ev.targets : [];
+  const firstTarget = targets[0] || {};
+  const fx = ev.fx || {};
+  const raw = ev.raw || {};
+  const data = raw.data || {};
+  const sourceName = source.card || '';
+  const sourceSide = source.side || step.who;
+  const targetName = firstTarget.card || '';
+  const targetSide = firstTarget.side || (step.who === 'our' ? 'opp' : 'our');
+  const chips = [];
+  if (fx.kind) chips.push(fx.kind);
+  if (fx.damage_to_target != null) chips.push(`to target ${fx.damage_to_target}`);
+  if (fx.damage_to_source != null) chips.push(`to source ${fx.damage_to_source}`);
+  if (fx.lore_gained) chips.push(`lore +${fx.lore_gained}`);
+  if (data.cardCost != null && ev.type === 'CARD_PLAYED') chips.push(`cost ${data.cardCost}`);
+  if (fx.target_destroyed) chips.push('target banished');
+  if (fx.source_destroyed) chips.push('source banished');
+
+  const arrow = fx.arrow || targetName;
+  const flowTarget = targetName
+    ? `<div class="rv-ev-node">
+        <div class="rv-ev-role">Target</div>
+        <div class="rv-ev-name">${rvEscapeHtml(targetName)}</div>
+        <div class="rv-ev-side">${rvEscapeHtml(rvEventSideLabel(targetSide))}</div>
+      </div>`
+    : `<div class="rv-ev-node ghost">
+        <div class="rv-ev-role">Target</div>
+        <div class="rv-ev-name">No explicit target</div>
+        <div class="rv-ev-side">Global / self / unresolved</div>
+      </div>`;
+
+  let summary = ev.label || ev.type || 'Event';
+  if (ev.type === 'CARD_ATTACK' && sourceName) {
+    summary = `${sourceName}${targetName ? ` attacks ${targetName}` : ' attacks'}`;
+  } else if (ev.type === 'CARD_QUEST' && sourceName) {
+    summary = `${sourceName} quests`;
+  } else if (ev.type === 'CARD_PLAYED' && sourceName) {
+    summary = `${sourceName} enters play`;
+  } else if (ev.type === 'CARD_INKED' && sourceName) {
+    summary = `${sourceName} goes to ink`;
+  } else if (ev.type === 'CARD_DRAWN' && sourceName) {
+    summary = `${sourceName} drawn`;
+  } else if (ev.type === 'CARD_DESTROYED' && sourceName) {
+    summary = `${sourceName} is banished`;
+  }
+
+  const focusName = sourceName || targetName;
+  const focusSubtitle = `${rvEventSideLabel(sourceSide)} • ${ev.type || 'event'}`;
+  const focusText = ev.effect_text || summary;
+  const targetFocus = targetName && targetName !== focusName
+    ? rvRenderFocusCard(targetName, `${rvEventSideLabel(targetSide)} • target`, `Target involved in ${summary}`, [])
+    : '';
+
+  return `<div class="rv-ev-shell">
+    <div class="rv-ev-head">
+      <h4 id="rv-step-label">${rvEscapeHtml(step.label || summary)}</h4>
+      <span class="rv-ev-type">${rvEscapeHtml(ev.type || 'EVENT')}</span>
+    </div>
+    <div class="rv-ev-turn">Turn ${rvEscapeHtml(ev.turn)} • Seq ${rvEscapeHtml(ev.seq)} • ${rvEscapeHtml(rvEventSideLabel(step.who))} • ${rvEscapeHtml(step.phase || rvTimelinePhase(ev))}</div>
+    <div class="rv-ev-main">
+      <div class="rv-ev-flow">
+        <div class="rv-ev-node">
+          <div class="rv-ev-role">Source</div>
+          <div class="rv-ev-name">${rvEscapeHtml(sourceName || 'System')}</div>
+          <div class="rv-ev-side">${rvEscapeHtml(rvEventSideLabel(sourceSide))}</div>
+        </div>
+        <div class="rv-ev-arrow">${arrow ? '→' : '•'}</div>
+        ${flowTarget}
+      </div>
+      ${chips.length ? `<div class="rv-ev-meta">${chips.map(chip => `<span class="rv-ev-chip">${rvEscapeHtml(chip)}</span>`).join('')}</div>` : ''}
+      <div class="rv-ev-text"><strong>${rvEscapeHtml(summary)}</strong>${ev.effect_text ? `<div style="margin-top:6px">${rvEscapeHtml(ev.effect_text)}</div>` : ''}</div>
+      <div class="rv-ev-list">
+        <div class="rv-ev">
+          <span class="rv-ei">${iconMap[ev.type] || '•'}</span>
+          <span>${rvEscapeHtml(ev.label || ev.type || 'Event')}</span>
+        </div>
+      </div>
+    </div>
+    ${focusName ? rvRenderFocusCard(focusName, focusSubtitle, focusText, chips) : '<div class="rv-ev-empty">No card focus available for this event.</div>'}
+    ${targetFocus}
+  </div>`;
+}
+
 async function rvLoadGame(gameInfo) {
   const wrap = document.getElementById('rv-board');
   if (wrap) wrap.innerHTML = '<div class="rv-loading">Loading game...</div>';
@@ -7527,8 +8913,16 @@ async function rvLoadGame(gameInfo) {
     const resp = await fetch(`/api/replay/game?deck=${rvDeck}&opp=${rvOpp}&idx=${gameInfo.i}`);
     const data = await resp.json();
     if (data.error) { if(wrap) wrap.innerHTML = `<div class="rv-empty">${data.error}</div>`; return; }
-    rvGame = data.game;
-    rvSteps = rvBuildSteps(rvGame);
+    rvGame = data;
+    rvPublicLog = null;
+    if (gameInfo && gameInfo.match_id) {
+      try {
+        const plResp = await fetch(`/api/replay/public-log?match_id=${gameInfo.match_id}`);
+        if (plResp.ok) rvPublicLog = await plResp.json();
+      } catch(_) {}
+    }
+    rvSteps = rvPublicLog ? rvBuildStepsFromPublicLog(rvPublicLog.viewer_public_log) : rvBuildSteps(rvGame);
+    rvTurnGroups = rvBuildTurnGroups(rvSteps);
     rvStepIdx = 0;
 
     // Try to load hand data from coaching .gz upload or from log INITIAL_HAND
@@ -7555,10 +8949,11 @@ async function rvLoadGame(gameInfo) {
     const sbs = document.getElementById('rv-sbs');
     if (sbs) {
       let lastT = -1;
-      sbs.innerHTML = rvSteps.map((s,i) => {
-        const sep = (s.turn !== lastT && lastT !== -1) ? '<span class="rv-ssep"></span>' : '';
-        lastT = s.turn;
-        return `${sep}<button class="rv-sb${s.who==='opp'?' rv-opp':''}" onclick="rvGoToStep(${i})">T${s.turn} ${s.who==='opp'?'▲':'▼'}</button>`;
+      sbs.innerHTML = rvTurnGroups.map((g,i) => {
+        const sep = (g.turn !== lastT && lastT !== -1) ? '<span class="rv-ssep"></span>' : '';
+        lastT = g.turn;
+        const label = `T${g.turn} ${g.who === 'our' ? 'Us' : 'Opp'}`;
+        return `${sep}<button class="rv-sb${g.who==='opp'?' rv-opp':''}" onclick="rvPlayTurnGroup(${i})">${label}</button>`;
       }).join('');
     }
     rvGoToStep(0);
@@ -8819,6 +10214,264 @@ function renderCV2Secondary() {
   }
 }
 
+// ── Deck Browser (Lab tab) ──
+let _dbOpenDecks = []; // ordered array, max 3
+let _dbInkFilter = new Set();
+let _dbRankFilter = ''; // '', 'winner', 'top4', 'top8'
+const _DB_RANK_GROUPS = {
+  winner: ['1st','2nd'],
+  top4: ['1st','2nd','3rd','Top4'],
+  top8: ['1st','2nd','3rd','Top4','Top8'],
+  top16: ['1st','2nd','3rd','Top4','Top8','Top16'],
+};
+
+function dbSelectDeck(dk) {
+  const idx = _dbOpenDecks.indexOf(dk);
+  if (idx >= 0) { _dbOpenDecks.splice(idx, 1); }
+  else {
+    if (_dbOpenDecks.length >= 3) _dbOpenDecks.shift();
+    _dbOpenDecks.push(dk);
+  }
+  _dbRefreshAll();
+}
+
+function dbCloseDeck(dk) {
+  const idx = _dbOpenDecks.indexOf(dk);
+  if (idx >= 0) _dbOpenDecks.splice(idx, 1);
+  _dbRefreshAll();
+}
+
+function dbToggleInk(ink) {
+  if (_dbInkFilter.has(ink)) _dbInkFilter.delete(ink);
+  else _dbInkFilter.add(ink);
+  _dbRefreshAll();
+}
+
+function dbSetRank(rank) {
+  _dbRankFilter = (_dbRankFilter === rank) ? '' : rank;
+  _dbRefreshAll();
+}
+
+function dbClearFilters() {
+  _dbInkFilter.clear();
+  _dbRankFilter = '';
+  _dbRefreshAll();
+}
+
+function dbCopyDeck(dk, idx) {
+  const refs = DATA.reference_decklists || {};
+  const consensus = DATA.consensus || {};
+  const refList = refs[dk] || [];
+  const ref = refList[idx || 0];
+  let text = '';
+  if (ref && ref.cards) {
+    text = ref.cards.map(c => `${c.qty} ${c.name}`).join('\n');
+  } else if (consensus[dk]) {
+    text = Object.entries(consensus[dk]).sort((a,b) => b[1]-a[1]).map(([n,q]) => `${Math.round(q)} ${n}`).join('\n');
+  }
+  if (text) {
+    navigator.clipboard.writeText(text);
+    const btn = document.getElementById('db-copy-' + dk);
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1500); }
+  }
+}
+
+function _dbRefreshAll() {
+  const pillsEl = document.getElementById('db-deck-pills');
+  if (pillsEl) pillsEl.innerHTML = buildDeckBrowser__pills();
+  const mount = document.getElementById('db-browser-content');
+  if (mount) mount.innerHTML = _dbRenderCards();
+  document.querySelectorAll('.db-deck-pill').forEach(p => {
+    p.classList.toggle('active', _dbOpenDecks.includes(p.dataset.dk));
+  });
+  document.querySelectorAll('.db-ink-btn').forEach(b => {
+    b.classList.toggle('selected', _dbInkFilter.has(b.dataset.ink));
+  });
+  document.querySelectorAll('.db-rank-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.rank === _dbRankFilter);
+  });
+}
+
+function _dbGetFilteredDecks() {
+  const refs = DATA.reference_decklists || {};
+  const consensus = DATA.consensus || {};
+  const allDecks = [...new Set([...Object.keys(refs), ...Object.keys(consensus)])].sort();
+  const allowedRanks = _dbRankFilter ? _DB_RANK_GROUPS[_dbRankFilter] || [] : null;
+  return allDecks.filter(dk => {
+    // Ink filter
+    if (_dbInkFilter.size) {
+      const inks = DECK_INKS[dk] || [];
+      if (![..._dbInkFilter].every(f => inks.includes(f))) return false;
+    }
+    // Rank filter: deck must have at least one ref matching the rank group
+    if (allowedRanks) {
+      const refList = refs[dk] || [];
+      if (!refList.some(r => allowedRanks.includes(r.rank))) return false;
+    }
+    return true;
+  });
+}
+
+function _dbEnsureCardsDB() {
+  if (rvCardsDB) return;
+  fetch('/api/replay/cards_db').then(r => r.json()).then(db => {
+    rvCardsDB = db;
+    _dbRefreshAll();
+  }).catch(() => {});
+}
+
+function _dbBuildGallery(cards) {
+  return cards.map(c => {
+    const imgUrl = rvCardsDB ? rvCardImgByName(c.name) : '';
+    const shortName = c.name.includes(' - ') ? c.name.split(' - ')[0] : c.name;
+    const safeName = _bpEsc(c.name);
+    const safeShort = _bpEsc(shortName.length > 18 ? shortName.slice(0,16) + '..' : shortName);
+    const art = imgUrl
+      ? `<img src="${imgUrl}" alt="${safeName}" loading="lazy">`
+      : `<div class="pf-std-vph">${safeShort}</div>`;
+    const zoom = imgUrl ? ` data-zoom="${imgUrl}"` : '';
+    return `<div class="pf-std-vcard">
+      <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+        ${art}<span class="pf-std-vqty">${c.qty}x</span>
+      </div>
+      <div class="pf-std-vname">${safeShort}</div>
+    </div>`;
+  }).join('');
+}
+
+const _dbSelRef = {};
+
+function dbPickRef(dk, idx) {
+  _dbSelRef[dk] = idx;
+  _dbRefreshAll();
+}
+
+function _dbRenderCards() {
+  if (!_dbOpenDecks.length) return '<div style="color:var(--text2);font-size:0.85em;padding:16px 0;text-align:center">Select up to 3 decks to compare side by side.</div>';
+  const refs = DATA.reference_decklists || {};
+  const consensus = DATA.consensus || {};
+
+  let html = '<div class="db-decks-row">';
+  for (const dk of _dbOpenDecks) {
+    const refList = refs[dk] || [];
+    const std = consensus[dk] || {};
+    const inks = DECK_INKS[dk] || [];
+    const dots = inks.map(i => `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${INK_COLORS[i]};vertical-align:middle"></span>`).join(' ');
+    const selIdx = _dbSelRef[dk] || 0;
+
+    // Player tabs if multiple refs
+    let tabsHtml = '';
+    if (refList.length > 1) {
+      tabsHtml = '<div class="db-player-tabs">' + refList.map((r, i) => {
+        const short = (r.player || '?').split(' ')[0];
+        const rank = (r.rank || '');
+        const active = i === selIdx ? ' active' : '';
+        return `<button class="db-ptab${active}" onclick="dbPickRef('${dk}',${i})">${_bpEsc(short)} <small>${_bpEsc(rank)}</small></button>`;
+      }).join('') + '</div>';
+    }
+
+    const ref = refList[selIdx];
+    let cards = [];
+    let sourceLabel = '';
+
+    if (ref && ref.cards && ref.cards.length) {
+      cards = ref.cards.map(c => ({ name: c.name, qty: c.qty }));
+      const eventShort = (ref.event || '').split('@')[0].trim().substring(0, 30);
+      sourceLabel = `<div class="db-source">${_bpEsc(ref.player || '?')} · <strong>${_bpEsc(ref.rank || '?')}</strong></div>
+        <div class="db-event">${_bpEsc(eventShort)}</div>
+        ${ref.record ? `<div class="db-event">${ref.record}${ref.event_date ? ' · ' + ref.event_date : ''}</div>` : ''}`;
+    } else {
+      cards = Object.entries(std).sort((a,b) => b[1]-a[1]).map(([n,q]) => ({ name: n, qty: Math.round(q) }));
+      sourceLabel = '<div class="db-source">Consensus average</div>';
+    }
+
+    const totalCards = cards.reduce((s,c) => s + c.qty, 0);
+
+    html += `<div class="db-deck-card">
+      <div class="db-deck-hdr">
+        <span class="db-deck-name">${dots} ${dk}</span>
+        <span class="db-deck-total">${totalCards} cards</span>
+        <button class="db-deck-close" onclick="dbCloseDeck('${dk}')" title="Close">&times;</button>
+      </div>
+      ${tabsHtml}
+      ${sourceLabel}
+      <div class="pf-std-list"><div class="pf-std-gallery">${_dbBuildGallery(cards)}</div></div>
+      <div class="db-deck-footer">
+        <button class="db-copy-btn" id="db-copy-${dk}" onclick="dbCopyDeck('${dk}',${selIdx})">Copy</button>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function buildDeckBrowser() {
+  if (!DATA || !DATA.consensus) return '';
+  _dbEnsureCardsDB();
+  const refs = DATA.reference_decklists || {};
+  const consensus = DATA.consensus || {};
+  const allDecks = [...new Set([...Object.keys(refs), ...Object.keys(consensus)])].sort();
+  if (!allDecks.length) return '';
+
+  // Ink filter buttons
+  const inkOrder = ['amber','amethyst','emerald','ruby','sapphire','steel'];
+  const inkBtns = inkOrder.map(ink => {
+    const sel = _dbInkFilter.has(ink) ? ' selected' : '';
+    return `<div class="ink-icon-wrap db-ink-btn${sel}" data-ink="${ink}" onclick="dbToggleInk('${ink}')" title="${ink}">
+      ${INK_SVGS[ink]}
+    </div>`;
+  }).join('');
+
+  // Filtered deck pills
+  const filtered = _dbGetFilteredDecks();
+  const deckPills = filtered.map(dk => {
+    const isOpen = _dbOpenDecks.includes(dk);
+    const inks = DECK_INKS[dk] || [];
+    const dots = inks.map(i => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${INK_COLORS[i]}"></span>`).join(' ');
+    const refCount = (refs[dk] || []).length;
+    const badge = refCount > 0 ? `<span class="db-ref-dot"></span>` : '';
+    return `<button class="db-deck-pill${isOpen ? ' active' : ''}" data-dk="${dk}" onclick="dbSelectDeck('${dk}')">${dots} ${dk}${badge}</button>`;
+  }).join('');
+
+  // Rank filter buttons
+  const rankBtns = ['winner','top4','top8','top16'].map(r => {
+    const active = _dbRankFilter === r ? ' active' : '';
+    const label = {winner:'Winner',top4:'Top 4',top8:'Top 8',top16:'Top 16'}[r];
+    return `<button class="db-rank-btn${active}" data-rank="${r}" onclick="dbSetRank('${r}')">${label}</button>`;
+  }).join('');
+
+  const hasFilters = _dbInkFilter.size || _dbRankFilter;
+  const body = `
+    <div class="db-filter-row">
+      <div class="db-ink-filter">${inkBtns}</div>
+      <div class="db-rank-filter">${rankBtns}</div>
+      ${hasFilters ? `<button class="db-clear-filter" onclick="dbClearFilters()">Clear</button>` : ''}
+    </div>
+    <div class="db-pills" id="db-deck-pills">${deckPills}</div>
+    <div id="db-browser-content">${_dbRenderCards()}</div>`;
+
+  return `<div class="section" style="margin-top:20px">
+    ${monAccordion('acc-db', 'Deck Browser', '', body, {
+      desktopOpen: false,
+      info: { title: 'About Deck Browser', body: '<p>Browse tournament decklists with card art.</p><p>Filter by ink color, then tap up to <strong>3 decks</strong> to compare side by side.</p><p>Each deck shows player, tournament placement, and a visual card gallery. <strong>Copy</strong> for an importable list.</p>' }
+    })}
+  </div>`;
+}
+
+// Helper to rebuild just the pills (after filter change)
+function buildDeckBrowser__pills() {
+  const refs = DATA.reference_decklists || {};
+  const filtered = _dbGetFilteredDecks();
+  return filtered.map(dk => {
+    const isOpen = _dbOpenDecks.includes(dk);
+    const inks = DECK_INKS[dk] || [];
+    const dots = inks.map(i => `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${INK_COLORS[i]}"></span>`).join(' ');
+    const refCount = (refs[dk] || []).length;
+    const badge = refCount > 0 ? `<span class="db-ref-dot"></span>` : '';
+    return `<button class="db-deck-pill${isOpen ? ' active' : ''}" data-dk="${dk}" onclick="dbSelectDeck('${dk}')">${dots} ${dk}${badge}</button>`;
+  }).join('');
+}
+
 function renderLabTab(main) {
   const az = getAnalyzerData();
   const matchups = (az[coachDeck]||{}).available_matchups || [];
@@ -8830,13 +10483,13 @@ function renderLabTab(main) {
   const selectorHtml = buildMatchupSelector('lab');
 
   if (!az[coachDeck] || !labOpp) {
-    main.innerHTML = selectorHtml + `<div class="coming-soon-card"><div class="lock-emoji">🔒</div><h3>Coming Soon</h3><p>Select opponent using the ink icons above.</p></div>`;
+    main.innerHTML = selectorHtml + `<div class="coming-soon-card"><div class="lock-emoji">🔒</div><h3>Coming Soon</h3><p>Select opponent using the ink icons above.</p></div>` + buildDeckBrowser();
     return;
   }
 
   const mu = getMatchupData(labOpp);
   if (!mu) {
-    main.innerHTML = selectorHtml + `<div class="coming-soon-card"><div class="lock-emoji">📊</div><h3>Data not available</h3></div>`;
+    main.innerHTML = selectorHtml + `<div class="coming-soon-card"><div class="lock-emoji">📊</div><h3>Data not available</h3></div>` + buildDeckBrowser();
     return;
   }
 
@@ -8993,6 +10646,9 @@ function renderLabTab(main) {
     ${rightCol}
   </div>`;
   content += replaySection;
+
+  // === DECK BROWSER (independent of matchup selection) ===
+  content += buildDeckBrowser();
 
   main.innerHTML = content;
   initMullCarousel();
@@ -9759,6 +11415,76 @@ coachDeck = pfActiveDeck;
 if (DECK_INKS[pfActiveDeck]) selectedInks = [...DECK_INKS[pfActiveDeck]];
 const DEMO_PLAYER = { nick: 'CLOUD', country: 'IT', decks: ['ESt','AmySt','AbSt'] };
 
+function pfCardMeta(name) {
+  const card = (rvCardsDB || {})[name] || {};
+  const costNum = Number(card.cost);
+  return {
+    card,
+    shortName: String(name || '').split(' - ')[0],
+    imgUrl: rvCardsDB ? rvCardImgByName(name) : '',
+    cost: Number.isFinite(costNum) ? costNum : null,
+    type: String(card.type || '').toLowerCase(),
+  };
+}
+
+function pfBuildCurveTimeline(cards) {
+  if (!cards || typeof cards !== 'object') return '';
+  const turns = [
+    { key: 1, label: 'T1' },
+    { key: 2, label: 'T2' },
+    { key: 3, label: 'T3' },
+    { key: 4, label: 'T4' },
+    { key: 5, label: 'T5' },
+    { key: 6, label: 'T6' },
+    { key: 7, label: 'T7+' },
+  ];
+  const grouped = {};
+  turns.forEach(t => { grouped[t.key] = []; });
+
+  Object.entries(cards).forEach(([name, qty]) => {
+    const meta = pfCardMeta(name);
+    if (meta.cost == null) return;
+    const bucket = meta.cost >= 7 ? 7 : Math.max(1, meta.cost);
+    grouped[bucket].push({ name, qty, ...meta });
+  });
+
+  const steps = turns.map(turn => {
+    const items = (grouped[turn.key] || []).sort((a, b) =>
+      (b.qty - a.qty) ||
+      ((b.type.includes('character') ? 1 : 0) - (a.type.includes('character') ? 1 : 0)) ||
+      a.shortName.localeCompare(b.shortName)
+    );
+    const totalCopies = items.reduce((sum, item) => sum + item.qty, 0);
+    const topCards = items.slice(0, 3);
+    const cardsHtml = topCards.length
+      ? `<div class="pf-mycurve-cards">${topCards.map(item => {
+          const safeName = _bpEsc(item.name);
+          const safeShort = _bpEsc(item.shortName);
+          const art = item.imgUrl
+            ? `<img src="${item.imgUrl}" alt="${safeName}" loading="lazy">`
+            : `<div class="pf-mycurve-card-ph">${safeShort}</div>`;
+          const zoom = item.imgUrl ? ` data-zoom="${item.imgUrl}"` : '';
+          return `<div class="pf-mycurve-card"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+            ${art}
+            <span class="pf-mycurve-cardqty">${item.qty}x</span>
+          </div>`;
+        }).join('')}</div>`
+      : `<div class="pf-mycurve-empty">No line</div>`;
+    return `<div class="pf-mycurve-step">
+      <div class="pf-mycurve-turn"><b>${turn.label}</b><span>${totalCopies ? totalCopies + 'c' : ''}</span></div>
+      ${cardsHtml}
+    </div>`;
+  }).join('');
+
+  return `<div class="pf-mycurve">
+    <div class="pf-mycurve-head">
+      <span class="pf-mycurve-title">Deck Curve</span>
+      <span class="pf-mycurve-sub">visual by turn</span>
+    </div>
+    <div class="pf-mycurve-timeline">${steps}</div>
+  </div>`;
+}
+
 function renderProfileTab(main) {
   // Preload cards DB for tech card images
   if (!rvCardsDB) {
@@ -9797,11 +11523,6 @@ function renderProfileTab(main) {
       <div class="pf-subtitle"><span class="plan-badge ${planCls}">${planLabel}</span>
         ${saved.country ? '<span>' + saved.country + '</span>' : ''}
       </div>
-    </div>
-    <div class="pf-format-toggle">
-      <span class="${currentFormat !== 'infinity' ? 'active' : ''}" onclick="pfSetFormat('core')">Core</span>
-      <div class="pf-format-switch ${currentFormat === 'infinity' ? 'infinity' : ''}" onclick="pfToggleFormat()"></div>
-      <span class="${currentFormat === 'infinity' ? 'active' : ''}" onclick="pfSetFormat('infinity')">Infinity</span>
     </div>
     ${hasNudge ? '<button class="pf-info-btn" onclick="var n=document.getElementById(\'pf-nudge-tip\');if(n)n.classList.toggle(\'open\')" title="Setup profile">i</button>' : ''}
     <button class="pf-gear-btn" onclick="pfOpenDrawer()" title="Settings">${gearSvg}</button>
@@ -9870,6 +11591,7 @@ function renderProfileTab(main) {
     const deckName = localStorage.getItem('lorcana_deck_name') || 'Unnamed';
     const deckCode = localStorage.getItem('lorcana_deck_code') || selectedDeck || '?';
     const cardCount = myDeckCards ? Object.values(myDeckCards).reduce((s,v)=>s+v,0) : 0;
+    const myDeckCurveHtml = myDeckCards ? pfBuildCurveTimeline(myDeckCards) : '';
     deckSelectorInner = `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;border-radius:10px;background:rgba(212,160,58,0.08);border:1px solid rgba(212,160,58,0.25)">
       <div style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1;min-width:0" onclick="showDeckHistory()">
         ${deckCode !== '?' ? deckImg(deckCode, 28) : ''}
@@ -9883,6 +11605,7 @@ function renderProfileTab(main) {
         <span style="cursor:pointer;font-size:0.82em;color:var(--gold)" onclick="showDeckModal()">&#9998; Edit</span>
         <span style="cursor:pointer;color:var(--text2);font-size:0.82em" onclick="clearMyDeckAndRender()">&times;</span>
       </div>
+      <div style="width:100%">${myDeckCurveHtml}</div>
     </div>`;
   }
 
@@ -10163,11 +11886,21 @@ function renderProfileTab(main) {
         refDeck.cards.forEach(c => {
           totalCards += c.qty;
           const isTech = techCardNames.has(c.name);
-          const techBadge = isTech ? `<span class="pf-std-tech-badge is-in">tech</span>` : '';
-          rows += `<div class="pf-std-row">
-            <span class="pf-std-qty">${c.qty}</span>
-            <span class="pf-std-name">${c.name}</span>
-            ${techBadge}
+          const meta = pfCardMeta(c.name);
+          const safeName = _bpEsc(c.name);
+          const safeShort = _bpEsc(meta.shortName);
+          const art = meta.imgUrl
+            ? `<img src="${meta.imgUrl}" alt="${safeName}" loading="lazy">`
+            : `<div class="pf-std-vph">${safeShort}</div>`;
+          const techBadge = isTech ? `<span class="pf-std-vtech">tech</span>` : '';
+          const zoom = meta.imgUrl ? ` data-zoom="${meta.imgUrl}"` : '';
+          rows += `<div class="pf-std-vcard">
+            <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+              ${art}
+              <span class="pf-std-vqty">${c.qty}x</span>
+              ${techBadge}
+            </div>
+            <div class="pf-std-vname">${safeShort}</div>
           </div>`;
         });
       } else {
@@ -10178,11 +11911,21 @@ function renderProfileTab(main) {
           const q = Math.round(qty);
           totalCards += q;
           const isTech = techCardNames.has(name);
-          const techBadge = isTech ? `<span class="pf-std-tech-badge is-in">tech</span>` : '';
-          rows += `<div class="pf-std-row">
-            <span class="pf-std-qty">${q}</span>
-            <span class="pf-std-name">${name}</span>
-            ${techBadge}
+          const meta = pfCardMeta(name);
+          const safeName = _bpEsc(name);
+          const safeShort = _bpEsc(meta.shortName);
+          const art = meta.imgUrl
+            ? `<img src="${meta.imgUrl}" alt="${safeName}" loading="lazy">`
+            : `<div class="pf-std-vph">${safeShort}</div>`;
+          const techBadge = isTech ? `<span class="pf-std-vtech">tech</span>` : '';
+          const zoom = meta.imgUrl ? ` data-zoom="${meta.imgUrl}"` : '';
+          rows += `<div class="pf-std-vcard">
+            <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+              ${art}
+              <span class="pf-std-vqty">${q}x</span>
+              ${techBadge}
+            </div>
+            <div class="pf-std-vname">${safeShort}</div>
           </div>`;
         });
       }
@@ -10192,7 +11935,7 @@ function renderProfileTab(main) {
           <span>Standard List</span>
           <span class="pf-std-source">${sourceLabel}</span>
         </div>
-        <div class="pf-std-list">${rows}</div>
+        <div class="pf-std-list"><div class="pf-std-gallery">${rows}</div></div>
         <div class="pf-std-total">${totalCards} cards</div>
       </div>`;
     } else {

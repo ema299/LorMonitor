@@ -67,7 +67,20 @@ def import_cards_db() -> int:
         for name, card in db_data.items():
             set_code = card.get("set", "")
             number = card.get("number", "")
+
+            # Duels.ink cards often have id="10-231" but number="" — extract from id
+            card_id = card.get("id", "")
+            if not number and card_id and "-" in str(card_id):
+                parts = str(card_id).split("-", 1)
+                if len(parts) == 2 and parts[1].isdigit():
+                    number = parts[1]
+                    if not set_code or not set_code.isdigit():
+                        set_code = parts[0]
+
+            # Build image_path: numeric set codes map directly (e.g. "10/231")
             set_num = SET_MAP.get(set_code, "")
+            if not set_num and set_code.isdigit():
+                set_num = set_code  # duels.ink already uses numeric set codes
             image_path = f"{set_num}/{number}" if set_num and number else ""
 
             cost = _safe_int(card.get("cost"))
@@ -198,24 +211,26 @@ def import_consensus() -> int:
                 """), {"deck": deck_code, "card": card["name"], "qty": card["qty"], "date": snap_date})
                 consensus_count += 1
 
-            # Reference decklist: the most representative list (highest overlap with pool)
-            best = representative
-            session.execute(text("""
-                INSERT INTO reference_decklists (deck, player, rank, event, event_date, record, cards, snapshot_date, is_current)
-                VALUES (:deck, :player, :rank, :event, :event_date, :record, CAST(:cards AS jsonb), :date, true)
-                ON CONFLICT (deck, player, snapshot_date) DO UPDATE
-                SET cards = EXCLUDED.cards, is_current = true, rank = EXCLUDED.rank
-            """), {
-                "deck": deck_code,
-                "player": best.get("player", ""),
-                "rank": best.get("rank", ""),
-                "event": best.get("event", ""),
-                "event_date": best.get("date", ""),
-                "record": best.get("record", ""),
-                "cards": json.dumps(best.get("cards", [])),
-                "date": snap_date,
-            })
-            ref_count += 1
+            # Reference decklists: import ALL lists (up to 5 per archetype) for Deck Browser
+            for dk in decks:
+                if not dk.get("cards"):
+                    continue
+                session.execute(text("""
+                    INSERT INTO reference_decklists (deck, player, rank, event, event_date, record, cards, snapshot_date, is_current)
+                    VALUES (:deck, :player, :rank, :event, :event_date, :record, CAST(:cards AS jsonb), :date, true)
+                    ON CONFLICT (deck, player, snapshot_date) DO UPDATE
+                    SET cards = EXCLUDED.cards, is_current = true, rank = EXCLUDED.rank
+                """), {
+                    "deck": deck_code,
+                    "player": dk.get("player", ""),
+                    "rank": dk.get("rank", ""),
+                    "event": dk.get("event", ""),
+                    "event_date": dk.get("date", ""),
+                    "record": dk.get("record", ""),
+                    "cards": json.dumps(dk.get("cards", [])),
+                    "date": snap_date,
+                })
+                ref_count += 1
 
         session.commit()
         logger.info("Imported %d consensus cards, %d reference decklists from %s", consensus_count, ref_count, latest.name)

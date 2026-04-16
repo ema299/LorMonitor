@@ -1,12 +1,18 @@
-"""Lab tab — card scores, optimizer, mulligans, deck analytics.
-Requires: pro tier or above.
+"""Lab tab — card scores, optimizer, mulligans, deck analytics, deck comparator.
+Some endpoints require pro tier, others are public.
 """
+import json
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.deps import get_db, require_tier
 from backend.models.user import User
 from backend.services import deck_service, matchup_service, lab_iwd_service
+
+SNAPSHOT_DIR = Path("/mnt/HC_Volume_104764377/finanza/Lor/decks_db/history")
+_LEGACY_NAMES = {"AS": "AmSa", "ES": "EmSa"}
 
 router = APIRouter()
 
@@ -82,3 +88,43 @@ def mulligans(
     if not result:
         raise HTTPException(404, f"No mulligan data for {our_deck} vs {opp_deck}")
     return result
+
+
+@router.get("/tournament-lists/{deck}")
+def tournament_lists(
+    deck: str,
+    db: Session = Depends(get_db),
+):
+    """Tournament decklists for a deck archetype (from inkdecks snapshot).
+
+    Returns up to 15 lists with player, rank, event, date, cards.
+    Public endpoint — used by the Lab deck comparator.
+    """
+    # Normalize deck code
+    reverse_legacy = {"AmSa": "AS", "EmSa": "ES"}
+    snapshot_code = reverse_legacy.get(deck, deck)
+
+    # Find latest non-empty snapshot
+    snapshots = sorted(SNAPSHOT_DIR.glob("snapshot_*.json"))
+    for candidate in reversed(snapshots):
+        try:
+            data = json.load(open(candidate))
+            archs = data.get("archetypes", {})
+            lists = archs.get(snapshot_code, archs.get(deck, []))
+            if lists:
+                result = []
+                for dl in lists:
+                    result.append({
+                        "player": dl.get("player", ""),
+                        "rank": dl.get("rank", ""),
+                        "event": dl.get("event", ""),
+                        "date": dl.get("date", ""),
+                        "record": dl.get("record", ""),
+                        "n_players": dl.get("n_players", 0),
+                        "cards": dl.get("cards", []),
+                    })
+                return {"deck": deck, "lists": result, "source": candidate.name}
+        except Exception:
+            continue
+
+    return {"deck": deck, "lists": [], "source": None}

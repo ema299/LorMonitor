@@ -65,6 +65,7 @@ def assemble(db: Session, days: int = DAYS) -> dict:
     blob["player_lookup"] = _build_player_lookup(db, days)
     blob["kc_spy"] = _load_kc_spy(db)
     blob["analysis"] = ""
+    blob["emerging_decks"] = _build_emerging_decks(db)
 
     logger.info("Snapshot assembled: %d top-level keys", len(blob))
     return blob
@@ -1031,3 +1032,80 @@ def _build_team(db: Session, days: int) -> dict:
         logger.warning("team stats failed: %s", e)
         import traceback; traceback.print_exc()
         return {}
+
+
+def _build_emerging_decks(db: Session) -> dict:
+    """Lightweight rogue scout payload for the dashboard blob.
+
+    Returns a compact structure for the Monitor tab 'Emerging & Rogue' section.
+    """
+    try:
+        from backend.services import rogue_scout_service
+
+        result = {"core": [], "infinity": []}
+        for fmt in ("core", "infinity"):
+            cfg = rogue_scout_service.RogueScoutConfig(
+                game_format=fmt,
+                days=7,
+                min_games=10,
+                min_wr=0.52,
+                min_mmr=1300,
+            )
+            raw = rogue_scout_service.get_candidate_preview(db, cfg)
+            tier0 = set(raw.get("meta", {}).get("tier0_codes", []))
+
+            tiles = []
+
+            # 1. OFF-META WINNERS — non-tier0 deck with validated WR
+            for r in raw.get("off_meta_validated", [])[:3]:
+                tiles.append({
+                    "type": "off_meta",
+                    "deck": r.get("deck", "?"),
+                    "label": r.get("player", "?"),
+                    "players": 1,
+                    "wr": r.get("wr"),
+                    "wr_lb": r.get("wr_wilson_lb"),
+                    "cards": r.get("extra_vs_consensus", [])[:4],
+                    "games": r.get("games", 0),
+                    "mmr": r.get("avg_mmr", 0),
+                })
+
+            # 2. BREW WATCH — high jaccard distance variants with good WR
+            for sb in raw.get("solo_brews", [])[:3]:
+                # Skip if already covered as off-meta
+                if any(t["deck"] == sb.get("deck") and t["label"] == sb.get("player") for t in tiles):
+                    continue
+                tiles.append({
+                    "type": "brew",
+                    "deck": sb.get("deck", "?"),
+                    "label": sb.get("player", "?"),
+                    "players": 1,
+                    "wr": sb.get("wr"),
+                    "wr_lb": sb.get("wr_wilson_lb"),
+                    "cards": sb.get("extra_vs_consensus", [])[:4],
+                    "games": sb.get("games", 0),
+                    "mmr": sb.get("avg_mmr", 0),
+                })
+
+            # 3. NEW COLORS — unusual ink combos without consensus
+            for uc in raw.get("unusual_color_pairs", [])[:2]:
+                tiles.append({
+                    "type": "new_colors",
+                    "deck": uc.get("deck", "?"),
+                    "label": uc.get("player", "?"),
+                    "players": 1,
+                    "wr": uc.get("wr"),
+                    "wr_lb": uc.get("wr_wilson_lb"),
+                    "cards": [],
+                    "games": uc.get("games", 0),
+                    "mmr": uc.get("avg_mmr", 0),
+                })
+
+            # Sort by WR wilson lb descending, cap at 6
+            tiles.sort(key=lambda t: -(t.get("wr_lb") or 0))
+            result[fmt] = tiles[:6]
+
+        return result
+    except Exception as e:
+        logger.warning("emerging_decks failed: %s", e)
+        return {"core": [], "infinity": []}

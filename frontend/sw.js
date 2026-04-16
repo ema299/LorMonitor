@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lorcana-v1';
+const CACHE_NAME = 'lorcana-v2';
 const STATIC_ASSETS = [
   '/',
   '/dashboard.html',

@@ -47,6 +47,42 @@ Tutti i tab usano il pattern uniforme `monAccordion()` (titolo gold + "?" + chev
 6. **Community** — Stream, clips, schedule
 7. **Events** — Mappa Leaflet, event cards
 
+### Replay viewer pubblico logs — stato 16 Apr 2026
+
+Il viewer pubblico `rv*` in `frontend/dashboard.html` non legge piu' solo il payload legacy di `ReplayArchive.games`.
+
+Pipeline attuale:
+
+1. `matches.turns` resta la source of truth raw
+2. `backend/services/match_log_features_service.py` estrae e persiste `viewer_public_log`
+3. `viewer_public_log.viewer_timeline` e' il contratto canonico del viewer logs
+4. `GET /api/replay/public-log?match_id=...` restituisce il log normalizzato (lazy-build se mancante / stale)
+5. il frontend replay logs preferisce `public-log`; fallback al builder legacy solo se manca `match_id`
+
+Cose fatte oggi:
+
+- `replay_archive_service.py` espone `match_id` / `external_id` su `/api/replay/list` e `/api/replay/game`
+- `match_log_features_service.py` ha `viewer_timeline` con `seq`, `turn`, `type`, `source`, `targets`, `effect_text`, `fx`, `board_before`, `board_after`, `resources`
+- il viewer logs usa `viewer_timeline` e non deve piu' reinterpretare i raw log in frontend
+- aggiunta virtualizzazione di alcuni macro-eventi:
+  - `attack -> damage -> banish`
+  - `quest -> lore`
+  - `spell play -> spell effect`
+  - `ability trigger -> resolve`
+- strip turni semplificata: un bottone per mezzo turno (`T1 Us`, `T1 Opp`, ecc.); click = autoplay della sequenza dettagliata di quel mezzo turno
+- board resa piu' simile a un tavolo:
+  - meta zones laterali (`deck`, `discard`)
+  - inkwell dedicato
+  - zone separate `Exerted Characters`, `Ready Characters`, `Items / Locations`
+  - highlight source/target sulle carte del board
+
+Limiti noti residui:
+
+- il viewer logs non e' ancora al livello del `.gz` viewer Team
+- `deck` / `discard` lato board sono ancora derived nel frontend, non campi canonici del decoder backend
+- il board usa ancora layout HTML/CSS custom, non un engine board-state dedicato
+- alcuni edge case di duplicate effects possono ancora richiedere fix mirati nel decoder backend
+
 ---
 
 ## Pattern UI fissati
@@ -86,6 +122,15 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 4. **Test backend**: smoke test via `venv/bin/python3 -c "from backend.services import X; ..."` o curl diretto su localhost:8100.
 5. **Deploy**: push su produzione (oggi = edit in-place sul VPS, systemd pending).
 
+### Nota operativa replay viewer
+
+- Se tocchi il viewer logs, il file da guardare e' `frontend/dashboard.html`
+- Se tocchi il contratto del viewer logs, i file da guardare sono:
+  - `backend/services/match_log_features_service.py`
+  - `backend/main.py` (`/api/replay/public-log`)
+  - `backend/services/replay_archive_service.py`
+- Il viewer `.gz` Team e il viewer logs pubblico sono separati; non confonderli
+
 ---
 
 ## Separazione con analisidef
@@ -114,4 +159,4 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 ---
 
-*Ultimo aggiornamento: 16 Apr 2026*
+*Ultimo aggiornamento: 16 Apr 2026 — viewer logs PG-first + board viewer pass*

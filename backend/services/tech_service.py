@@ -95,7 +95,7 @@ def get_tech_tornado(db: Session, perimeter: str = "set11", deck_code: str | Non
         if not deck_consensus:
             continue
 
-        standard_cards = {c for c, q in deck_consensus.items() if q >= 2.0}
+        standard_cards = set(deck_consensus.keys())
         all_players_for_deck = {}
 
         # Gather players who play this deck
