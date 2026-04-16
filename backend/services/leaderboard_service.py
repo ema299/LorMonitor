@@ -1,19 +1,14 @@
 """Leaderboard service — fetch from duels.ink API, cache in Redis."""
 import json
 import logging
-import os
 import urllib.request
 
+from backend.config import DUELS_SESSION
 from backend.services.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
 CACHE_TTL = 3600  # 1 hour
-
-SESSION_COOKIE = os.getenv(
-    "DUELS_SESSION",
-    "9fNTxXxXcwEvnW8itE9WNkE5puF6hmqN.2wjVeoMu5aC1KLGftbz9%2BSaCuvCdgvdw0sKFDlinKnI%3D"
-)
 
 LEADERBOARD_QUEUES = {
     "core_bo1": "core-bo1",
@@ -40,7 +35,20 @@ def fetch_leaderboards() -> dict:
     if cached:
         return cached
 
-    cookie = f"__Secure-better-auth.session_token={SESSION_COOKIE}"
+    if not DUELS_SESSION:
+        logger.warning("DUELS_SESSION not configured; leaderboard fetch disabled")
+        empty = {
+            "core_top": [],
+            "core_pro": [],
+            "inf_top": [],
+            "inf_pro": [],
+            "mmr_ref": {},
+            "raw": {},
+        }
+        cache_set("leaderboard:all", empty, 300)
+        return empty
+
+    cookie = f"__Secure-better-auth.session_token={DUELS_SESSION}"
     raw = {}
 
     for queue_key, queue_id in LEADERBOARD_QUEUES.items():

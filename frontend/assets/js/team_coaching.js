@@ -15,6 +15,24 @@ let tcSpeed = 0.5; // 0.5, 1, 2, 4
 let tcAbort = false;
 let tcAnimating = false;
 
+function tcGetAuthToken() {
+  const keys = ['lm_access_token', 'access_token', 'auth_access_token'];
+  for (const key of keys) {
+    const val = localStorage.getItem(key);
+    if (val) return val;
+  }
+  return '';
+}
+
+async function tcFetch(url, options = {}) {
+  const token = tcGetAuthToken();
+  const headers = new Headers(options.headers || {});
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(url, { ...options, headers });
+}
+
 // ═══ INIT ═══
 function tcInit(containerId) {
   tcContainer = document.getElementById(containerId);
@@ -49,7 +67,7 @@ async function tcUpload(files) {
     const form = new FormData();
     form.append('file', file);
     try {
-      const resp = await fetch('/api/v1/team/replay/upload', { method: 'POST', body: form });
+      const resp = await tcFetch('/api/v1/team/replay/upload', { method: 'POST', body: form });
       const data = await resp.json();
       if (data.status === 'ok') status.innerHTML += `<div style="color:var(--green);font-size:0.85em">\u2713 ${data.player} vs ${data.opponent} (${data.turns} turns)</div>`;
       else if (data.status === 'needs_assignment') status.innerHTML += `<div style="color:var(--gold);font-size:0.85em">\u26a0 ${file.name}: ${data.player_names['1']} vs ${data.player_names['2']}</div>`;
@@ -64,7 +82,7 @@ async function tcLoadReplayList(playerFilter) {
   const el = document.getElementById('tc-replay-list'); if (!el) return;
   const url = playerFilter ? `/api/v1/team/replay/list?player=${encodeURIComponent(playerFilter)}` : '/api/v1/team/replay/list';
   try {
-    const list = await (await fetch(url)).json();
+    const list = await (await tcFetch(url)).json();
     if (!list.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85em;padding:8px">No replays uploaded yet</div>'; return; }
     el.innerHTML = '<div style="font-weight:600;margin-bottom:8px;font-size:0.9em">Uploaded Replays</div>' +
       list.map(r => `<div class="tc-replay-row" onclick="tcLoadReplay('${r.game_id}')">
@@ -83,7 +101,7 @@ async function tcLoadReplay(gameId) {
   area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">Loading...</div>';
   tcAbort = true; tcPlaying = false; clearTimeout(tcPlayTimer);
 
-  try { tcReplayData = await (await fetch(`/api/v1/team/replay/${gameId}`)).json(); }
+  try { tcReplayData = await (await tcFetch(`/api/v1/team/replay/${gameId}`)).json(); }
   catch (err) { area.innerHTML = `<div style="color:var(--red);padding:20px">${err.message}</div>`; return; }
 
   const snaps = tcReplayData.snapshots;

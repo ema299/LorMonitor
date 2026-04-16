@@ -20,6 +20,24 @@ ANALISIDEF_DAILY_DIR = Path(os.getenv("ANALISIDEF_DAILY_DIR", "/mnt/HC_Volume_10
 
 ENV = os.getenv("ENV", "development")
 
+# D1 cutover: "native" reads from App_tool/output/digests/, "legacy" from analisidef/output/
+DIGEST_SOURCE = os.getenv("DIGEST_SOURCE", "native")
+
+
+def _parse_csv_env(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+_default_cors_origins = (
+    "https://metamonitor.app,https://www.metamonitor.app"
+    if ENV == "production"
+    else "http://localhost:3000,http://127.0.0.1:3000,http://localhost:8100,http://127.0.0.1:8100"
+)
+CORS_ALLOW_ORIGINS = _parse_csv_env(os.getenv("CORS_ALLOW_ORIGINS", _default_cors_origins))
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "true").strip().lower() == "true"
+DUELS_SESSION = os.getenv("DUELS_SESSION", "").strip()
+TEAM_API_REQUIRE_JWT = os.getenv("TEAM_API_REQUIRE_JWT", "false").strip().lower() == "true"
+
 # Auth / JWT
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:

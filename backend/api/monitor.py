@@ -4,9 +4,9 @@ Requires: logged in (any tier). Free users see all monitor data.
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from backend.deps import get_current_user, get_db
+from backend.deps import get_current_user, get_db, require_admin
 from backend.models.user import User
-from backend.services import stats_service, players_service
+from backend.services import stats_service, players_service, rogue_scout_service
 
 router = APIRouter()
 
@@ -145,3 +145,30 @@ def tech_tornado(
     if not result:
         raise HTTPException(404, f"No tech tornado data for perimeter={perimeter}")
     return result
+
+
+@router.get("/rogue-scout-preview")
+def rogue_scout_preview(
+    game_format: str = Query("core"),
+    days: int = Query(7, ge=1, le=30),
+    min_games: int = Query(10, ge=3, le=100),
+    min_wr: float = Query(0.55, ge=0.0, le=1.0),
+    min_mmr: int = Query(1400, ge=0, le=4000),
+    min_jaccard: float = Query(0.40, ge=0.0, le=1.0),
+    tier0_count: int = Query(3, ge=1, le=10),
+    tier0_perimeter: str = Query("set11"),
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin/debug PG-first preview of rogue / emerging deck candidates."""
+    cfg = rogue_scout_service.RogueScoutConfig(
+        game_format=game_format,
+        days=days,
+        min_games=min_games,
+        min_wr=min_wr,
+        min_mmr=min_mmr,
+        min_jaccard=min_jaccard,
+        tier0_count=tier0_count,
+        tier0_perimeter=tier0_perimeter,
+    )
+    return rogue_scout_service.get_candidate_preview(db, cfg)

@@ -58,9 +58,11 @@ from lib.cards_dict import (
 # digests are persisted in PG).
 BASE = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/App_tool")
 
-# Source of per-matchup digests. Today still produced by the analisidef batch
-# and read off the shared filesystem. Fase F will move these into PG.
+# Source of per-matchup digests — controlled by DIGEST_SOURCE config flag.
+# "native" (default): reads from App_tool/output/digests/ (PG-first, Sprint P1)
+# "legacy": reads from analisidef/output/ (bridge fallback)
 ANALISIDEF_BASE = Path("/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/analisidef")
+NATIVE_DIGESTS_DIR = BASE / "output" / "digests"
 
 # Shared filesystem paths (unchanged from analisidef source).
 SNAPSHOT_DIR = Path("/mnt/HC_Volume_104764377/finanza/Lor/decks_db/history")
@@ -144,10 +146,20 @@ def canon(name):
 # 1. AGGREGATION
 # ---------------------------------------------------------------------------
 
+def _get_digest_source():
+    """Resolve digest source at call time (allows env override without restart)."""
+    return os.environ.get("DIGEST_SOURCE", "native")
+
+
 def load_deck_digests(deck, game_format):
-    """Load all digest_<DECK>_vs_*[_inf].json for a deck from analisidef output/."""
+    """Load all digest_<DECK>_vs_*[_inf].json from native or legacy source."""
     sfx = "_inf" if game_format == "infinity" else ""
-    pattern = str(ANALISIDEF_BASE / f"output/digest_{deck}_vs_*{sfx}.json")
+    source = _get_digest_source()
+    if source == "native":
+        digest_dir = NATIVE_DIGESTS_DIR
+    else:
+        digest_dir = ANALISIDEF_BASE / "output"
+    pattern = str(digest_dir / f"digest_{deck}_vs_*{sfx}.json")
     paths = sorted(glob.glob(pattern))
     paths = [p for p in paths if not any(p.endswith(f"_{lang}.json")
                                          for lang in ("it", "de", "ja", "zh"))]

@@ -2,6 +2,7 @@
 # Weekly maintenance: drop turns data older than 90 days, then VACUUM
 # Keeps aggregate match data (decks, winner, mmr) forever for stats
 # Frees TOAST storage from large JSONB turns blobs
+set -euo pipefail
 
 DB_NAME="lorcana"
 RETENTION_DAYS=90

@@ -131,9 +131,8 @@ class ResetPasswordRequest(BaseModel):
 def forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
     token = auth_service.create_password_reset_token(db, body.email)
     if token:
-        # TODO: send email with reset link. For now, log it.
-        import logging
-        logging.getLogger(__name__).info("Password reset token for %s: %s", body.email, token)
+        # TODO: send email with reset link. Token NOT logged for security.
+        pass
     # Always return success to prevent email enumeration
     return {"detail": "If the email exists, a reset link has been sent."}
 

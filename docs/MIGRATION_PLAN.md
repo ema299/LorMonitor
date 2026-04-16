@@ -3,7 +3,7 @@
 **Obiettivo prodotto:** `App_tool` e' l'unica app pubblica che serve gli utenti.
 `analisidef` e' un motore transitorio di calcolo/import, non il prodotto.
 
-**Stato attuale (15 Apr 2026 sera — Liberation Day chiuso sui runtime coupling):**
+**Stato attuale (16 Apr 2026 — D1 chiuso, Liberation Day avanza):**
 API quasi 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
 (snapshot_assembler.py, cache 2h). Match importati ogni 2h con legality gate core
 (Sprint-0). Blind Deck Playbook nativo generato in App_tool via OpenAI (Mossa B).
@@ -16,7 +16,15 @@ API quasi 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
 - P2.5b R2 kc_spy runtime legge da PG `kc_spy_reports` (commit `8c2b84a`)
 - P2.5c R3 `llm_worker.py` rimosso come dead code (commit `9ec0f45`)
 
-**Aperto:** D1 (playbook → digest file analisidef, cutover 16/04), D2 (`import_killer_curves`, target P2), D3 (`import_matchup_reports`, target P3). Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md), [`SPRINT_P1_DIGEST.md`](SPRINT_P1_DIGEST.md), [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
+**Aperto:** D1 (playbook → digest file analisidef, cutover 16/04), D2 (`import_killer_curves`, target P2), D3 (`import_matchup_reports`, target P3).
+
+**Correzioni emerse da code review (16 Apr 2026):**
+- Il serving runtime e' effettivamente su PG, ma il repo contiene ancora **drift documentale**: alcuni documenti dichiarano chiusi o irrilevanti componenti che sono ancora presenti come bridge o storico.
+- Le materialized views `mv_meta_share` / `mv_matchup_matrix` **non servono il dashboard runtime corrente**, ma sono ancora refreshate da worker/script legacy; quindi non vanno descritte come "inesistenti" o "rimosse", solo come **non critiche per il serving**.
+- `daily_snapshots` **non serve il blob live**, ma resta in uso per storico/benchmark e ha ancora script legacy attorno (`import_snapshot.py`, `assemble_snapshot.py`, `import_history.py`).
+- Restano alcuni **rischi operativi non legati ad analisidef** da chiudere in parallelo: secret hardcoded `DUELS_SESSION`, fallback `/tmp/.openai_key`, rate limiting "per-tier" non effettivo, CORS troppo permissivo/incoerente in prod.
+
+Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md), [`SPRINT_P1_DIGEST.md`](SPRINT_P1_DIGEST.md), [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
 
 ## Architettura attuale (09 Apr 2026)
 
@@ -80,14 +88,14 @@ Oggi `import_matches.py` gira via cron alle 06:30. Ma i match arrivano in tempo 
 ---
 
 ### Fase B-C: Meta stats + leaderboard/player stats da PG
-**COMPLETATA 09 Apr 2026 — non servono materialized views**
+**COMPLETATA per il serving 09 Apr 2026 — materialized views non necessarie al runtime**
 
 Le query live su `matches` sono tutte <150ms con gli indici esistenti.
 `stats_service.py` calcola WR, matrix, OTP/OTD, trend direttamente.
 `players_service.py` calcola top players e leaderboard da PG.
 `leaderboard_service.py` fetcha da duels.ink API con cache Redis 1h.
 
-Le materialized views `mv_meta_share` e `mv_matchup_matrix` esistono ma non sono usate — le query live bastano.
+Le materialized views `mv_meta_share` e `mv_matchup_matrix` esistono ancora e vengono refreshate da worker/script legacy, ma **non sono nel critical path del serving runtime**. Le query live bastano per il prodotto utente.
 
 ---
 
@@ -102,11 +110,11 @@ Le materialized views `mv_meta_share` e `mv_matchup_matrix` esistono ma non sono
 **COMPLETATA 09 Apr 2026 — aggiornata stessa data**
 
 `snapshot_assembler.py` assembla il blob dashboard (21 sezioni, ~8 MB) direttamente da PG.
-`/api/v1/dashboard-data` chiama `assemble(db)` live con cache in-memory 5 min.
+`/api/v1/dashboard-data` chiama `assemble(db)` live con cache in-memory 2h + stale-while-revalidate.
 Primo load ~1.5s, richieste successive ~0.3s (dalla cache). Parametro `?refresh=true` per forzare.
 
-**Eliminato il pattern blob statico:** non serve più `import_snapshot.py` né `assemble_snapshot.py` via cron.
-La tabella `daily_snapshots` non è più usata per il serving (resta per storico se necessario).
+**Eliminato il pattern blob statico dal serving:** `import_snapshot.py` e `assemble_snapshot.py` non sono piu' necessari per servire `/api/v1/dashboard-data`.
+La tabella `daily_snapshots` non e' piu' usata per il serving, ma resta per storico/benchmark e i relativi script legacy non sono ancora stati rimossi dal repo.
 
 Frontend alleggerito: rimosso blob `_EMBEDDED_DATA` (8.8 MB → 418 KB), fetch da API.
 Frontend resiliente: `getAnalyzerData()` deriva `available_matchups` dalle chiavi `vs_*` se manca.
@@ -329,7 +337,7 @@ Sostituisce e dettaglia Fase F-G. Dual-run e shadow mode obbligatori per ogni cu
 | **P2.5a** | Replay endpoint → PG (user-facing) | medio-alto | ✅ FATTO (commit `8c2b84a`, 271 archive in PG) |
 | **P2.5b** | KC spy reader → PG | basso-medio | ✅ FATTO (commit `8c2b84a`, cron 04:05 attivo) |
 | **P2.5c** | llm_worker cleanup | basso | ✅ FATTO (commit `9ec0f45`, file rimosso) |
-| **P2** | KC pipeline nativa (D2) | medio | DA FARE |
+| **P2** | KC pipeline nativa (D2) | medio | ✅ FATTO (16/04 — vendorized + runner nativo, E2E verde) |
 | **P3** | Matchup reports / analyzer_v3 (D3, 12K LOC, vendored + adapter) | alto | DA FARE |
 | **P4** | Decommission analisidef | basso | DA FARE (dopo P2+P3 stabili ≥4 settimane) |
 | **P5** | lorcana_monitor failover (opzionale, robustezza) | alto | FUTURO |
@@ -474,13 +482,13 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 |---|---|---|---|
 | C1 | `pipelines/digest/generator.py` | ✅ CHIUSO | Vendorized in `pipelines/digest/vendored/` (~1200 LOC), DIFFS=0 su 10 matchup |
 
-### Livello DATA (file reads batch — importer cron) — APERTI
+### Livello DATA (file reads batch — importer cron)
 
-| # | File App_tool | Dipendenza | Target |
+| # | File App_tool | Dipendenza | Stato |
 |---|---|---|---|
-| D1 | `pipelines/playbook/generator.py` | legge `analisidef/output/digest_*.json` | **16/04 cutover a digest nativo** (shadow già attivo) |
-| D2 | `scripts/import_killer_curves.py` | legge `analisidef/output/killer_curves_*.json` | **P2** |
-| D3 | `scripts/import_matchup_reports.py` | legge `Daily_routine/output/dashboard_data.json` | **P3** |
+| D1 | `pipelines/playbook/generator.py` | ~~legge `analisidef/output/digest_*.json`~~ | ✅ CHIUSO 16/04 — `DIGEST_SOURCE=native` default, legge `App_tool/output/digests/` |
+| D2 | `scripts/generate_killer_curves.py` | ~~legge `analisidef/output/killer_curves_*.json`~~ | ✅ CHIUSO 16/04 — pipeline nativa: digest PG → OpenAI → PG `killer_curves` |
+| D3 | `scripts/import_matchup_reports.py` | legge `Daily_routine/output/dashboard_data.json` | DA FARE — target **P3** |
 
 ### Legacy script da rimuovere in P4 (non attivi runtime, ma coupling residuo)
 
@@ -495,6 +503,16 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 - Stale archive 28/03 esiste, impatta il **replay endpoint** che ora serve archive stale da PG (dati importati 15/04 ma contenuto 28/03). Refresh da PG → nativo in follow-up di P2.5a.
 - Fallback credenziali `/tmp/.openai_key` in `pipelines/playbook/generator.py:1205` = coupling operativo fragile (non analisidef, ma reboot VPS = perdita chiave).
 
+## Rischi operativi emersi da review (16/04/2026)
+
+Questi punti **non bloccano D1**, ma sono debito operativo reale e vanno schedulati in parallelo.
+
+- `backend/services/leaderboard_service.py` contiene un default reale per `DUELS_SESSION`: **secret hardcoded nel repo**. Va spostato in env-only con failure esplicita o degrado controllato.
+- `backend/middleware/rate_limit.py` legge `request.state.user_tier`, ma oggi nessun middleware/dependency lo valorizza: il rate limit "per-tier" e' di fatto **sempre free-tier**.
+- `backend/main.py` ha CORS permissivo (`allow_origins=["*"]`) insieme a `allow_credentials=True`: configurazione troppo larga e non pulita per produzione.
+- Documentazione e repo hanno ancora **drift** su `assemble_snapshot.py`, materialized views e `daily_snapshots`: prima del decommission finale bisogna riallineare i documenti allo stato reale.
+- Il repo contiene ancora doppie superfici (`pipeline/` snapshot legacy vs `pipelines/` runtime nuovo, bridge storici, script non piu' usati) che aumentano il costo cognitivo e il rischio di confusione operativa.
+
 ## Exit criteria riformulati
 
 **Liberation Day** non è "P4 completato", è la capacità di rispondere **SÌ** alla domanda:
@@ -506,13 +524,15 @@ Checklist fine giornata 15/04/2026:
 - [x] R2 KC spy da PG
 - [x] R3 llm_worker rimosso
 - [x] C1 Digest generator senza import da analisidef
-- [ ] D1 Playbook generator senza `analisidef/output/digest_*.json` → **target 16/04**
-- [ ] D2 KC pipeline nativa (blocca `import_killer_curves.py`) → target P2
+- [x] D1 Playbook generator senza `analisidef/output/digest_*.json` → **CHIUSO 16/04** (`DIGEST_SOURCE=native`)
+- [x] D2 KC pipeline nativa → **CHIUSO 16/04** (E2E: digest PG → OpenAI → PG, $0.034/matchup)
 - [ ] D3 Matchup reports analyzer nativi → target P3
 
-**Risposta alla domanda Liberation Day oggi: PARZIALE**.
+**Risposta alla domanda Liberation Day 16/04: AVANZATA**.
 - Runtime (richieste utente): ✅ SÌ — nessun endpoint o assembler rompe se analisidef è down
-- Batch (aggiornamento dati): ❌ NO — playbook/KC/matchup reports si congelano
+- Playbook batch: ✅ SÌ — digest nativi da PG, zero dipendenza analisidef
+- KC batch: ✅ SÌ — `generate_killer_curves.py` nativo (digest PG → OpenAI → PG)
+- Matchup reports batch: ❌ NO — `import_matchup_reports.py` legge `dashboard_data.json` (target P3)
 
 **Traguardo Liberation Day completo = tutte le caselle verdi**, sbloccato dopo D1/D2/D3.
 
@@ -580,8 +600,77 @@ Checklist fine giornata 15/04/2026:
 - Commit degli untracked residui (`backups/`, `scripts/kc_baseline.sh`, `scripts/monitor_kc_freshness.py`) su `dev`
 - Aggiornare `docs/MIGRATION_PLAN.md` con esito D1 a fine giornata
 
+### Lavori paralleli che non bloccano D1
+
+Questi item possono essere presi da un secondo agente o in parallelo senza toccare il path critico playbook→digest:
+
+1. **P0.5 docs truth pass**
+   - Allineare `MIGRATION_PLAN.md`, `ARCHITECTURE.md`, `CLAUDE.md` allo stato reale del repo
+   - Correggere: cache dashboard 2h, ruolo residuale di `daily_snapshots`, materialized views legacy, `assemble_snapshot.py` non piu' serving-critical
+
+2. **P0.6 security/config cleanup**
+   - Rimuovere default hardcoded `DUELS_SESSION` da `leaderboard_service.py`
+   - Rendere esplicito il bootstrap segreti (`OPENAI_API_KEY`, leaderboard session) via env
+   - Stringere CORS in prod tramite config
+
+3. **P0.7 rate-limit correctness**
+   - Introdurre un middleware leggero che popola `request.state.user_tier` da JWT quando presente
+   - Oppure rinominare il comportamento corrente come per-IP only finche' il tier-aware non e' implementato davvero
+
+4. **P0.8 legacy surface audit**
+   - Catalogare cosa in `pipeline/`, `scripts/import_snapshot.py`, `scripts/assemble_snapshot.py`, `scripts/import_playbooks.py` e' davvero morto
+   - Marcare esplicitamente i file come legacy/unused o prepararne la rimozione in P4
+
 ### Prossimo ciclo verifica automatica
 
 - Martedì 21/04 00:00: batch analisidef legacy KC (come sempre, finché P2 non è chiuso)
 - Martedì 21/04 01:00: playbook nativo App_tool (dopo flip D1, legge digest nativo)
 - Mercoledì 22/04 07:00: monitor freshness — se manda STALE, investigare prima di procedere a P2
+
+---
+
+## 📋 Bilancio giornata 16/04/2026
+
+### Fatto oggi
+
+1. **D1 cutover CHIUSO** ✅ — `pipelines/playbook/generator.py` ora legge da `App_tool/output/digests/` (digest nativi PG-first). Flag `DIGEST_SOURCE` in `backend/config.py` (default `"native"`, rollback via `DIGEST_SOURCE=legacy` env var).
+2. **Full batch digest nativi** — generati tutti i digest core+infinity da PG (200K+ match, window 30gg). Dati 5x più freschi dei legacy stale dal 28/03.
+3. **Code review completa** — 3 agenti paralleli (backend, pipelines/scripts, frontend). Findings consolidati:
+   - CRITICAL: SQL injection fix in admin.py (applicato), password reset token log rimosso (applicato)
+   - HIGH: CORS già fixato con env var, team API senza JWT (noto, target post-login), `pipeline/` legacy da archiviare
+   - MEDIUM: shell scripts senza `set -e`, logging `print()` → `logging` module, worktree cleanup, frontend dead API wrappers, `team_coaching.js` 1444 LOC monolitico
+4. **D2 cutover CHIUSO** ✅ — KC pipeline nativa: `pipelines/kc/` (build_prompt, stability, postfix, cards_api vendorized) + `scripts/generate_killer_curves.py`. E2E test: AmSa vs AbE → 5 curves, $0.034, upserted in PG. Prompt in English. Zero analisidef dependency.
+5. **Security fixes applicati**: admin.py SQL hardened, auth.py token log rimosso
+
+### D1 exit criteria verification
+
+- `_get_digest_source()` default → `"native"` ✅
+- `load_deck_digests('AmAm', 'core')` con native → 11 digest, 20111 games ✅
+- `generate_playbook('AmAm', use_llm=False)` E2E → output completo con tutte le chiavi ✅
+- Rollback `DIGEST_SOURCE=legacy` testato e funzionante ✅
+- `DASHBOARD_DATA` (analisidef) ancora usato da `load_pro_references` → coupling D3, non D1 ✅
+
+### Liberation Day status 16/04/2026
+
+| Coupling | Stato |
+|----------|-------|
+| R1 Replay endpoint | ✅ CHIUSO |
+| R2 KC Spy runtime | ✅ CHIUSO |
+| R3 llm_worker | ✅ RIMOSSO |
+| C1 Digest generator code | ✅ CHIUSO |
+| **D1 Playbook → digest** | ✅ **CHIUSO** (oggi) |
+| **D2 KC pipeline** | ✅ **CHIUSO** (oggi) |
+| D3 Matchup reports | DA FARE (P3) |
+
+**Score: 6/7 coupling chiusi.** Restano D2 (KC import bridge) e D3 (matchup reports bridge).
+
+### Debito tecnico emerso da review (backlog)
+
+| Item | Effort | Sprint suggerito |
+|------|--------|-----------------|
+| Archiviare `pipeline/` (36 file legacy) | 30 min | P0.8 |
+| `set -e` + trap in shell scripts | 1h | P0.6 |
+| Python `logging` module in scripts | 2h | P0.6 |
+| Cleanup worktree artifacts | 10 min | Immediato |
+| Frontend: rimuovere 5 API wrapper dead | 15 min | Prossimo frontend sprint |
+| Frontend: sanitize innerHTML in team_coaching.js | 1h | Prossimo frontend sprint |

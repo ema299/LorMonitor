@@ -1,5 +1,7 @@
 #!/bin/bash
 # Daily backup: pg_dump lorcana DB, compress, keep 7 days
+set -euo pipefail
+
 BACKUP_DIR="/mnt/HC_Volume_104764377/backups/lorcana"
 DATE=$(date +%Y%m%d_%H%M)
 BACKUP_FILE="$BACKUP_DIR/lorcana_$DATE.sql.gz"

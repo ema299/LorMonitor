@@ -72,6 +72,24 @@ Documento di riferimento: `ARCHITECTURE.md` §12.
 | Verifica/rimuovi campo `analysis` top-level vuoto | grep usages → se dead, cleanup | 30 min | Verifica prima |
 | Uniformità pattern Team tab (`player-card` → `monAccordion`) | `frontend/dashboard.html` | 1-2 dev days | Medio |
 
+## 4.1. Scouting meta / rogue decks
+
+Discovery 16/04/2026 da `analisidef`:
+
+- `lib/rogue_scout.py` ha valore prodotto reale: migliora molto il vecchio "emerging decks" con Wilson LB, baseline player/deck, filtri anti-noise e bucket distinti (`emerging_archetypes`, `solo_brews`, `tier0_killers`, `off_meta_validated`).
+- In App_tool il port PG-first esiste gia' in `backend/services/rogue_scout_service.py` ed e' esposto come endpoint admin/debug `GET /api/v1/monitor/rogue-scout-preview`; la UI ancora non lo usa.
+- Blocker dati emerso dallo smoke test reale: nei match ultimi 7 giorni `cards_a/cards_b` sono assenti (`0 / 50k+` match con decklist osservata), quindi i bucket basati su consensus-distance oggi non possono popolarsi in modo credibile.
+
+Prossimi step consigliati:
+
+| Task | Dove | Effort | Note |
+|------|------|--------|------|
+| Ripristinare/backfill `cards_a/cards_b` nel flusso match import | importer / DB | 1-2 dev days | Priorita' alta: senza decklists osservate i bucket rogue veri restano vuoti |
+| Port completo `rogue_scout` PG-first | `backend/services/rogue_scout_service.py` | 2-4 dev days | Il core c'e', ma va rifinito dopo il fix decklist coverage |
+| Endpoint debug `GET /api/v1/monitor/rogue-scout-preview` | `backend/api/monitor.py` | Fatto | Admin/debug only, smoke test reale passato |
+| UI Monitor "Emerging / Rogue / Tier-0 Killers" | `frontend/dashboard.html` | 1-2 dev days | accordion chiuso di default |
+| Decide porting `gen_meta_deck.py` | discovery | 1 dev day | farlo solo dopo valutazione stabilita di `rogue_scout` |
+
 ---
 
 ## 5. Infrastruttura — pre go-pubblico serio

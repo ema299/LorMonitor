@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 500
 DATE_FOLDERS_PATTERN = "[0-9][0-9][0-9][0-9][0-9][0-9]"
+CARD_OBS_EVENT_TYPES = {"CARD_PLAYED", "CARD_INKED", "INITIAL_HAND", "CARD_DRAWN", "MULLIGAN"}
 
 
 def get_format_from_folder(folder_name: str) -> str:
@@ -22,6 +23,24 @@ def get_format_from_folder(folder_name: str) -> str:
 def get_perimeter_from_folder(folder_name: str) -> str:
     mapping = {"SET11": "set11", "TOP": "top", "PRO": "pro", "FRIENDS": "friends", "INF": "infinity"}
     return mapping.get(folder_name, "other")
+
+
+def _extract_cards_seen(logs: list[dict], player_num: int) -> list[str]:
+    """Rebuild observed deck cards from raw public logs."""
+    cards = set()
+    for event in logs or []:
+        if not isinstance(event, dict) or event.get("player") != player_num:
+            continue
+        if event.get("type") not in CARD_OBS_EVENT_TYPES:
+            continue
+        for ref in event.get("cardRefs") or []:
+            if isinstance(ref, dict):
+                name = ref.get("name")
+            else:
+                name = str(ref) if ref else None
+            if name:
+                cards.add(name)
+    return sorted(cards)
 
 
 def import_new_matches(days_back: int = 3) -> dict:
@@ -89,6 +108,10 @@ def _parse_match_file(path: Path, game_format: str, perimeter: str, ext_id: str)
     if not gi:
         return None
 
+    logs = (data.get("log_data") or {}).get("logs") or data.get("turns") or []
+    cards_a = data.get("cards_a") or _extract_cards_seen(logs, 1)
+    cards_b = data.get("cards_b") or _extract_cards_seen(logs, 2)
+
     return {
         "external_id": ext_id,
         "played_at": gi.get("date", datetime.now().isoformat()),
@@ -102,12 +125,12 @@ def _parse_match_file(path: Path, game_format: str, perimeter: str, ext_id: str)
         "player_b_name": gi.get("player2", {}).get("name", ""),
         "player_a_mmr": gi.get("player1", {}).get("mmr"),
         "player_b_mmr": gi.get("player2", {}).get("mmr"),
-        "total_turns": len(data.get("turns", [])),
+        "total_turns": len(logs),
         "lore_a_final": gi.get("player1", {}).get("lore_final"),
         "lore_b_final": gi.get("player2", {}).get("lore_final"),
-        "turns": json.dumps(data.get("turns", [])),
-        "cards_a": json.dumps(data.get("cards_a", [])),
-        "cards_b": json.dumps(data.get("cards_b", [])),
+        "turns": json.dumps(logs),
+        "cards_a": json.dumps(cards_a),
+        "cards_b": json.dumps(cards_b),
     }
 
 

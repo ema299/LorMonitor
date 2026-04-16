@@ -1,6 +1,8 @@
 #!/bin/bash
 # Health check: verify API, DB, and nginx are responding
-STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8100/api/v1/health)
+set -euo pipefail
+
+STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://127.0.0.1:8100/api/v1/health || true)
 
 if [ "$STATUS" = "200" ]; then
     echo "$(date): OK (HTTP $STATUS)"

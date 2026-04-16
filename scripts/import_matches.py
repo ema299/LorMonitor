@@ -58,6 +58,7 @@ def folder_to_perimeter(folder_name: str) -> str:
 
 CORE_QUEUES = {'S11-BO1', 'S11-BO3', 'SET11'}
 INF_QUEUES = {'INF-BO1', 'INF-BO3', 'INF', 'JA-BO1', 'ZH-BO1'}
+CARD_OBS_EVENT_TYPES = {'CARD_PLAYED', 'CARD_INKED', 'INITIAL_HAND', 'CARD_DRAWN', 'MULLIGAN'}
 # RUSH, SEALED, SEAL-S11, QP, PRO, TOP, ? → not core constructed
 
 
@@ -95,6 +96,24 @@ def determine_winner(logs: list[dict], p1_deck: str, p2_deck: str) -> str | None
     elif winner_player == 2:
         return 'deck_b'
     return None
+
+
+def extract_cards_seen(logs: list[dict], player_num: int) -> list[str]:
+    """Rebuild observed deck cards from public logs."""
+    cards = set()
+    for event in logs or []:
+        if not isinstance(event, dict) or event.get('player') != player_num:
+            continue
+        if event.get('type') not in CARD_OBS_EVENT_TYPES:
+            continue
+        for ref in event.get('cardRefs') or []:
+            if isinstance(ref, dict):
+                name = ref.get('name')
+            else:
+                name = str(ref) if ref else None
+            if name:
+                cards.add(name)
+    return sorted(cards)
 
 
 def parse_match_file(filepath: str, perimeter: str,
@@ -171,8 +190,8 @@ def parse_match_file(filepath: str, perimeter: str,
         'lore_a_final': p1.get('lore'),
         'lore_b_final': p2.get('lore'),
         'turns': logs,
-        'cards_a': None,
-        'cards_b': None,
+        'cards_a': extract_cards_seen(logs, 1),
+        'cards_b': extract_cards_seen(logs, 2),
     }
 
 

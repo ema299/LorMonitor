@@ -10,7 +10,7 @@ Scope: tutto ciò che tocca l'utente finale (feature dashboard, API, auth, billi
 
 1. **[`docs/TODO.md`](docs/TODO.md)** — **Master TODO del prodotto**. Roadmap feature, gap competitivi, cleanup, infra, sprint plan. **Punto di partenza** per capire "cosa sta uscendo / cosa manca".
 2. **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — Target architetturale completo: 3 strati (schemas/pipelines/lib), API endpoints (§7.1), schema DB (§5.2), sicurezza 5 livelli (§8), feature pending frontend (§12).
-3. **[`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md)** — Migrazione da `analisidef` → App_tool (Fase A-E completate 09/04, Fase F-H futuro).
+3. **[`docs/MIGRATION_PLAN.md`](docs/MIGRATION_PLAN.md)** — Migrazione da `analisidef` → App_tool, con coupling runtime chiusi e coupling data-level D1/D2/D3 ancora aperti.
 4. **[`ARCHITECTURE_EXPLANATION.md`](ARCHITECTURE_EXPLANATION.md)** — Spiegazione didattica (nginx, FastAPI, PostgreSQL, Redis, JWT, bcrypt) — per onboarding o review architetturale.
 
 ---
@@ -31,6 +31,7 @@ PostgreSQL (200K+ matches, 2822 cards, 1047 matchup reports)
 - **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker)
 - **Deploy**: VPS 2 vCPU 4GB RAM, manual uvicorn (systemd pending, vedi `TODO.md` §5)
 - **Cron**: import matches ogni 2h, backup 03:00 daily, static importer domenica 04:45, import KC martedì 05:30, import_matchup_reports 05:30 daily, import_kc_spy 04:05 daily, monitor_kc_freshness 07:00 daily, generate_playbooks martedì 01:00
+- **Config runtime**: CORS da env (`CORS_ALLOW_ORIGINS`), leaderboard disabilitato se `DUELS_SESSION` manca, rate limit tier-aware via JWT nel middleware
 
 ---
 
@@ -97,7 +98,7 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 | Replay viewer v1/v2 + Board Lab development | analisidef/build_replay*.py + App_tool/backend/services/replay_service.py |
 | Business strategy, email duels.ink | analisidef/business/ + `BUSINESS_PLAN.md` root |
 
-**Regola**: nuove feature utente-facing vanno in App_tool. Refactor viewer/KC vanno in analisidef. Quando in dubbio: se tocca l'utente finale → App_tool.
+**Regola**: nuove feature utente-facing vanno in App_tool. `analisidef` resta R&D / batch bridge temporaneo; quando una feature ha valore prodotto stabile, va portata o riscritta in App_tool.
 
 ---
 
@@ -113,4 +114,4 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 ---
 
-*Ultimo aggiornamento: 14 Apr 2026*
+*Ultimo aggiornamento: 16 Apr 2026*

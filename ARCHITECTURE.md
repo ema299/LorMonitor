@@ -32,12 +32,12 @@ Dati sorgente:
   decks_db/                                  # Decklist tornei
 ```
 
-**Stato migrazione (09 Apr 2026):**
+**Stato migrazione (aggiornato 16 Apr 2026):**
 - 200K+ match in PostgreSQL, import automatico ogni 2h (~1s/run con skip cache)
 - 2822 carte in tabella `cards` con image_path completi (thumbnail via cards.duels.ink). 163 carte dual ink con entrambi i colori (es. `"amethyst/sapphire"`), aggiornate settimanalmente via `static_importer.py` (merge duels.ink cache)
 - 192 consensus cards, 14 reference decklists, 1047 matchup reports
 - Auth JWT completa, HTTPS via nginx + Let's Encrypt su metamonitor.app
-- Rate limiting Redis + nginx, fail2ban, UFW attivo
+- Rate limiting Redis + nginx, fail2ban, UFW attivo (tier-aware via JWT nel middleware; fail-open se Redis non disponibile)
 - Backup pg_dump giornaliero, maintenance settimanale (turns retention 90gg)
 - Dashboard HTML alleggerito (418 KB, no blob embedded), fetch da API
 - Dashboard blob assemblato **live** da PG (snapshot_assembler.py, cache 2h + stale-while-revalidate + warm-up allo startup, no blob statico)
@@ -110,7 +110,7 @@ Dati sorgente:
 - R3 `backend/workers/llm_worker.py` — **rimosso** (dead code, non schedulato, commit `9ec0f45`)
 - C1 digest generator code-level — `pipelines/digest/vendored/` (1200 LOC congelati da `58288f36`), golden diff `DIFFS=0` su 10 matchup, smoke generate_digests ok
 
-**Eliminato:** `import_snapshot.py` e `assemble_snapshot.py` via cron — l'API serve il blob live.
+**Eliminato dal serving path:** `import_snapshot.py` e `assemble_snapshot.py` non sono necessari per servire il blob live. Possono restare come superficie legacy/storica finche' non verranno rimossi dal repo.
 
 **Frontend:** il file di produzione vive in `App_tool/frontend/dashboard.html`. Rimane ancora monolitico, ma non e' piu' un symlink e non deve dipendere da sync manuali da analisidef.
 
@@ -123,13 +123,12 @@ Dom 02:00   maintenance.sh              → drop turns >90gg, VACUUM
 Dom 04:45   static_importer.py          → cards DB refresh (duels.ink cache merge)
 04:05       import_kc_spy.py            → KC Spy JSON legacy → PG `kc_spy_reports` (aggiunto 15/04)
 05:30       import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
-05:35       assemble_snapshot.py        → warm-up cache blob
 Mar 00:00   (analisidef) run_kc_production.sh   → OpenAI batch KC
 Mar 01:00   generate_playbooks.py       → playbook nativo App_tool
 Mar 05:30   import_killer_curves.py     → KC da analisidef/output → PG
 07:00       monitor_kc_freshness.py     → canary freshness, mail STALE/ERROR
 ```
-**Nota:** `assemble_snapshot.py` via cron rimosso dal serving path. L'API assembla il blob on-demand con cache 2h + warm-up allo startup.
+**Nota:** l'API assembla il blob on-demand con cache 2h + stale-while-revalidate + warm-up allo startup. `assemble_snapshot.py` non e' parte del serving runtime corrente.
 
 ---
 
@@ -1403,6 +1402,18 @@ AUTORIZZAZIONE (cosa puoi fare):
 | Privilege escalation | user_id dal JWT server-side, mai dal client |
 | DDoS | nginx rate limit + Cloudflare free tier (futuro) |
 | Stripe webhook spoofing | Verifica HMAC-SHA256 signature + IP whitelist |
+
+### 8.6.1 Security findings da review (16 Apr 2026)
+
+| # | Finding | Stato | File |
+|---|---------|-------|------|
+| S1 | SQL in health check usava f-string (non injection reale: whitelist interna) | ✅ FIXATO — query pre-compilate | `backend/api/admin.py` |
+| S2 | Password reset token loggato in chiaro | ✅ FIXATO — log rimosso | `backend/api/auth.py` |
+| S3 | CORS permissivo in produzione | ✅ GIA' FIXATO — `CORS_ALLOW_ORIGINS` da env | `backend/config.py` |
+| S4 | Team API senza JWT (solo nginx basic auth) | NOTO — target post-login frontend | `backend/api/team.py` |
+| S5 | Rate limiting fail-open se Redis down | ACCETTATO — documentato | `backend/middleware/rate_limit.py` |
+| S6 | File upload validazione tipo insufficiente | LOW — solo `.gz/.replay` + nginx basic auth | `backend/api/team.py` |
+| S7 | Error handler espone exception type name | LOW — non espone stack trace | `backend/middleware/error_handler.py` |
 
 ### 8.7 Sicurezza Operativa (Server Hardening)
 

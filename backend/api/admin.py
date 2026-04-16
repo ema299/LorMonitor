@@ -14,10 +14,16 @@ router = APIRouter()
 @router.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """System health: DB connection, table counts. Public (for uptime monitors)."""
+    _HEALTH_TABLES = {
+        "matches": text("SELECT COUNT(*) AS c FROM matches"),
+        "killer_curves": text("SELECT COUNT(*) AS c FROM killer_curves"),
+        "daily_snapshots": text("SELECT COUNT(*) AS c FROM daily_snapshots"),
+        "users": text("SELECT COUNT(*) AS c FROM users"),
+    }
     try:
         counts = {}
-        for table in ["matches", "killer_curves", "daily_snapshots", "users"]:
-            row = db.execute(text(f"SELECT COUNT(*) AS c FROM {table}")).fetchone()
+        for table, query in _HEALTH_TABLES.items():
+            row = db.execute(query).fetchone()
             counts[table] = row.c
         return {"status": "healthy", "tables": counts}
     except Exception as e:

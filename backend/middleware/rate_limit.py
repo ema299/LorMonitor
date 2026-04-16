@@ -1,12 +1,13 @@
 """Per-IP, per-tier rate limiting middleware using Redis."""
-import time
 import logging
 
+from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from backend.services.cache import _get_redis
+from backend.services.auth_service import decode_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         ip = request.client.host if request.client else "unknown"
 
+        request.state.user_tier = self._extract_user_tier(request)
+
         # Login rate limit
         if path == "/api/v1/auth/login" and request.method == "POST":
             if self._is_rate_limited(f"rl:login:{ip}", LOGIN_LIMIT, LOGIN_WINDOW):
@@ -35,7 +38,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # General API rate limit
         if path.startswith("/api/"):
-            tier = getattr(request.state, "user_tier", "free") if hasattr(request.state, "user_tier") else "free"
+            tier = getattr(request.state, "user_tier", "free")
             limit = TIER_LIMITS.get(tier, 100)
             if self._is_rate_limited(f"rl:api:{ip}", limit, 60):
                 return JSONResponse(
@@ -44,6 +47,30 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
 
         return await call_next(request)
+
+    def _extract_user_tier(self, request: Request) -> str:
+        """Best-effort tier extraction from bearer JWT, without DB access."""
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return "free"
+
+        token = auth_header[7:].strip()
+        if not token:
+            return "free"
+
+        try:
+            payload = decode_access_token(token)
+        except JWTError:
+            return "free"
+        except Exception:
+            logger.debug("JWT tier extraction failed", exc_info=True)
+            return "free"
+
+        if payload.get("is_admin"):
+            return "admin"
+
+        tier = str(payload.get("tier") or "free").strip().lower()
+        return tier if tier in TIER_LIMITS else "free"
 
     def _is_rate_limited(self, key: str, limit: int, window: int) -> bool:
         r = _get_redis()

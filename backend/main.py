@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile
+from backend.config import CORS_ALLOW_CREDENTIALS, CORS_ALLOW_ORIGINS
 from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
@@ -37,8 +38,8 @@ app.add_middleware(RateLimitMiddleware)
 # CORS — permissive in dev, da restringere in prod
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=CORS_ALLOW_ORIGINS,
+    allow_credentials=CORS_ALLOW_CREDENTIALS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
