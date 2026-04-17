@@ -82,6 +82,9 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
         "ink_required": N, "turn_needed": N
       },
       "example_game_ids": [N, N],
+      "recursion_sources": [
+        {"card": "Nome carta enabler", "enables": "item-from-discard|char-from-discard|bounce-to-hand|shuffle-back|play-from-discard", "ability_excerpt": "frase esatta dal testo ability che giustifica il riuso"}
+      ],
       "worst_case_validated": true,
       "validation": {
         "ink": "OK/FAIL — dettaglio turno per turno",
@@ -102,12 +105,13 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
 - [ ] Song normale: singer ready (non exerted) con cost ≥ song cost. Singer si exerta.
 - [ ] Sing Together N: 1+ characters ready, SOMMA costi >= N. Tutti si exertano. ink_cost = 0, is_sung = true. Es. Under the Sea (Sing Together 8): 3 characters con costi 3+3+2=8 bastano.
 - [ ] SHIFT+SING SAME TURN: se shifti su base dry, il pezzo shiftato è ready e può cantare SUBITO. Metti shift + song nello STESSO turno (es. T5: shift Clarabelle + sing You're Welcome). NON splittarli su due turni.
-- [ ] Max 4 copie per carta
+- [ ] Max 4 copie per carta — ECCEZIONE recursion: se stai per usare una carta ≥5 volte, PRIMA cerca nel `cards_db` del digest una carta presente nella sequence o nei key_cards la cui `ability` contenga un trigger di recursion applicabile al tipo della carta ripetuta (es. "return ... from your discard to your hand", "play ... from your discard", "shuffle ... into your deck", "return ... to their player's hand"). Se TROVI l'enabler → dichiara `recursion_sources: [{card, enables, ability_excerpt}]` con `ability_excerpt` che è una frase ESATTA (substring) del testo ability reale. Se NON trovi enabler → riduci il count a 4. Cap assoluto 8 copie anche con recursion.
 - [ ] response.cards SOLO nei colori del NOSTRO deck
 
 ## Regole ferree
 - NON cercare pattern — Python li ha già trovati. Leggi aggregates.
 - NON inventare carte — tutto dal digest cards_db.
+- NON inventare `ability_excerpt`: deve essere sottostringa letterale del testo ability nel cards_db (il validator lo verifica).
 - Verifica ink e prerequisiti per ogni turno.
 - Ragiona meccanicamente, non usare WR%.
 - DB > log per ability scope.

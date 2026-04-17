@@ -10,7 +10,8 @@ Two-signal check (both must hold for OK):
   fresh_7d  >= THRESHOLD_FRESH_7D   (catches totally missed Tuesday batch)
   age_days  <= MAX_NEWEST_AGE_DAYS  (catches "stuck at same date forever")
 
-Baseline 2026-04-15: total=610, current=582, fresh_7d=313, fresh_14d=383, newest=2026-04-14.
+Baseline 2026-04-15: total=610, current=582, fresh_7d=313 (inflated by bulk 07-08/04).
+Steady-state weekly batch: ~50 rows (e.g. 14/04=53, 31/03=54).
 """
 import sys
 import smtplib
@@ -21,7 +22,7 @@ from pathlib import Path
 
 sys.path.insert(0, "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/App_tool")
 
-THRESHOLD_FRESH_7D = 100
+THRESHOLD_FRESH_7D = 20
 MAX_NEWEST_AGE_DAYS = 10
 SMTP_USER = "alexander9.ed@gmail.com"
 SMTP_PASS_FILE = "/tmp/.smtp_pass"
