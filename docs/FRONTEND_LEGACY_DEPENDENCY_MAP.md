@@ -1,7 +1,7 @@
 # Frontend Legacy Dependency Map
 
 Data: 2026-04-20
-Stato: sealed baseline
+Stato: sealed
 Owner: Codex
 
 ## 1. Scopo
@@ -76,6 +76,11 @@ Nota:
 Dipendenze esterne deliberate rimaste nel legacy:
 
 - `cards.duels.ink` per thumbnail card art
+- `img.youtube.com` per preview thumbnail nella tab Community
+- `youtube.com` per embed video nella tab Community
+- `player.twitch.tv` per eventuale embed live Twitch nella tab Community
+- `unpkg.com/leaflet@1.9.4` per CSS/JS Leaflet caricati on demand nella tab Events
+- `tile.openstreetmap.org` per tile map nella tab Events
 
 Dipendenze esterne rimosse in questa fase:
 
@@ -85,6 +90,7 @@ Ragione:
 
 - il legacy deve dipendere da asset locali quando possibile
 - le dipendenze esterne non essenziali aumentano fragilita' e comportamenti non deterministici
+- le dipendenze esterne rimaste sono legate a feature deliberate del prodotto live, non a scorciatoie di boot della UI
 
 ## 7. Browser storage contract
 
@@ -144,10 +150,34 @@ Accoppiamenti intenzionali che restano:
 - dati live shared
 - storage browser dell'utente
 - thumbnail card art esterne da `cards.duels.ink`
+- servizi embed/media esterni per Community
+- servizi mappe esterni per Events
 
 Questi non vanno cambiati durante il seal del legacy.
 
-## 11. Next step
+## 11. Seal completion criteria
+
+Il legacy si considera blindato quando tutte queste condizioni sono vere:
+
+- perimetro file in scope dichiarato
+- serving contract dichiarato
+- endpoint backend usati dichiarati
+- chiavi storage dichiarate
+- dipendenze esterne effettive dichiarate
+- path applicativi critici resi non ambigui
+- nessuna dipendenza dal futuro `frontend_v2/`
+- nessun TODO architetturale aperto dentro il legacy per consentire la nascita della v2
+
+Stato corrente:
+
+- completato
+
+Nota:
+
+- questo non significa che il legacy sia "finito" come prodotto
+- significa che il suo perimetro architetturale e' ora esplicito, stabile e separabile dalla futura v2
+
+## 12. Next step
 
 Il prossimo passo non e' il redesign.
 
