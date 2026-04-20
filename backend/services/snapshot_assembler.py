@@ -1038,18 +1038,38 @@ def _build_emerging_decks(db: Session) -> dict:
     """Lightweight rogue scout payload for the dashboard blob.
 
     Returns a compact structure for the Monitor tab 'Emerging & Rogue' section.
+
+    Freshness rules:
+    - 3-day window (not 7) so daily rotation actually rotates
+    - drop players in the leaderboard pro-tier (top 50) of the same format —
+      they're already known, "emerging" should surface the under-the-radar
     """
     try:
         from backend.services import rogue_scout_service
+        from backend.services.leaderboard_service import fetch_leaderboards
+
+        try:
+            lb = fetch_leaderboards()
+        except Exception:
+            lb = {}
+        exclude_by_fmt = {
+            "core": {n.lower() for n in lb.get("core_pro", [])},
+            "infinity": {n.lower() for n in lb.get("inf_pro", [])},
+        }
+
+        def _keep(tile: dict, fmt: str) -> bool:
+            label = (tile.get("label") or "").strip().lower()
+            return bool(label) and label not in exclude_by_fmt.get(fmt, set())
 
         result = {"core": [], "infinity": []}
         for fmt in ("core", "infinity"):
             cfg = rogue_scout_service.RogueScoutConfig(
                 game_format=fmt,
-                days=7,
-                min_games=10,
+                days=3,
+                min_games=8,
                 min_wr=0.52,
                 min_mmr=1300,
+                off_meta_min_games=10,
             )
             raw = rogue_scout_service.get_candidate_preview(db, cfg)
             tier0 = set(raw.get("meta", {}).get("tier0_codes", []))
@@ -1100,6 +1120,9 @@ def _build_emerging_decks(db: Session) -> dict:
                     "games": uc.get("games", 0),
                     "mmr": uc.get("avg_mmr", 0),
                 })
+
+            # Drop leaderboard pro-tier players ("under-the-radar" only)
+            tiles = [t for t in tiles if _keep(t, fmt)]
 
             # Sort by WR wilson lb descending, cap at 6
             tiles.sort(key=lambda t: -(t.get("wr_lb") or 0))

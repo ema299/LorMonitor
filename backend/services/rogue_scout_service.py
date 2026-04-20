@@ -43,6 +43,8 @@ class RogueScoutConfig:
     tier0_perimeter: str = "set11"
     min_tier0_games: int = 5
     min_tier0_wr: float = 0.55
+    min_tier0_games_soft: int = 3  # soft gate for solo_brews / off_meta_* / emerging
+    tier0_score_penalty: float = 0.35  # rogue_score multiplier when tier0 exposure is below soft gate
     min_delta_vs_self: float = 0.0
     max_mmr_spread: int = 400
     mmr_tolerance: int = 200
@@ -400,6 +402,8 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
             noise_flags.append("small_sample_overall")
         if t0_games < 8:
             noise_flags.append("small_sample_tier0")
+        if t0_games < cfg.min_tier0_games_soft:
+            noise_flags.append("below_tier0_soft_gate")
         if base_n == 0:
             noise_flags.append("baseline_mono_deck")
         elif base_n < 10:
@@ -408,6 +412,14 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
             noise_flags.append("mmr_spread_high")
         if (wr_lb or 0) < 0.50:
             noise_flags.append("low_wilson_confidence")
+
+        # Rogue score now weights tier0 exposure + performance:
+        # base * (0.5 + tier0_factor), where tier0_factor = wilson_lb vs tier0
+        # if tier0_games ≥ soft gate, else a fixed penalty.
+        tier0_exposed = t0_games >= cfg.min_tier0_games_soft
+        tier0_factor = (t0_wr_lb if t0_wr_lb is not None else 0.0) if tier0_exposed else cfg.tier0_score_penalty
+        base_score = ((wr_lb or 0) - 0.5) * ((jd or 1.0)) * games if wr_lb is not None else 0.0
+        rogue_score = base_score * (0.5 + tier0_factor)
 
         entry = {
             "player": s["display"] or player_lower,
@@ -437,7 +449,9 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
             "extra_vs_consensus": sorted(s["cards"] - cons),
             "missing_vs_consensus": sorted(cons - s["cards"]),
             "noise_flags": noise_flags,
-            "rogue_score": round(((wr_lb or 0) - 0.5) * ((jd or 1.0)) * games, 2) if wr_lb is not None else 0.0,
+            "tier0_exposed": tier0_exposed,
+            "tier0_score_factor": round(tier0_factor, 3),
+            "rogue_score": round(rogue_score, 2),
         }
         results.append(entry)
 
@@ -461,14 +475,21 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
         key=lambda r: -(r["wr_wilson_lb"] or 0),
     )
 
-    clusters = _cluster_archetypes(results, cfg.min_archetype_players, cfg.min_archetype_shared)
+    # Soft tier0 gate: a rogue must have faced the meta at least a few times.
+    tier0_validated_results = [r for r in results if r["tier0_games"] >= cfg.min_tier0_games_soft]
+
+    clusters = _cluster_archetypes(tier0_validated_results, cfg.min_archetype_players, cfg.min_archetype_shared)
     emerging_archetypes = [_build_archetype_entry(deck, members) for deck, members in clusters]
-    emerging_archetypes.sort(key=lambda item: (-item["n_players"], -(item["agg_wr_wilson_lb"] or 0)))
+    emerging_archetypes.sort(key=lambda item: (
+        -item["n_players"],
+        -((item.get("vs_tier0") or {}).get("wr_wilson_lb") or 0),
+        -(item["agg_wr_wilson_lb"] or 0),
+    ))
 
     players_in_clusters = {(m["player"], deck) for deck, members in clusters for m in members}
     solo_brews = sorted(
         [
-            r for r in results
+            r for r in tier0_validated_results
             if r["has_consensus"]
             and (r["jaccard_distance"] or 0) >= cfg.min_jaccard
             and (r["player"], r["deck"]) not in players_in_clusters
@@ -500,7 +521,7 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
 
     off_meta_validated = sorted(
         [
-            r for r in results
+            r for r in tier0_validated_results
             if _is_off_meta(r)
             and r["has_consensus"]
             and (r["jaccard_distance"] or 0) >= cfg.off_meta_validated_jaccard
@@ -512,14 +533,14 @@ def get_candidate_preview(db: Session, cfg: RogueScoutConfig = RogueScoutConfig(
 
     off_meta_radar = sorted(
         [
-            r for r in results
+            r for r in tier0_validated_results
             if _is_off_meta(r)
             and r["has_consensus"]
             and (r["jaccard_distance"] or 0) >= cfg.off_meta_radar_jaccard
             and (r["wr_wilson_lb"] or 0) >= cfg.off_meta_radar_wr_lb
             and r["games"] >= cfg.off_meta_min_games
         ],
-        key=lambda r: (-(r["jaccard_distance"] or 0), -r["games"]),
+        key=lambda r: (-(r["jaccard_distance"] or 0), -(r["tier0_wr_wilson_lb"] or 0), -r["games"]),
     )
 
     return {
