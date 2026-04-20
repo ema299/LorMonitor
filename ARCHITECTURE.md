@@ -1,6 +1,6 @@
 # Lorcana Monitor — Architettura Produzione
 
-**Versione:** 5.0 | **Data:** 09 Aprile 2026
+**Versione:** 5.1 | **Data:** 20 Aprile 2026
 
 ---
 
@@ -92,6 +92,14 @@ Dati sorgente:
 - **Monitor "Best Format Players"**: sezione top_players filtrata solo a nomi presenti nella leaderboard duels.ink
 - **player_lookup**: `{core: {player: {deck: {w,l,mmr}}}, infinity: {...}}` — stats personali per "My Stats" in Profile, split per formato, nessun filtro leaderboard, stessa finestra DAYS=3
 
+**Fix runtime e resilienza dati statici (20 Apr 2026):**
+- **Importer consensus fail-safe**: `backend/workers/static_importer.py` non fa piu' il demote globale di `is_current=true` su `consensus_lists` e `reference_decklists`. Ora demota solo i deck effettivamente presenti nello snapshot nuovo. Questo impedisce che uno snapshot InkDecks parziale azzeri 10+ deck dal monitor/profile.
+- **Origine incidente**: gli snapshot InkDecks dal `17/04/2026` al `19/04/2026` sono risultati parziali (5, 4, 5 archetipi vs 15 il `16/04/2026`). Il fetch giornaliero quindi c'e', ma il dato upstream non e' completo.
+- **Frontend Best Format Players**: il compare decklist non dipende piu' solo dalla presenza simultanea di `consensus` + `player_cards` core. `buildDeckCompare()` degrada correttamente se la consensus non e' disponibile e il blob ora include anche `player_cards_infinity`, quindi il compare puo' apparire anche in formato Infinity.
+- **KC Health badge**: il dashboard usa i contatori `validation_after_fix` se presenti, cosi' il badge non resta ancorato ai vecchi bucket `files_warn`.
+- **Killer Curves Core legality**: il batch nativo `scripts/generate_killer_curves.py` e il prompt `pipelines/kc/build_prompt.py` applicano ora anche un guard di legalita' Core basato su `meta_epochs.legal_sets`, non solo un vincolo di colori. Questo evita curve Core con carte Infinity-only come `Be Prepared`.
+- **Post-filter difensivo**: anche se l'LLM propone una carta fuori rotazione, il generator rimuove da `sequence.plays` e `response.cards` ogni carta non legale per il Core corrente prima dell'upsert in `killer_curves`.
+
 **Profile tab (aggiornato 10 Apr 2026):**
 - **Select Your Deck** (box gold): ink picker 6 colonne con label, toggle Standard/My Deck, sezione "Saved Decks" con card per deck pinnato, sezione "My Stats" collapsibile con tutti i deck giocati (icona, WR bar, peggior matchup), click per selezionare
 - **Meta Radar** (box rosso): deck identity banner, KPI strip (WR, Share, Games, Players del meta), Best/Worst matchups in box separati, sezione "Threats to watch"
@@ -129,6 +137,8 @@ Mar 05:30   import_killer_curves.py     → KC da analisidef/output → PG
 07:00       monitor_kc_freshness.py     → canary freshness, mail STALE/ERROR
 ```
 **Nota:** l'API assembla il blob on-demand con cache 2h + stale-while-revalidate + warm-up allo startup. `assemble_snapshot.py` non e' parte del serving runtime corrente.
+
+**Nota operativa 20/04/2026:** il cron `decks_db_builder.py` continua a girare giornalmente, ma non garantisce snapshot completi se InkDecks risponde in modo parziale. La frequenza del cron non e' il problema; il rischio corrente e' la sparse coverage upstream. Finche' non viene corretto lo scraper esterno, i deck assenti continuano a mostrare consensus/reference piu' vecchie ma preservate dal nuovo importer fail-safe.
 
 ---
 
@@ -2218,7 +2228,7 @@ Facile confonderli: vivono entrambi nell'area "coach/lab".
 | Data source        | `td.event_log` dai match scrapati (duels.ink)       | Upload `.gz` → `backend/services/replay_service.py`|
 | Parser             | `rvBuildSteps` in JS (port di `build_game_steps.py`)| Patch `.gz` estratti con `singer`/`target`/`damage`|
 | Hand cards         | count only (o 'partial'/'full' se `.gz` abbinato)   | piena: `snap.hand` da patch                        |
-| Carte DB           | `rvCardsDB` condiviso via `/api/replay/cards_db`    | stesso DB (reuso `rvCardImg`, `rvCardsDB`)         |
+| Carte DB           | `rvCardsDB` via `/api/replay/cards_db`              | cache locale `tcCardsDB` via `/api/replay/cards_db`|
 | Match coperti      | tutti i ~21K match importati                        | solo quelli caricati dal team via `.gz`            |
 | Coverage eventi    | play/ink/quest/challenge/damage/destroyed/bounce    | + spell overlay, combat arrows, damage transfer   |
 | Animation model    | diff-based highlight (pop-in + stagger, no DOM persist) | DOM-persistent, death anim, hand-out→swap→draw-in |
@@ -2240,6 +2250,10 @@ l'upload `.gz` su tutti i 21K match → non fattibile per storage.
 Per un eventuale "Option B" (parita' piena con `tc*`) serve: diff DOM persistente,
 death animation, spell overlay — ~250+ righe JS, da valutare solo se il feel Option A
 non regge sui match lunghi.
+
+**Coupling aggiornato (aprile 2026).** `team_coaching.js` non usa piu' helper/globali del replay viewer pubblico (`rvCardsDB`, `rvCardImg`, `RV_IC`, `rvSn`, `currentUser`) per la parte core replay. Restano deliberate solo:
+- API App_tool (`/api/replay/cards_db`, `/api/v1/team/replay/*`, `/api/decks`)
+- `localStorage` browser per auth/deck context
 
 ---
 
@@ -3292,7 +3306,7 @@ Queste sezioni sono **già implementate nel frontend** (`dashboard.html`), rispe
 | Sezione | Campo blob | Status | Sblocco |
 |---------|-----------|--------|---------|
 | **Key Threats** (`acc-kt`) | `matchup_analyzer.<deck>.vs_<opp>.threats_llm.threats[]` | Campo esiste, array vuoto per tutti i matchup | Fase B LLM batch (feature #2 benchmark) |
-| **How to Respond — OTP vs OTD** (`acc-howrespond`) | `matchup_analyzer.<deck>.vs_<opp>.killer_responses[]` | Campo non presente nel blob | Fase B LLM (pass 3 "Risposte dettagliate proattivo/reattivo/punitivo") + importer update |
+| **How to Respond** (`acc-howrespond`) | `matchup_analyzer.<deck>.vs_<opp>.killer_responses[]` e `killer_curves[].response` | Presente ma eterogeneo tra legacy e schema nuovo | Target: testo inglese, curve-specifico, fallback legacy |
 
 **Attivazione stimata**: pipeline `run_all_reviews.sh` batch settimanale via OpenAI (~$3-5/mese). Prompt B esteso per emettere blocchi `<!-- THREATS_LLM -->` e `<!-- KILLER_RESPONSES -->` strutturati. Parser in `import_matchup_reports.py` per popolare i campi blob. Stima 4-5 dev days.
 
@@ -3301,6 +3315,35 @@ Queste sezioni sono **già implementate nel frontend** (`dashboard.html`), rispe
 | Sezione | Campo blob | Status | Sblocco |
 |---------|-----------|--------|---------|
 | **Best Plays** | `best_plays`, `best_plays_infinity` | dict vuoto top-level | Query Python: estrae le 3 sequenze più devastanti per deck dalle killer curves avversarie esistenti, ranking per complessità. ~1 dev day backend + 0.5 dev day frontend |
+
+### 12.1.1 Killer Curves — `response` schema v2
+
+Problema emerso nel frontend:
+- `How to Respond` risultava spesso troppo compresso o analyst-oriented
+- `OTP / OTD` come sola sigla era poco leggibile
+- il testo assumeva troppo spesso la stock list
+
+Decisione:
+- la killer curve resta una **curve** avversaria
+- `How to Respond` deve spiegare come rispondere a **quella curva**
+- il testo user-facing va scritto in **inglese**
+- `response.strategy` resta una summary breve
+- il blocco leggibile va in campi strutturati opzionali con fallback al formato legacy
+
+Campi target in `killer_curves[].response`:
+- `format_version`
+- `strategy`
+- `cards`
+- `ink_required`
+- `turn_needed`
+- `headline`
+- `core_rule`
+- `priority_actions`
+- `what_to_avoid`
+- `stock_build_note`
+- `off_meta_note`
+- `play_draw_note`
+- `failure_state`
 
 ### 12.3 Monitor tab
 

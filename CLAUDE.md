@@ -28,7 +28,7 @@ PostgreSQL (200K+ matches, 2822 cards, 1047 matchup reports)
 ```
 
 - **Backend**: FastAPI + SQLAlchemy + PostgreSQL + Redis (rate limit + dashboard cache 2h stale-while-revalidate)
-- **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker)
+- **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker). Il runtime live resta confinato a `frontend/`; `frontend_v2/` e' solo per lavoro parallelo e non fa parte del serving corrente.
 - **Deploy**: VPS 2 vCPU 4GB RAM, manual uvicorn (systemd pending, vedi `TODO.md` §5)
 - **Cron**: import matches ogni 2h, backup 03:00 daily, static importer domenica 04:45, import KC martedì 05:30, import_matchup_reports 05:30 daily, import_kc_spy 04:05 daily, monitor_kc_freshness 07:00 daily, generate_playbooks martedì 01:00
 - **Config runtime**: CORS da env (`CORS_ALLOW_ORIGINS`), leaderboard disabilitato se `DUELS_SESSION` manca, rate limit tier-aware via JWT nel middleware
@@ -41,7 +41,7 @@ Tutti i tab usano il pattern uniforme `monAccordion()` (titolo gold + "?" + chev
 
 1. **Profile** — ink picker 6 colonne, Saved Decks, My Stats, Meta Radar, Best Plays (pending data)
 2. **Monitor** — Deck Fitness strip + Matchup Matrix 14×14 (heatmap desktop, list mobile) + Deck Analysis + Best Format Players + Non-Standard Picks
-3. **Coach V2** — Lore chart + Key Threats (pending Fase B LLM) + Opponent Playbook + How to Respond OTP/OTD (pending) + Killer Curves + Opponent's Killer Cards + Trend by Turn + Replay Viewer
+3. **Coach V2** — Lore chart + Key Threats (pending Fase B LLM) + Opponent Playbook + How to Respond + Killer Curves + Opponent's Killer Cards + Trend by Turn + Replay Viewer
 4. **Lab** — Mulligan Trainer + Card Impact (Correlation) + Card Impact (IWD) + Optimized Deck sidebar + Replay Viewer
 5. **Team** — Roster, Board Lab (replay .gz upload + viewer animato)
 6. **Community** — Stream, clips, schedule
@@ -145,6 +145,13 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 **Regola**: nuove feature utente-facing vanno in App_tool. `analisidef` resta R&D / batch bridge temporaneo; quando una feature ha valore prodotto stabile, va portata o riscritta in App_tool.
 
+### Note operative aggiuntive
+
+- `How to Respond` nelle killer curves deve restare **curve-specifico**: spiega come rispondere a quella linea avversaria, non al matchup in generale.
+- Il testo user-facing del blocco `response` va scritto in **inglese**.
+- `response.strategy` resta una one-line summary; il formato target supporta anche campi strutturati come `headline`, `core_rule`, `priority_actions`, `what_to_avoid`, `stock_build_note`, `off_meta_note`, `play_draw_note`, `failure_state`.
+- `frontend/assets/js/team_coaching.js` non dipende piu' dal replay viewer pubblico per cache carte / image helper / short-name: usa helper locali e chiama solo le API App_tool (`/api/replay/cards_db`, `/api/v1/team/replay/*`, `/api/decks`) piu' `localStorage` browser per auth/deck context.
+
 ---
 
 ## Memoria persistente rilevante (`~/.claude/projects/*/memory/`)
@@ -159,4 +166,4 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 ---
 
-*Ultimo aggiornamento: 16 Apr 2026 — viewer logs PG-first + board viewer pass*
+*Ultimo aggiornamento: 20 Apr 2026 — legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
