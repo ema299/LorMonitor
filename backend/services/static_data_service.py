@@ -5,6 +5,55 @@ from sqlalchemy.orm import Session
 from backend.services.cache import cache_get, cache_set
 
 CACHE_TTL = 3600  # 1 hour — static data changes rarely
+CONSENSUS_TARGET_SIZE = 60
+
+
+def _normalize_consensus_deck(cards: dict[str, float], target: int = CONSENSUS_TARGET_SIZE) -> dict[str, float]:
+    """Convert avg_qty floats into an integer 60-card list.
+
+    Consensus rows in PG are averages, so naive per-card rounding can drift above/below 60.
+    We floor first, then distribute the remainder by fractional part.
+    """
+    items = []
+    for name, qty in (cards or {}).items():
+        raw = float(qty or 0)
+        if raw <= 0:
+            continue
+        floor = int(raw // 1)
+        items.append({
+            "name": name,
+            "raw": raw,
+            "qty": floor,
+            "frac": raw - floor,
+        })
+
+    if not items:
+        return {}
+
+    total = sum(item["qty"] for item in items)
+    delta = target - total
+
+    if delta > 0:
+        items.sort(key=lambda x: (-x["frac"], x["name"]))
+        idx = 0
+        while delta > 0 and idx < len(items):
+          items[idx]["qty"] += 1
+          delta -= 1
+          idx += 1
+    elif delta < 0:
+        # When cutting, prefer to remove from lowest-qty cards first (likely
+        # tech/contamination); signature 4x cards should be preserved.
+        # For integer avg_qty values (all fracs = 0), this turns into qty-ascending order.
+        items.sort(key=lambda x: (x["frac"], x["qty"], x["name"]))
+        idx = 0
+        while delta < 0 and idx < len(items):
+            if items[idx]["qty"] > 0:
+                items[idx]["qty"] -= 1
+                delta += 1
+            idx += 1
+
+    items.sort(key=lambda x: (-x["qty"], x["name"]))
+    return {item["name"]: float(item["qty"]) for item in items if item["qty"] > 0}
 
 
 def get_card_images(db: Session) -> dict:
@@ -57,7 +106,8 @@ def get_consensus(db: Session, deck: str | None = None) -> dict:
         rows = db.execute(text(
             "SELECT card_name, avg_qty FROM consensus_lists WHERE deck = :deck AND is_current = true"
         ), {"deck": deck}).fetchall()
-        result = {deck: {r.card_name: float(r.avg_qty) for r in rows}}
+        raw = {r.card_name: float(r.avg_qty) for r in rows}
+        result = {deck: _normalize_consensus_deck(raw)}
     else:
         rows = db.execute(text(
             "SELECT deck, card_name, avg_qty FROM consensus_lists WHERE is_current = true"
@@ -65,6 +115,7 @@ def get_consensus(db: Session, deck: str | None = None) -> dict:
         result = {}
         for r in rows:
             result.setdefault(r.deck, {})[r.card_name] = float(r.avg_qty)
+        result = {dk: _normalize_consensus_deck(cards) for dk, cards in result.items()}
 
     cache_set(cache_key, result, CACHE_TTL)
     return result
