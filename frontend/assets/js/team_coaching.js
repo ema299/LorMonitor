@@ -1,7 +1,7 @@
 /**
  * Team Coaching — Animated Replay Viewer + Hand Panel
  *
- * Reuses rv* card rendering from dashboard.html (rvRenderCard, rvCardImg, rvCardsDB)
+ * Team-coaching replay viewer with its own cards DB cache and card image helper.
  * Adds: DOM-persistent board, sequential per-action animation, drawArrow, spell overlay, hand panel
  */
 
@@ -14,6 +14,49 @@ let tcPlayTimer = null;
 let tcSpeed = 0.5; // 0.5, 1, 2, 4
 let tcAbort = false;
 let tcAnimating = false;
+let tcCardsDB = null;
+
+const TC_SET_MAP = {TFC:1,ROTF:2,ITI:3,URR:4,SHS:5,AZS:6,ARI:7,ROJ:8,FAB:9,WITW:10,WIS:11,WUN:12,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12};
+const TC_INK_CLASS = {Amber:'amber',Amethyst:'amethyst',Emerald:'emerald',Ruby:'ruby',Sapphire:'sapphire',Steel:'steel'};
+
+function tcCardImg(card) {
+  if (!card || !card.set || !card.number) return '';
+  const sets = card.set.split('\n').map(s => s.trim());
+  const nums = card.number.split('\n').map(n => n.trim());
+  for (let i = 0; i < sets.length; i++) {
+    const sn = TC_SET_MAP[sets[i]];
+    const cn = (nums[i] || nums[0]).replace(/^0+/, '') || '0';
+    if (sn && cn !== '-' && cn !== '0') return `https://cards.duels.ink/lorcana/en/thumbnail/${sn}-${cn}.webp`;
+  }
+  return '';
+}
+
+async function tcEnsureCardsDB() {
+  if (tcCardsDB) return tcCardsDB;
+  try {
+    tcCardsDB = await (await fetch('/api/replay/cards_db')).json();
+  } catch (_) {
+    tcCardsDB = {};
+  }
+  return tcCardsDB;
+}
+
+function tcShortName(name) {
+  if (!name) return { b: '', s: '' };
+  if (name.includes(' - ')) {
+    const [b, s] = name.split(' - ', 2);
+    return { b, s: s.length > 12 ? s.slice(0, 12) + '..' : s };
+  }
+  return { b: name.length > 18 ? name.slice(0, 18) + '..' : name, s: '' };
+}
+
+function tcDeckUser() {
+  try {
+    return (localStorage.getItem('pf_duels_nick') || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
 
 function tcGetAuthToken() {
   const keys = ['lm_access_token', 'access_token', 'auth_access_token'];
@@ -107,7 +150,7 @@ async function tcLoadReplay(gameId) {
   const snaps = tcReplayData.snapshots;
   if (!snaps || !snaps.length) { area.innerHTML = '<div style="color:var(--red);padding:20px">No data</div>'; return; }
 
-  if (!rvCardsDB) { try { rvCardsDB = await (await fetch('/api/replay/cards_db')).json(); } catch(_){} }
+  await tcEnsureCardsDB();
 
   const p = tcReplayData.player_names || {};
   const persp = tcReplayData.perspective || 1;
@@ -576,11 +619,11 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
   const prevIids = prevCards.map(c => c.iid);
   const newHtml = cards.map(c => {
     const isNew = !prevIids.includes(c.iid);
-    const db = (rvCardsDB||{})[c.name] || {};
-    const imgUrl = rvCardImg ? rvCardImg(db) : '';
+    const db = (tcCardsDB || {})[c.name] || {};
+    const imgUrl = tcCardImg(db);
     const isCh = (db.type||'').toLowerCase().includes('character');
-    const ink = (typeof RV_IC !== 'undefined' ? RV_IC : {})[(db.ink||'').trim()] || '';
-    const {b,s} = (typeof rvSn === 'function') ? rvSn(c.name) : {b:c.name.split(' - ')[0], s:''};
+    const ink = TC_INK_CLASS[(db.ink || '').trim()] || '';
+    const { b, s } = tcShortName(c.name);
     const dmg = c.damage || 0;
     const will = parseInt(db.will) || 0;
     const pc = prevCards.find(p => p.iid === c.iid);
@@ -609,8 +652,8 @@ async function tcUpdateField(containerId, cards, prevCards, skipAnim) {
 // in CSS: 'play' (gold), 'item' (amber), 'shift' (cyan), 'ability' (violet).
 async function tcShowCardHero(cardName, kind, opts) {
   if (!cardName || tcAbort) return null;
-  const db = (rvCardsDB || {})[cardName] || {};
-  const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+  const db = (tcCardsDB || {})[cardName] || {};
+  const img = tcCardImg(db);
   if (!img) return null;
 
   const boardWrap = document.getElementById('tc-board-wrap');
@@ -657,11 +700,11 @@ async function tcShowSpellOverlay(snap, prev) {
     else { spellName = name; break; }
   }
   if (!spellName) return;
-  const db = (rvCardsDB || {})[spellName] || {};
+  const db = (tcCardsDB || {})[spellName] || {};
   const tp = (db.type || '').toLowerCase();
   if (!tp.includes('action') && !tp.includes('song')) return;
 
-  const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+  const img = tcCardImg(db);
   if (!img) return;
 
   const boardWrap = document.getElementById('tc-board-wrap');
@@ -755,8 +798,8 @@ function tcUpdateInkwell(snap) {
         // Opponent hidden card
         return `<div class="${cls}" title="Hidden ink"><div class="tc-ink-hidden">?</div></div>`;
       }
-      const db = (rvCardsDB||{})[name] || {};
-      const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+      const db = (tcCardsDB || {})[name] || {};
+      const img = tcCardImg(db);
       const short = name.split(' - ')[0];
       return `<div class="${cls}" title="${name}${c.exerted?' (used)':' (available)'}">
         ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
@@ -778,8 +821,8 @@ function tcUpdateHand(hand, prevHand) {
     const pi = prevCopy.indexOf(name);
     const isNew = pi < 0;
     if (pi >= 0) prevCopy.splice(pi, 1);
-    const db = (rvCardsDB||{})[name] || {};
-    const img = (typeof rvCardImg === 'function') ? rvCardImg(db) : '';
+    const db = (tcCardsDB || {})[name] || {};
+    const img = tcCardImg(db);
     const short = name.split(' - ')[0];
     return `<div class="tc-hc${isNew?' tc-hc-new':''}" data-name="${name}" title="${name}">
       ${img ? `<img src="${img}" alt="${short}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` : ''}
