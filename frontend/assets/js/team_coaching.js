@@ -100,8 +100,77 @@ function tcInit(containerId) {
 }
 
 // ═══ UPLOAD ═══
-async function tcHandleDrop(e) { if (e.dataTransfer.files.length) await tcUpload(e.dataTransfer.files); }
-async function tcHandleFiles(files) { if (files.length) await tcUpload(files); }
+// Privacy layer §24.6: replay upload requires an explicit consent. We check
+// localStorage as a fast path; on first upload per browser we show a modal
+// that records the acceptance both client-side and server-side (POST
+// /api/user/consent). Backend enforces consent too — client-side gating is
+// UX, not security.
+const TC_REPLAY_CONSENT_VERSION = '1.0';
+const TC_REPLAY_CONSENT_KEY = 'tc_replay_upload_consent_v' + TC_REPLAY_CONSENT_VERSION;
+
+async function tcHandleDrop(e) {
+  if (!e.dataTransfer.files.length) return;
+  if (!(await tcEnsureReplayConsent())) return;
+  await tcUpload(e.dataTransfer.files);
+}
+async function tcHandleFiles(files) {
+  if (!files.length) return;
+  if (!(await tcEnsureReplayConsent())) return;
+  await tcUpload(files);
+}
+
+async function tcEnsureReplayConsent() {
+  if (localStorage.getItem(TC_REPLAY_CONSENT_KEY) === '1') return true;
+  return new Promise((resolve) => tcShowConsentModal(resolve));
+}
+
+function tcShowConsentModal(resolve) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;';
+  overlay.innerHTML = `
+    <div style="background:var(--bg1,#1a1a1a);color:var(--text,#eee);border:1px solid var(--gold,#D4A03A);border-radius:8px;max-width:480px;padding:20px;font-size:0.92em;line-height:1.5">
+      <div style="font-weight:700;color:var(--gold,#D4A03A);font-size:1.05em;margin-bottom:10px">Consent required — replay upload</div>
+      <div style="margin-bottom:12px">
+        Board Lab stores the replay file you upload so you (and coaches you share it with) can review it later.
+        The file stays private by default. You can delete it at any time from your account.
+      </div>
+      <div style="margin-bottom:16px;font-size:0.85em;color:var(--text2,#aaa)">
+        By clicking Accept, you allow Lorcana Monitor to keep your uploaded replays associated with your account
+        for coaching and personal review. This consent version is <strong>${TC_REPLAY_CONSENT_VERSION}</strong>.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button id="tc-consent-cancel" style="background:transparent;border:1px solid var(--text2,#666);color:var(--text,#eee);padding:6px 12px;border-radius:4px;cursor:pointer">Cancel</button>
+        <button id="tc-consent-accept" style="background:var(--gold,#D4A03A);color:#000;border:0;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:600">Accept &amp; Continue</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const close = (accepted) => {
+    overlay.remove();
+    resolve(accepted);
+  };
+
+  overlay.querySelector('#tc-consent-cancel').onclick = () => close(false);
+  overlay.querySelector('#tc-consent-accept').onclick = async () => {
+    try {
+      await tcFetch('/api/user/consent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'replay_upload', version: TC_REPLAY_CONSENT_VERSION }),
+      });
+      localStorage.setItem(TC_REPLAY_CONSENT_KEY, '1');
+      close(true);
+    } catch (err) {
+      // If server call fails, do NOT set localStorage flag — next upload will
+      // re-prompt, and upload itself will fail server-side (412) without
+      // consent persisted in preferences.
+      const status = document.getElementById('tc-upload-status');
+      if (status) status.innerHTML = `<div style="color:var(--red);font-size:0.85em">Consent save failed: ${err.message}</div>`;
+      close(false);
+    }
+  };
+}
+
 async function tcUpload(files) {
   const status = document.getElementById('tc-upload-status');
   if (!status) return;

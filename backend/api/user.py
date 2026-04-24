@@ -53,6 +53,12 @@ class InterestRequest(BaseModel):
     tier: str = Field(..., pattern="^(pro|coach|team)$")
 
 
+class ConsentRequest(BaseModel):
+    """Record a consent acceptance. See ARCHITECTURE.md §24.3.2."""
+    kind: str = Field(..., pattern="^(tos|privacy|replay_upload|marketing)$")
+    version: str = Field(..., min_length=1, max_length=10)
+
+
 # ── Profile ──────────────────────────────────────────────────────────
 
 @router.get("/profile")
@@ -193,6 +199,36 @@ def export_data(
 ):
     """GDPR: export all user data as JSON."""
     return user_service.export_user_data(db, user)
+
+
+# ── Consents ─────────────────────────────────────────────────────────
+
+@router.post("/consent")
+def register_consent(
+    payload: ConsentRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Record a consent acceptance in users.preferences.consents.<kind>.
+
+    See ARCHITECTURE.md §24.3.2. Overwrites any previous version for the
+    same kind — the latest acceptance wins. For versioning / audit trail,
+    promote consents to a dedicated user_consents table (post-30gg).
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy.orm.attributes import flag_modified
+
+    prefs = dict(user.preferences or {})
+    consents = dict(prefs.get("consents", {}))
+    consents[payload.kind] = {
+        "version": payload.version,
+        "accepted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    prefs["consents"] = consents
+    user.preferences = prefs
+    flag_modified(user, "preferences")
+    db.commit()
+    return {"ok": True, "kind": payload.kind, "version": payload.version}
 
 
 # ── Soft paywall / waitlist (pre-monetization) ───────────────────────
