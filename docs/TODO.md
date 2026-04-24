@@ -1,6 +1,6 @@
 # App_tool — TODO Master
 
-**Ultimo aggiornamento:** 24 Aprile 2026 (sera, reality-aligned)
+**Ultimo aggiornamento:** 24 Aprile 2026 (sera — A.1 + A.2 chiusi)
 **Scope:** master TODO operativo di `metamonitor.app`. Tre sezioni ordinate per impatto business.
 
 ## Regola operativa per Claude
@@ -11,11 +11,17 @@
 
 **Non spezzare questa distinzione.** Ogni task deve stare in A o B o C. Se un task appare in A ma è refactor, viene spostato in C.
 
+**Workflow progressivo (obbligatorio):**
+- Ogni task completato → aggiornare qui **subito**. Status: `DONE` / `PENDING` / `BLOCKED`.
+- Nota sintetica 1 riga max accanto al DONE (cosa/come confermato). Niente log verbose.
+- Niente lavoro fuori dal TODO — se non è qui, non esiste.
+
 **Vincoli preservati (non rinegoziabili pre-launch):**
 - V3 resta a **7 tab primary** (Home · Play · Meta · Deck · Team · Improve · Events). NO 5+2. NO drawer. NO Pro Tools / Community contenitore.
 - Meta, Deck, Events non si toccano salvo bug. Sono già maturi.
 - Pagamento reale SOLO dopo struttura fiscale chiara. Fino ad allora: fake paywall + interest tracking (già live).
 - Focus correzioni pre-launch: **Play** (conversion clarity) + **privacy minima** + **Board Lab wiring minimo**. Improve debole, migliorato post-launch.
+- **Set 12 NON è blocker pre-launch.** URL reali Google Form + Discord invite = bassa priorità post-launch (B.5). Non lavorare su `set12_hub.js` salvo richiesta esplicita.
 
 **Documenti sibling:** [`BP.md`](BP.md) · [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) · [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) · [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) · [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md) · [`DECK_REFACTOR_PARITY.md`](DECK_REFACTOR_PARITY.md) · [`KC_REVIEW.md`](KC_REVIEW.md) · [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md) · [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
 
@@ -29,24 +35,23 @@ Ordine non è temporale 1→2→3→… ma per impatto business. Sequenza giorno
 
 ## A.1. Privacy — bug fix reali + verifica regressione
 
-| Task | Dove | Stato | Priorità |
-|------|------|-------|----------|
-| Verifica `POST /api/v1/user/consent` funziona (consent modal Board Lab legacy) | `backend/api/user.py` + `frontend/assets/js/team_coaching.js` (commit `05845e3`) | Fix committato 24/04, verifica post-deploy | P0 |
-| Export GDPR include `consents` + `interest_to_pay` nel whitelist | `backend/services/user_service.py` ALLOWED_PREFS | Fix committato 24/04, verifica | P0 |
-| Smoke test `scripts/privacy_smoke_test.py` aggiornato con i 2 fix sopra | `scripts/privacy_smoke_test.py` | Verifica dopo restart | P0 |
-| Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com` su Cloudflare Email Routing | Ops DNS | 10 min | P1 |
+| Task | Status | Nota |
+|------|--------|------|
+| Verifica `POST /api/v1/user/consent` funziona | **DONE** | curl POST → 200 + body valido (24/04 sera, dev) |
+| Export GDPR include `consents` + `interest_to_pay` nel whitelist | **DONE** | export include entrambe le chiavi in `preferences` (24/04 sera) |
+| Smoke test `scripts/privacy_smoke_test.py` | **DONE** | 6/7 PASS, 1 SKIP (T2 n/a, no replay test user) |
+| Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com` su Cloudflare | **PENDING** | ops DNS, non-code |
 
-## A.2. Porting minimo V3 (solo quello che manca davvero)
+## A.2. Porting minimo V3
 
-| Task | Dove | Effort | Priorità |
-|------|------|--------|----------|
-| Consent modal V3 (port da legacy commit `1abbdd0`) | `frontend_v3/assets/js/dashboard/team.js` + nuovo modal component | 0.5 dev day | P0 |
-| 412 handling upload Board Lab (se consent mancante) | `frontend_v3/assets/js/dashboard/team.js` upload hook | 2 h | P0 |
-| Placeholder Set 12 Hub → URL reali (`FORM_ACTION` + `DISCORD_INVITE`) | `frontend_v3/assets/js/dashboard/set12_hub.js:27-34` | 15 min (quando URL pronti) | P0 |
-| Verifica footer disclaimer + `/about.html` link (già live) | `frontend_v3/dashboard.html:89-116` | Regressione check | P1 |
-| Verifica fake paywall → POST `/api/v1/user/interest` (già live, `monolith.js:858`) | E2E test manuale | 1 h | P0 |
+| Task | Status | Nota |
+|------|--------|------|
+| Consent modal V3 | **DONE** | già presente in `frontend_v3/assets/js/team_coaching.js` con path `/api/v1/user/consent` |
+| 412 handling upload Board Lab | **DONE** | `tcUploadOne` added, retry 1× dopo re-consent (24/04 sera) |
+| Verifica footer disclaimer + `/about.html` link | **DONE** | `dashboard.html:89-116` live, disclaimer + link ok |
+| Verifica fake paywall → POST `/api/v1/user/interest` | **DONE** | T6 smoke + curl POST → 200, `interest_to_pay` persistito |
 
-**NON fare pre-launch:** refactor `team_coaching.js` (resta copia legacy), rimozione `views/` scaffolding, ristrutturazione nav, drawer.
+**NON fare pre-launch:** refactor `team_coaching.js` (resta copia legacy), rimozione `views/` scaffolding, ristrutturazione nav, drawer. Set 12 Hub URL reali → B.5 (bassa priorità post-launch).
 
 ## A.3. Play — conversion clarity (core commerciale)
 
@@ -143,10 +148,11 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 
 ## B.5. Home + acquisition
 
-| Task | Effort | Impatto business |
-|------|--------|------------------|
-| Set 12 Hub → decommissionare post drop Maggio, rimpiazzare con evergreen hero | 0.5 dev day | Medio |
-| Improve onboarding più aggressivo sul nickname bridge | 0.5 dev day | Alto (sblocca Improve + country segmentation) |
+| Task | Status | Nota |
+|------|--------|------|
+| Set 12 Hub `FORM_ACTION` + `FORM_EMAIL_FIELD` + `DISCORD_INVITE` → URL reali | **BLOCKED** | attesa Google Form + Discord server. Marcatore `BLOCKED_URL_PENDING` in `set12_hub.js`. Non bloccante lancio. |
+| Set 12 Hub → decommissionare post drop Maggio, rimpiazzare con evergreen hero | PENDING | 0.5 dev day, impatto medio |
+| Improve onboarding più aggressivo sul nickname bridge | PENDING | 0.5 dev day, alto (sblocca Improve + country segmentation) |
 
 ## B.6. NON in B — resta fuori scope 30 gg
 
@@ -304,3 +310,5 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 ---
 
 *TODO consolidato il 24 Aprile 2026 (sera) reality-aligned. Sostituisce struttura precedente (§A App_tool legacy / §B V3 target-based / §C Migration). Nuova tassonomia: A = pre-launch, B = post-launch 30gg, C = tech debt. Sibling: [`BP.md`](BP.md) v4.1, [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) v1.1.*
+
+*Update 24/04 sera: A.1 + A.2 chiusi. Set 12 Hub URLs spostati in B.5 come BLOCKED non-blocker. Focus ora: A.3 Play conversion + A.4 Board Lab wiring.*

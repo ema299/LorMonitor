@@ -24,14 +24,19 @@
   // Drop date Set 12 — confermato 22/04
   const RELEASE_DATE = '2026-05-12T00:00:00Z';
 
-  // TODO: sostituire quando Google Form e' creato
-  // Pattern per Google Form: https://docs.google.com/forms/d/e/FORM_ID/formResponse
-  // con campo email come entry.NUMERIC_ID (ispeziona via DevTools)
-  const FORM_ACTION = 'https://docs.google.com/forms/d/e/REPLACE-WITH-FORM-ID/formResponse';
-  const FORM_EMAIL_FIELD = 'entry.REPLACE-WITH-ENTRY-ID';
+  // BLOCKED_URL_PENDING — Google Form non ancora creato.
+  // Pattern: https://docs.google.com/forms/d/e/FORM_ID/formResponse
+  // con campo email come entry.NUMERIC_ID (ispeziona via DevTools).
+  // Finche' non rimpiazzato: submit fallisce gracefully (form.action su dominio
+  // inesistente -> no-cors fetch silent error). Email signup UI mostra messaggio
+  // di successo locale ma i dati NON vengono persistiti. Vedi TODO.md A.2.3.
+  const FORM_ACTION = 'https://docs.google.com/forms/d/e/REPLACE-WITH-FORM-ID/formResponse'; // BLOCKED_URL_PENDING
+  const FORM_EMAIL_FIELD = 'entry.REPLACE-WITH-ENTRY-ID'; // BLOCKED_URL_PENDING
 
-  // TODO: sostituire quando Discord server e' creato
-  const DISCORD_INVITE = 'https://discord.gg/REPLACE-WITH-INVITE';
+  // BLOCKED_URL_PENDING — Discord server non ancora creato. Link invito
+  // permanente da configurare pre-launch. CTA attualmente apre tab con URL
+  // invalido (404 Discord). Vedi TODO.md A.2.3.
+  const DISCORD_INVITE = 'https://discord.gg/REPLACE-WITH-INVITE'; // BLOCKED_URL_PENDING
 
   // ============================================================
   // STYLES — injected once in <head>

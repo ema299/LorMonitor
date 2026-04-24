@@ -175,17 +175,37 @@ async function tcUpload(files) {
   if (!status) return;
   status.innerHTML = '';
   for (const file of files) {
-    const form = new FormData();
-    form.append('file', file);
-    try {
-      const resp = await tcFetch('/api/v1/team/replay/upload', { method: 'POST', body: form });
-      const data = await resp.json();
-      if (data.status === 'ok') status.innerHTML += `<div style="color:var(--green);font-size:0.85em">\u2713 ${data.player} vs ${data.opponent} (${data.turns} turns)</div>`;
-      else if (data.status === 'needs_assignment') status.innerHTML += `<div style="color:var(--gold);font-size:0.85em">\u26a0 ${file.name}: ${data.player_names['1']} vs ${data.player_names['2']}</div>`;
-      else status.innerHTML += `<div style="color:var(--red);font-size:0.85em">\u2717 ${file.name}: ${data.detail || data.error || 'Error'}</div>`;
-    } catch (err) { status.innerHTML += `<div style="color:var(--red);font-size:0.85em">\u2717 ${err.message}</div>`; }
+    await tcUploadOne(file, status, /*retryOn412=*/true);
   }
   tcLoadReplayList();
+}
+
+// Extracted per-file upload so we can retry once after a 412 consent-missing
+// response. Privacy layer \u00a724.6: server authoritative consent check is in
+// backend/api/team.py upload_replay. If client localStorage says "consent ok"
+// but server disagrees (cleared DB, different device, consent version bump),
+// the server replies 412 \u2014 we clear the local flag and re-prompt.
+async function tcUploadOne(file, status, retryOn412) {
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const resp = await tcFetch('/api/v1/team/replay/upload', { method: 'POST', body: form });
+    if (resp.status === 412 && retryOn412) {
+      // server says consent missing \u2014 clear local flag and re-prompt once
+      try { localStorage.removeItem(TC_REPLAY_CONSENT_KEY); } catch (_) {}
+      const accepted = await tcEnsureReplayConsent();
+      if (!accepted) {
+        status.innerHTML += `<div style="color:var(--red);font-size:0.85em">\u2717 ${file.name}: consent required</div>`;
+        return;
+      }
+      // one retry after fresh consent
+      return tcUploadOne(file, status, /*retryOn412=*/false);
+    }
+    const data = await resp.json();
+    if (data.status === 'ok') status.innerHTML += `<div style="color:var(--green);font-size:0.85em">\u2713 ${data.player} vs ${data.opponent} (${data.turns} turns)</div>`;
+    else if (data.status === 'needs_assignment') status.innerHTML += `<div style="color:var(--gold);font-size:0.85em">\u26a0 ${file.name}: ${data.player_names['1']} vs ${data.player_names['2']}</div>`;
+    else status.innerHTML += `<div style="color:var(--red);font-size:0.85em">\u2717 ${file.name}: ${data.detail || data.error || 'Error'}</div>`;
+  } catch (err) { status.innerHTML += `<div style="color:var(--red);font-size:0.85em">\u2717 ${err.message}</div>`; }
 }
 
 // ═══ REPLAY LIST ═══
