@@ -506,7 +506,7 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 |---|---|---|---|
 | D1 | `pipelines/playbook/generator.py` | ~~legge `analisidef/output/digest_*.json`~~ | ✅ CHIUSO 16/04 — `DIGEST_SOURCE=native` default, legge `App_tool/output/digests/` |
 | D2 | `scripts/generate_killer_curves.py` | ~~legge `analisidef/output/killer_curves_*.json`~~ | ✅ CHIUSO 16/04 — pipeline nativa: digest PG → OpenAI → PG `killer_curves` |
-| D3 | `scripts/generate_matchup_reports.py` | ~~legge `dashboard_data.json`~~ | ✅ CHIUSO 16/04 — 7 report types nativi da digest PG + turns JSONB; 24/04 — aggiunto `card_scores` nativo con denominatore onesto `in_deck_rate` (distinct player-deck pairs), bug fix `is_current` demote pre-batch |
+| D3 | `scripts/generate_matchup_reports.py` | ~~legge `dashboard_data.json`~~ | ✅ CHIUSO 16/04 — 7 report types nativi da digest PG + turns JSONB; 24/04 — aggiunto `card_scores` nativo con denominatore onesto `in_deck_rate` (distinct player-deck pairs), bug fix `is_current` demote pre-batch; 24/04 pm — KC meta-relevance guard (`pipelines/kc/meta_relevance.py`) + post-filter + prompt-time guard; `meta_epochs.legal_sets` ridotto a [3..11] (pre-Set12 rotation preemptiva); reclean esistenti 209 card refs strippate |
 
 ### Legacy script da rimuovere in P4 (non attivi runtime, ma coupling residuo)
 
@@ -544,7 +544,7 @@ Checklist fine giornata 15/04/2026:
 - [x] C1 Digest generator senza import da analisidef
 - [x] D1 Playbook generator senza `analisidef/output/digest_*.json` → **CHIUSO 16/04** (`DIGEST_SOURCE=native`)
 - [x] D2 KC pipeline nativa → **CHIUSO 16/04** (E2E: digest PG → OpenAI → PG, $0.034/matchup)
-- [x] D3 Matchup reports nativi → **CHIUSO 16/04** (132 matchup, 924 reports, 0 errors) + **24/04 card_scores nativo** (264 matchup × 8 types = 2206 reports, `in_deck_rate` denominator onesto)
+- [x] D3 Matchup reports nativi → **CHIUSO 16/04** (132 matchup, 924 reports, 0 errors) + **24/04 card_scores nativo** (264 matchup × 8 types = 2206 reports, `in_deck_rate` denominator onesto) + **24/04 pm KC meta-relevance guard** (prompt-time + post-filter, `legal_sets` ristretto a [3..11], 209 card refs strippate da KC esistenti, 66 curve ora senza `response.cards` — pending re-gen GPT per riempirle)
 
 **Risposta alla domanda Liberation Day 16/04: AVANZATA**.
 - Runtime (richieste utente): ✅ SÌ — nessun endpoint o assembler rompe se analisidef è down
@@ -739,8 +739,8 @@ Il backend privacy è server-side, quindi V3 ottiene il comportamento corretto d
 - **Access-control replay upload**: `/api/v1/team/replay/list|{game_id}` filtra per `user_id == current_user.id OR shared_with ∋ user.id OR is_admin`. V3 riceve solo le righe consentite.
 - **Consent check upload**: `POST /api/v1/team/replay/upload` rifiuta con `412 Precondition Failed` se `users.preferences.consents.replay_upload` mancante. V3 deve però intercettare il 412 e mostrare il modal.
 - **Ownership tracking**: ogni upload è ora auto-assegnato `user_id = current_user.id`, `is_private = true`, `consent_version`, `uploaded_via`. V3 non passa nulla di nuovo nel payload.
-- **GDPR export esteso**: `/api/user/export` già include `team_replays[]` con il dump completo. V3 deve esporre un button "Download my data" che fa GET a questo endpoint.
-- **Interest recording**: `POST /api/user/interest` pronto per waitlist soft paywall. V3 deve chiamarlo dai button "Unlock Pro" / "Unlock Coach".
+- **GDPR export esteso**: `/api/v1/user/export` già include `team_replays[]` con il dump completo. V3 deve esporre un button "Download my data" che fa GET a questo endpoint.
+- **Interest recording**: `POST /api/v1/user/interest` pronto per waitlist soft paywall. V3 deve chiamarlo dai button "Unlock Pro" / "Unlock Coach".
 
 ### Z.2 Checklist porting Legacy → V3 (obbligatorio pre-cutover V3)
 
@@ -756,8 +756,8 @@ Il backend privacy è server-side, quindi V3 ottiene il comportamento corretto d
 | Z.2.8 | Email contact = `monitorteamfe@gmail.com` (temp, swap a `legal@metamonitor.app` quando alias DNS attivo) | 3 occorrenze legacy: footer dashboard, info popup disclaimer, about contact | `frontend_v3/` — ovunque il contact email appare | 10 min |
 | Z.2.9 | Consent error 412 handling sull'upload V3 | Pattern legacy: pre-check `tcHasReplayUploadConsent()` → se false, show modal → poi upload. Oppure post-check: tentare upload, se 412 → show modal → retry | `frontend_v3/` — stesso pattern, ma anche error handling se l'utente bypassa il consent via manipolazione client | 30 min |
 | Z.2.10 | Service worker strategy V3 — network-first per HTML | V3 ha già un proprio `frontend_v3/sw.js` (vedere `feedback_v3_service_worker_cache.md`). Replicare il pattern usato in `frontend/sw.js` post-`e076524`: `isHtmlRequest()` helper + branch network-first prima del cache-first | `frontend_v3/sw.js` | 20 min |
-| Z.2.11 | "Unlock Pro" / "Unlock Coach" call to `/api/user/interest` | Legacy non ha ancora il paywall button (il fake paywall modal non è stato implementato full in legacy) | `frontend_v3/` — quando implementi il paywall, fai POST `/api/user/interest` con `{tier: "pro"\|"coach"}` prima di mostrare il modal waitlist | 20 min |
-| Z.2.12 | "Download my data" button (GDPR) | Legacy non ha il button esposto in UI, solo l'endpoint esiste | `frontend_v3/` — Settings / Profile → button "Export my data" → GET `/api/user/export` con JWT → trigger download JSON | 25 min |
+| Z.2.11 | "Unlock Pro" / "Unlock Coach" call to `/api/v1/user/interest` | Legacy non ha ancora il paywall button (il fake paywall modal non è stato implementato full in legacy) | `frontend_v3/` — quando implementi il paywall, fai POST `/api/v1/user/interest` con `{tier: "pro"\|"coach"}` prima di mostrare il modal waitlist | 20 min |
+| Z.2.12 | "Download my data" button (GDPR) | Legacy non ha il button esposto in UI, solo l'endpoint esiste | `frontend_v3/` — Settings / Profile → button "Export my data" → GET `/api/v1/user/export` con JWT → trigger download JSON | 25 min |
 
 **Totale stima porting V3**: ~4h se il layout V3 è pulito (1 file per tab + 1 file sw.js + 1 file footer condiviso). Fino a 6-7h se i testi sono duplicati in molti posti.
 

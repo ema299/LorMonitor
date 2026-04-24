@@ -174,6 +174,24 @@ Azioni VPS eseguite 2026-04-22 07:45 UTC:
 
 La migration cassetto `7894044b7dd3_set12_launch_meta_epoch.py` NON è stata applicata (resta dormant, guard env). Head alembic = `7dec24a98839`.
 
+**Prossima finestra rotation attesa — Settembre 2026** (Set 12 release Ravensburger, non ancora annunciato ufficialmente). Al D-day: `SET12_RELEASE_DATE=2026-09-DD SET12_LEGAL_SETS=3,4,5,6,7,8,9,10,11,12 alembic upgrade 7894044b7dd3` + `systemctl restart lorcana-api` + `curl -X POST -H "X-Admin-Token: ..." /api/v1/admin/reset-legality-cache`. Default env già allineato con `[3..12]` (sets 1-2 fuori).
+
+### KC meta-relevance guard (applicato 2026-04-24 pm)
+
+Rotation preemptiva applicata sul DB produzione: `meta_epochs.Set11 settled.legal_sets` ristretto da `[1..11]` a `[3..11]` (sets 1-2 effettivamente fuori meta oggi, il cassetto Set 12 li esclude già di default, quindi forward-compatible a Settembre).
+
+Doppio guard ora attivo in `pipelines/kc/`:
+- **Prompt-time** (`build_prompt._build_meta_relevance_guard`): elenca a GPT le carte out-of-meta presenti nel digest (0 plays in 30gg / < soglia 20 plays). Passata al prompt insieme a `_build_core_legality_guard` (rotation). Risultato: GPT non suggerisce carte pre-rotation o fuori dal meta corrente.
+- **Post-filter** (`scripts/generate_killer_curves._strip_non_meta_cards`): stripping safety-net su `response.cards` + `sequence.plays` prima dell'upsert in PG.
+
+Helper: `pipelines/kc/meta_relevance.get_meta_relevant_cards(db, format, days=30, min_plays=20)` — cached per-format, conta CARD_PLAYED events dalla `matches` table. Core ha 876 carte in meta oggi.
+
+Admin endpoint `/api/v1/admin/reset-legality-cache` invalida ora anche `kc_meta_relevant` + `meta_relevance_cache`.
+
+One-shot `scripts/reclean_kc_meta.py` già girato sui dati esistenti: 209 card refs strippate su 36 matchup Core (134 righe), 66 curve ora con `response.cards=[]` (GPT aveva scelto solo carte non-meta in quei casi — attendo prossima run Martedì 01:30 che col prompt guard produrrà output pulito in origine).
+
+Sync `scripts/refresh_kc_matchup_reports.py` — copia rapida `killer_curves` → `matchup_reports` senza full regen matchup_reports (12 min → 5 sec).
+
 ### Privacy Layer V3 (live in produzione dal 2026-04-24)
 
 Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Documentato in `ARCHITECTURE.md §24 "Sensitive Data & Privacy Architecture — V3 Launch Layer"` con subsection `§24.11 Applied State`. Piano di porting Legacy → V3 in `docs/MIGRATION_PLAN.md` (Appendice Z).
@@ -183,7 +201,7 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 - Alembic head: `9a1e47b3f0c2` — team_replays: +`user_id`, +`is_private`, +`consent_version`, +`uploaded_via`, +`shared_with` + 2 indici (commit `5f4b72d`)
 - Model update (`7aafab1`), deps `require_replay_access` / `require_replay_owner` (`1e7f6b2`), wiring access-control `/api/v1/team/replay/*` (`5999d66`)
 - `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service` + `match_log_features_service` (`6f40d8d`) — response JSON di `/api/replay/list|game|public-log` restituiscono `"Player"` / `"Opponent"` invece dei nick raw
-- `POST /api/user/interest` (`f032129`), `POST /api/user/consent` (`1abbdd0`), GDPR export esteso con `team_replays` (`6043444`)
+- `POST /api/v1/user/interest` (`f032129`), `POST /api/v1/user/consent` (`1abbdd0`), GDPR export esteso con `team_replays` (`6043444`)
 
 **Frontend legacy** — live dopo SW invalidation:
 
@@ -205,9 +223,9 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 - Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com` su Cloudflare Email Routing (10 min DNS). Quando è up, swappare indietro le 3 occorrenze nel footer/about.
 - Porting V3 di consent modal + disclaimer + copy sanitization — vedere `docs/MIGRATION_PLAN.md` Appendice Z per checklist completa.
 
-**Path reali (divergenze vs §24 first draft)**:
-- `POST /api/user/interest` (NON `/api/v1/user/interest`) — router user ha prefix `/api/user`. Allineato in §24.8 via commit `b3672d6`.
-- `POST /api/user/consent` — endpoint aggiuntivo aggiunto durante implementazione, usato dal consent modal Board Lab. Documentato in §24.8 aggiornato.
+**Path reali**:
+- Tutti gli endpoint user sono sotto prefix `/api/v1/user/*` — `/profile`, `/preferences`, `/nicknames`, `/decks`, `/export`, `/interest`, `/consent`. Il primo draft di §24 usava `/api/user/*` per una diagnosi errata del prefix: in verifica post-deploy del 24/04 il consent modal legacy restituiva 405, e `ALLOWED_PREFS` whitelist droppava `consents` + `interest_to_pay` dall'export GDPR. Risolto in commit `05845e3` (fix path in `team_coaching.js` + whitelist `user_service.py` + smoke test script). Doc allineati dopo: ARCHITECTURE §24.8+§24.11, CLAUDE §Privacy Layer V3, MIGRATION_PLAN Appendice Z.
+- `POST /api/v1/user/consent` — endpoint aggiuntivo non previsto dal §24 first draft, aggiunto durante implementazione come dipendenza del consent modal Board Lab (legacy + V3). Schema: `{ kind: "tos"|"privacy"|"replay_upload"|"marketing", version: str }` → scrive `preferences.consents.<kind> = { version, accepted_at }`.
 
 **Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
 

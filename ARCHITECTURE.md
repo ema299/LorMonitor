@@ -3380,7 +3380,7 @@ Base già in produzione (da NON toccare):
 - `user_sessions`, `password_reset_tokens`
 - `user_decks`, `promo_codes`, `promo_redemptions`
 - `team_replays`, `team_roster`
-- `user_service.export_user_data()` + `GET /api/user/export` (GDPR export attivo)
+- `user_service.export_user_data()` + `GET /api/v1/user/export` (GDPR export attivo)
 - Soft-delete flow via `deletion_requested_at`
 
 Cosa aggiungiamo: **1 migration additiva** (`team_replays` ownership) + **access-control su 4 endpoint** + **consenso UI** + **anonymization response** del Replay Viewer pubblico. Tutto il resto (tabelle dedicate per consensi, identity links, privacy events) può restare in `users.preferences` JSONB fino a 30 giorni post-lancio.
@@ -3404,7 +3404,7 @@ Unico blocker reale: l'ownership dei replay. Senza `user_id` su `team_replays`, 
 | Promo / trial state | Derivato | `promo_codes`, `promo_redemptions` (esistenti) | No | N/A | Audit permanente | Internal |
 | Future payment data | PII + PCI | NON in DB nostro. Solo token PSP (Paddle/Stripe customer_id già in `users.stripe_customer_id`) | Sì | No | Secondo PSP | Internal + PSP |
 
-**Regola operativa:** ogni categoria sopra "low PII" viene loggata nel `GET /api/user/export` (GDPR) e cancellata su `deletion_requested_at`.
+**Regola operativa:** ogni categoria sopra "low PII" viene loggata nel `GET /api/v1/user/export` (GDPR) e cancellata su `deletion_requested_at`.
 
 ### 24.3 Storage Rules e Ownership
 
@@ -3648,7 +3648,7 @@ Al lancio non fatturiamo ancora. Il paywall serve comunque per misurare intent e
 ```
 User clicca "Unlock Pro — €9/m"
   ↓
-  writeInterest('pro')                 // POST /api/user/interest
+  writeInterest('pro')                 // POST /api/v1/user/interest
   ↓
   UI overlay: "Sei in waitlist. Ti scriveremo quando apriamo i pagamenti.
               Intanto, codice promo? [ input ]"
@@ -3661,7 +3661,7 @@ User clicca "Unlock Pro — €9/m"
 
 ```python
 # backend/api/user.py — additive
-# Mounted under router prefix /api/user → full path POST /api/user/interest
+# Mounted under router prefix /api/v1/user → full path POST /api/v1/user/interest
 class InterestRequest(BaseModel):
     tier: str = Field(..., pattern="^(pro|coach|team)$")
 
@@ -3683,11 +3683,11 @@ def register_interest(
     return {"ok": True, "tier": payload.tier}
 ```
 
-**Nota path:** la prima bozza di questa sezione riportava `/api/v1/user/interest`.
-Il prefix effettivo del router user è `/api/user`, quindi il path reale è
-`/api/user/interest`. Allineato post-implementazione.
+**Nota path:** path reale `POST /api/v1/user/interest` — coerente con il
+prefix `/api/v1/user` usato da tutti gli altri endpoint user (`/profile`,
+`/preferences`, `/nicknames`, `/decks`, `/export`).
 
-**Endpoint collegato (commit `1abbdd0`): `POST /api/user/consent`** — usato dal
+**Endpoint collegato (commit `1abbdd0`): `POST /api/v1/user/consent`** — usato dal
 consent modal Board Lab prima dell'upload. Vedi §24.3.2 per lo schema di
 `preferences.consents.<kind>` scritto da questo endpoint:
 
@@ -3719,7 +3719,7 @@ def register_consent(payload: ConsentRequest, user: User = Depends(get_current_u
 
 ### 24.9 GDPR Export / Delete — Impact
 
-`GET /api/user/export` esiste già (`user_service.export_user_data`). Va **esteso** per includere i dati V3.
+`GET /api/v1/user/export` esiste già (`user_service.export_user_data`). Va **esteso** per includere i dati V3.
 
 **Estensione export:**
 
@@ -3753,7 +3753,7 @@ def export_user_data(db: Session, user: User) -> dict:
 ```
 User clicca "Delete account" nella UI V3
   ↓
-  POST /api/user/delete-request
+  POST /api/v1/user/delete-request
   ↓
   user.deletion_requested_at = now()                   (già supportato)
   user.is_active = false                               (blocca login)
@@ -3792,7 +3792,7 @@ Questa distinzione va scritta chiaramente nella Privacy Policy ma non impatta l'
 | A2 | Update `TeamReplay` SQLAlchemy model con nuovi campi | BE | 30min |
 | A3 | Deps helper `require_replay_access` / `require_replay_owner` in `backend/deps.py` | BE | 1h |
 | A4 | Wiring access-control su 5 endpoint `/api/v1/team/replay/*` | BE | 1h |
-| A5 | Endpoint `POST /api/user/interest` (waitlist soft paywall) | BE | 30min |
+| A5 | Endpoint `POST /api/v1/user/interest` (waitlist soft paywall) | BE | 30min |
 | A6 | `replay_anonymizer.py` + wiring in `replay_archive_service` + `match_log_features_service` | BE | 2h |
 | A7 | Consent checkbox UI Board Lab prima del primo upload → `preferences.consents.replay_upload` | FE | 1h |
 | A8 | Disclaimer footer "Unofficial fan-made" + `/about` page minimale + `legal@` alias | Ops | 30min |
@@ -3866,8 +3866,8 @@ indexes:
 
 **Divergenze dal plan iniziale**:
 
-1. **Path endpoint** — il plan originale §24.8 indicava `POST /api/v1/user/interest`. Il router user ha prefix `/api/user`, quindi il path reale è `POST /api/user/interest`. §24.8 aggiornato via commit `b3672d6`.
-2. **Consent endpoint aggiuntivo** — `POST /api/user/consent` non era nel plan iniziale. Aggiunto durante implementazione come dipendenza del consent modal Board Lab (legacy + V3). Scrive `users.preferences.consents.<kind> = { version, accepted_at }` coerente con §24.3.2. Signature: `{ kind: "tos"|"privacy"|"replay_upload"|"marketing", version: str }`.
+1. **Bug path reso pubblico** — durante l'implementazione iniziale i nuovi endpoint e la UI consent modal erano scritti contro `/api/user/*` per una diagnosi errata del prefix router. Il prefix reale del router user è `/api/v1/user`, quindi `POST /api/user/consent` in produzione restituiva `405 Method Not Allowed`. Scoperto in verifica post-deploy del 24/04: consent modal legacy silent-fail → localStorage non settato → loop infinito upload/412. Fix via commit `05845e3` (A1 + A2 + A3): path corretto in `team_coaching.js`, `scripts/privacy_smoke_test.py`, `ALLOWED_PREFS` whitelist in `user_service.py` estesa con `consents` + `interest_to_pay` per il GDPR export. Doc drift (§24.8 + §24.11 + CLAUDE.md + MIGRATION_PLAN.md Z) allineati successivamente.
+2. **Consent endpoint aggiuntivo** — `POST /api/v1/user/consent` non era nel plan iniziale. Aggiunto durante implementazione come dipendenza del consent modal Board Lab (legacy + V3). Scrive `users.preferences.consents.<kind> = { version, accepted_at }` coerente con §24.3.2. Signature: `{ kind: "tos"|"privacy"|"replay_upload"|"marketing", version: str }`.
 3. **Copy sanitization post-review** — durante rendering utente su prod, sono emerse 3 correzioni non previste nel plan:
    - Menzioni esplicite `duels.ink` rimosse da *privacy/legal surfaces* (about.html Data Sources / Privacy / User data / dashboard info popup Data Sources / Scope Community). Surfaces funzionali (Settings nickname drawer, decklist paste, Board Lab upload instructions, Best Format Players info, card thumbnail CDN) **non modificate** — il nome serve all'utente per localizzare il suo nick/deck/replay file. Commit `1c2d5b9`.
    - `about.html` prev dichiarava "We don't use Disney or Lorcana logos or card images in our product" — affermazione falsa (usiamo card thumbnails dal CDN `cards.duels.ink`). Riscritto onestamente come fair-use: "Card images are displayed for commentary, analysis, and educational purposes under fair-use principles, loaded directly from public community CDNs. We do not redistribute or re-host them. We don't use official Disney or Lorcana logos." Commit `d13fdc9`.
@@ -3877,15 +3877,15 @@ indexes:
 
 **Interazione con V3 (frontend separato, `frontend_v3/`)**
 
-Backend ereditato automaticamente: V3 chiama le stesse API (`/api/v1/team/replay/*`, `/api/replay/*`, `/api/user/*`) quindi i check di ownership / consenso / anonymization / interest / export funzionano già adesso se V3 fa le chiamate giuste. Quello che V3 **non ha ancora** è il layer UX che forza l'utente attraverso il consent flow e mostra disclaimer. Vedere `docs/MIGRATION_PLAN.md` Appendice Z per la checklist di porting Legacy → V3.
+Backend ereditato automaticamente: V3 chiama le stesse API (`/api/v1/team/replay/*`, `/api/replay/*`, `/api/v1/user/*`) quindi i check di ownership / consenso / anonymization / interest / export funzionano già adesso se V3 fa le chiamate giuste. Quello che V3 **non ha ancora** è il layer UX che forza l'utente attraverso il consent flow e mostra disclaimer. Vedere `docs/MIGRATION_PLAN.md` Appendice Z per la checklist di porting Legacy → V3.
 
 **Smoke test T2/T3/T5/T6/T7 — copertura manuale (browser)**
 
 Non eseguiti in modalità automatica per evitare creazione di utenti test su DB prod. Ogni check corrisponde a un'azione UX reale, quindi la copertura arriva dal primo reale uso post-deploy:
 - T2 access-control → user A che vede "Your Replays" e NON vede quelli di user B
 - T3 consent required → primo upload Board Lab da utente senza consent → modal
-- T5 GDPR export includes team_replays → chiamata `/api/user/export` autenticata
-- T6 interest record → click "Unlock Pro" (quando il button esiste) + POST `/api/user/interest`
+- T5 GDPR export includes team_replays → chiamata `/api/v1/user/export` autenticata
+- T6 interest record → click "Unlock Pro" (quando il button esiste) + POST `/api/v1/user/interest`
 - T7 orphan denial → non-admin che prova a leggere la singola orphan row `Seton` → 403
 
 Fino al primo utente non-admin reale, T2/T3/T7 restano latenti. T5/T6 si validano da admin con curl autenticato (vedere commenti in `scripts/privacy_smoke_test.py`).
