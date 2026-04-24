@@ -60,7 +60,7 @@ Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred p
 | Task | Status | Nota |
 |------|--------|------|
 | **Header conversion** sopra killer curves | **DONE** | `cv2-conv-hdr` dinamico da top killer curve + critical turn |
-| **How to Respond** come sezione dedicata (archetype-based) | **DONE** | fallback da `threats[].response_*`; auto-popola da `mu.killer_responses` quando blob pieno (Fase B LLM) |
+| **How to Respond** inline in killer curve expansion (refactor A2, 24/04 sera) | **DONE** | gate per-curve: prime 3 curve free, 4ª+ con overlay paywall quando matchup >3/giorno |
 | **Mulligan reveal gated** | **DEFERRED** | richiede toccare Deck/Improve, rinviato per isolamento Play-only |
 | **Paywall 4° matchup/giorno** | **DONE** | nuovo `play_gate.js` (55 LOC), counter localStorage `play_matchups_viewed_YYYY-MM-DD`, overlay su "How to Respond" dal 4° matchup distinto |
 | **Home headline insight teaser** | **DONE** | worst matchup (min 20 games) sopra hero-row, click → Play con deck+opp preselezionati |

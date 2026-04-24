@@ -1459,7 +1459,7 @@ function renderCoachV2Tab(main) {
   if (_topCurveName) {
     content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45">
       <div style="color:var(--gold);font-weight:700;font-size:0.78em;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">The threat</div>
-      <div style="color:var(--text)"><strong>${_topCurveName}</strong>${_critTurn ? ` closes this matchup around turn <strong>${_critTurn}</strong>.` : '.'} Scroll for how to respond &rarr;</div>
+      <div style="color:var(--text)"><strong>${_topCurveName}</strong>${_critTurn ? ` closes this matchup around turn <strong>${_critTurn}</strong>.` : '.'} Expand a curve below to see how to respond &rarr;</div>
     </div>`;
   }
 
@@ -1681,7 +1681,24 @@ function renderCoachV2Tab(main) {
           content += `</div>`;
         });
       } else if (hasResponse) {
-        content += kcRenderResponse(tb.response, { compact: true });
+        // A.3 Soft gate: on 4th+ daily matchup, curves at idx>=3 hide response
+        // behind paywall overlay. First 3 curves free + session unlock bypass.
+        const _curveGated = (typeof playShouldGateResponse === 'function')
+          && playShouldGateResponse(coachDeck, coachOpp)
+          && idx >= 3;
+        if (_curveGated) {
+          content += `<div class="cv2-curve-response-gated premium-wall" style="position:relative;min-height:140px">
+            <div class="premium-content" style="filter:blur(3px);pointer-events:none;padding:8px">${kcRenderResponse(tb.response, { compact: true })}</div>
+            <div class="paywall-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);border-radius:6px;padding:12px;text-align:center">
+              <div style="font-size:1.5em;margin-bottom:4px">🔒</div>
+              <div style="font-weight:700;font-size:0.9em;margin-bottom:4px">Curve ${idx+1} locked</div>
+              <div style="font-size:0.78em;color:var(--text2);margin-bottom:8px">Curves 4+ for Pro &euro;9/m</div>
+              <button class="unlock-btn" onclick="event.stopPropagation();playSoftUnlock()" style="background:var(--gold);color:#000;border:0;padding:6px 14px;border-radius:4px;font-weight:600;font-size:0.85em;cursor:pointer">Unlock Play — 9&euro;/month</button>
+            </div>
+          </div>`;
+        } else {
+          content += kcRenderResponse(tb.response, { compact: true });
+        }
       } else {
         content += `<div style="color:var(--text2);font-size:0.85em">Response not yet analyzed.</div>`;
       }
@@ -1726,42 +1743,6 @@ function renderCoachV2Tab(main) {
 
     content += `</div></div>`; // cv2-threat-body + cv2-threat
   });
-
-  // A.3 How to Respond — dedicated block, soft-gated after 3rd daily matchup.
-  const _responses = mu.killer_responses || [];
-  const _responseFromThreats = threats.filter(t => t.response || t.response_otp || t.response_otd).map(t => ({
-    title: t.name || 'Threat',
-    otp: t.response_otp || t.response,
-    otd: t.response_otd || t.response,
-  }));
-  const _respItems = _responses.length ? _responses : _responseFromThreats;
-  if (_respItems.length) {
-    const _gated = (typeof playShouldGateResponse === 'function') && playShouldGateResponse(coachDeck, coachOpp);
-    const _inner = _respItems.slice(0, 3).map(r => `
-      <div style="padding:10px 12px;background:var(--bg1);border-radius:6px;margin-bottom:8px">
-        <div style="font-weight:700;color:var(--gold);margin-bottom:6px">${r.title || 'Response'}</div>
-        ${r.otp ? `<div style="font-size:0.88em;margin-bottom:4px"><span style="color:var(--green);font-weight:600">OTP:</span> ${r.otp}</div>` : ''}
-        ${r.otd && r.otd !== r.otp ? `<div style="font-size:0.88em"><span style="color:var(--sapphire);font-weight:600">OTD:</span> ${r.otd}</div>` : ''}
-      </div>`).join('');
-    content += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
-      <span class="tab-section-hdr__eyebrow">How to Respond</span>
-      <span class="tab-section-hdr__title">Play this, avoid that</span>
-    </div>`;
-    if (_gated) {
-      const _count = (typeof playMatchupsViewedCount === 'function') ? playMatchupsViewedCount() : 4;
-      content += `<div class="cv2-respond-block premium-wall" style="margin:12px 0">
-        <div class="premium-content" style="filter:blur(4px);pointer-events:none">${_inner}</div>
-        <div class="paywall-overlay">
-          <div class="lock-big">🔒</div>
-          <h3>You've scouted ${_count} matchups today</h3>
-          <p>Unlock unlimited matchup responses and full killer curve analysis &rarr; Pro &euro;9/m</p>
-          <button class="unlock-btn" onclick="playSoftUnlock()">Unlock Play — 9&euro;/month</button>
-        </div>
-      </div>`;
-    } else {
-      content += `<div class="cv2-respond-block" style="margin:12px 0">${_inner}</div>`;
-    }
-  }
 
   // 4. Secondary data: tabs at bottom — with section header
   content += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
