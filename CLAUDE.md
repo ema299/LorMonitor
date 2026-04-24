@@ -174,44 +174,42 @@ Azioni VPS eseguite 2026-04-22 07:45 UTC:
 
 La migration cassetto `7894044b7dd3_set12_launch_meta_epoch.py` NON è stata applicata (resta dormant, guard env). Head alembic = `7dec24a98839`.
 
-### Privacy Layer V3 (work in corso, 2026-04-24)
+### Privacy Layer V3 (live in produzione dal 2026-04-24)
 
-Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Documentato in `ARCHITECTURE.md §24 "Sensitive Data & Privacy Architecture — V3 Launch Layer"`.
+Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Documentato in `ARCHITECTURE.md §24 "Sensitive Data & Privacy Architecture — V3 Launch Layer"` con subsection `§24.11 Applied State`. Piano di porting Legacy → V3 in `docs/MIGRATION_PLAN.md` (Appendice Z).
 
-Stato progressivo (aggiornato a ogni step):
+**Backend** — live sul service `lorcana-api`:
 
-- [x] **§24 in ARCHITECTURE.md** — commit `2bb4ff3`
-- [x] **Migration `9a1e47b3f0c2_team_replays_ownership.py`** scritta — aggiunge `user_id`, `is_private`, `consent_version`, `uploaded_via`, `shared_with` + 2 indici. Revises `8890033ea91a`. **Non ancora applicata** (serve `alembic upgrade 9a1e47b3f0c2` su staging → prod) — commit `5f4b72d`
-- [x] Update `backend/models/team.py` con i 5 campi nuovi — commit `7aafab1`
-- [x] Deps helper `require_replay_access` / `require_replay_owner` — commit `1e7f6b2`
-- [x] Wiring access-control su endpoint `/api/v1/team/replay/*` (upload: consent check + ownership; list/get: filter per user_id + admin bypass) — commit `5999d66`
-- [x] `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service.build_replay_list` / `get_replay_game` + `main.py /api/replay/public-log` — commit `6f40d8d`
-- [x] Endpoint `POST /api/user/interest` (waitlist soft paywall) — commit `f032129`
-- [x] Endpoint `POST /api/user/consent` — commit `1abbdd0`
-- [x] Extend `user_service.export_user_data()` con `team_replays` — commit `6043444`
-- [x] Consent modal UI legacy `frontend/assets/js/team_coaching.js` (pre-upload gate) — commit `1abbdd0`
-- [x] Disclaimer footer + `frontend/about.html` — commit `5d986e5`
+- Alembic head: `9a1e47b3f0c2` — team_replays: +`user_id`, +`is_private`, +`consent_version`, +`uploaded_via`, +`shared_with` + 2 indici (commit `5f4b72d`)
+- Model update (`7aafab1`), deps `require_replay_access` / `require_replay_owner` (`1e7f6b2`), wiring access-control `/api/v1/team/replay/*` (`5999d66`)
+- `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service` + `match_log_features_service` (`6f40d8d`) — response JSON di `/api/replay/list|game|public-log` restituiscono `"Player"` / `"Opponent"` invece dei nick raw
+- `POST /api/user/interest` (`f032129`), `POST /api/user/consent` (`1abbdd0`), GDPR export esteso con `team_replays` (`6043444`)
 
-**Step deploy — stato:**
+**Frontend legacy** — live dopo SW invalidation:
 
-1. [x] `alembic upgrade 9a1e47b3f0c2` applicato su prod 2026-04-24 13:30 UTC. Head ora = `9a1e47b3f0c2`. Schema `team_replays` esteso (+5 colonne, +2 indici). 1 record pre-M1 resta orphan (`user_id NULL`). **Fix ownership pre-migration**: `team_replays` + `team_roster` erano owned by `postgres` (outlier storico — le altre 26 tabelle `public.*` sono owned by `lorcana_app`). Trasferite con `ALTER TABLE … OWNER TO lorcana_app` eseguito come postgres prima del `alembic upgrade`. Fix raccomandato anche per future migration sulle team tables.
-2. [x] Restart `lorcana-api.service` eseguito 2026-04-24 13:28 UTC. Pre-condizione risolta: c'era un `uvicorn` orphan PID `3661913` avviato manualmente 2 giorni prima (etime 2d 3h) detached da systemd che teneva la porta 8100 occupata → systemd in crash-loop. Killato orphan + `daemon-reload` (era pendente per il drop-in `admin-token.conf`) + `systemctl start`. Service live da PID `810410`, workers `810419` + `810420`. Smoke T4 (anonymization) ora PASS.
-3. [ ] Hard-refresh browser per caricare il nuovo frontend (consent modal, disclaimer)
-4. [ ] Smoke test A10 completo: richiede 2 user non-admin + 1 admin con JWT token
-5. [ ] Configurare alias mail `legal@metamonitor.app` (azione ops, fuori codebase)
+- Consent modal pre-upload in `frontend/assets/js/team_coaching.js` (`1abbdd0`)
+- Footer disclaimer + `frontend/about.html` (`5d986e5`)
+- Copy sanitization: no menzioni `duels.ink` in privacy surfaces + fair-use card images + no MMR/ELO numeric thresholds nella info popup (`1c2d5b9`, `d13fdc9`)
+- Email swap `legal@metamonitor.app` → `monitorteamfe@gmail.com` (`1c2d5b9`)
+- Service worker `CACHE_NAME=lorcana-privacy-v4` + strategia **network-first per HTML** (`e076524`) — da ora edit a dashboard.html/about.html arrivano on reload senza bump
 
-Backup dell'unica riga `team_replays` pre-M1: `/tmp/team_replays_pre_M1_20260424_132428.json` (1 record, player=`Seton`).
+**Apply sul VPS (2026-04-24)**:
 
-**Path divergenze rispetto al doc §24:**
-- `POST /api/user/interest` (non `/api/v1/user/interest` come documentato in §24.8) — il router user già usa prefix `/api/user`.
-- `POST /api/user/consent` — endpoint aggiuntivo emerso durante impl, usato dal consent modal Board Lab.
+1. Ownership fix (prerequisito): `team_replays` + `team_roster` erano owned by `postgres`, trasferite a `lorcana_app` via `ALTER TABLE ... OWNER TO lorcana_app` eseguito come postgres. Le altre 26 tabelle `public.*` erano già owned by `lorcana_app`. Fix raccomandato anche per future migration sulle team tables.
+2. `alembic upgrade 9a1e47b3f0c2` (13:30 UTC). Backup pre-M1 della singola riga esistente: `/tmp/team_replays_pre_M1_20260424_132428.json` (player `Seton`, rimasto orphan).
+3. Cleanup: killato `uvicorn` orphan PID `3661913` (avviato manualmente 2 giorni prima, detached da systemd) che teneva la porta 8100 occupata → systemd in crash-loop. `daemon-reload` (era pendente per il drop-in `admin-token.conf` del 22 Apr) + `systemctl restart lorcana-api` (13:28 UTC). Service live PID `810410` + workers.
+4. Smoke test A10 — `scripts/privacy_smoke_test.py`: T1 (schema) + T4 (anonymization API) PASS automatizzati. T2/T3/T5/T6/T7 coperti da manual browser check (checklist consegnata 24/04) — richiederebbero 2 user test + 1 admin con JWT.
 
-**V3 eredita tutto il backend automaticamente.** Il frontend V3 dovrà portare manualmente:
-- Consent modal (~40 righe JS, copiabili da `team_coaching.js`)
-- Disclaimer footer (~8 righe HTML)
-- Link `/about.html` dal footer
+**Ancora da fare (azioni ops, non-code)**:
 
-**Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
+- Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com` su Cloudflare Email Routing (10 min DNS). Quando è up, swappare indietro le 3 occorrenze nel footer/about.
+- Porting V3 di consent modal + disclaimer + copy sanitization — vedere `docs/MIGRATION_PLAN.md` Appendice Z per checklist completa.
+
+**Path reali (divergenze vs §24 first draft)**:
+- `POST /api/user/interest` (NON `/api/v1/user/interest`) — router user ha prefix `/api/user`. Allineato in §24.8 via commit `b3672d6`.
+- `POST /api/user/consent` — endpoint aggiuntivo aggiunto durante implementazione, usato dal consent modal Board Lab. Documentato in §24.8 aggiornato.
+
+**Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
 
 ---
 
@@ -227,4 +225,4 @@ Backup dell'unica riga `team_replays` pre-M1: `/tmp/team_replays_pre_M1_20260424
 
 ---
 
-*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 completo (10/10 step in git): §24 ARCHITECTURE + migration M1 + model + deps + access-control + anonymizer + interest + consent + GDPR export extension + legacy consent UI + disclaimer footer + /about.html. Nessun apply ancora eseguito (alembic upgrade + systemctl restart pending). Pre-22 Apr: Set12 readiness Fase S0 applicata (codice), alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
+*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 **live in produzione**: migration M1 applicata + service restart + anonymizer + access-control + consent flow legacy + disclaimer + /about.html + copy sanitization (no duels in privacy surfaces, fair-use card images, MMR/ELO scrubbed, `monitorteamfe@gmail.com`) + SW network-first per HTML. Smoke T1/T4 PASS. Resta: alias mail `legal@` + porting V3 (vedere `docs/MIGRATION_PLAN.md` Appendice Z). Pre-22 Apr: Set12 readiness Fase S0 applicata, legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*

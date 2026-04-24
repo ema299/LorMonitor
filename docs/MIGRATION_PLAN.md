@@ -356,7 +356,7 @@ Sostituisce e dettaglia Fase F-G. Dual-run e shadow mode obbligatori per ogni cu
 | **P2.5b** | KC spy reader → PG | basso-medio | ✅ FATTO (commit `8c2b84a`, cron 04:05 attivo) |
 | **P2.5c** | llm_worker cleanup | basso | ✅ FATTO (commit `9ec0f45`, file rimosso) |
 | **P2** | KC pipeline nativa (D2) | medio | ✅ FATTO (16/04 — vendorized + runner nativo, E2E verde) |
-| **P3** | Matchup reports nativi (D3) | alto | ✅ FATTO (16/04 — generator nativo da digest + turns PG, 7 report types) |
+| **P3** | Matchup reports nativi (D3) | alto | ✅ FATTO (16/04 — generator nativo, 7 report types; 24/04 — +`card_scores` nativo con `in_deck_rate`, 8° type) |
 | **P4** | Decommission analisidef | basso | DA FARE (dopo P2+P3 stabili ≥4 settimane) |
 | **P5** | lorcana_monitor failover (opzionale, robustezza) | alto | FUTURO |
 
@@ -506,7 +506,7 @@ Single-node senza failover. Non blocca indipendenza, è un miglioramento di robu
 |---|---|---|---|
 | D1 | `pipelines/playbook/generator.py` | ~~legge `analisidef/output/digest_*.json`~~ | ✅ CHIUSO 16/04 — `DIGEST_SOURCE=native` default, legge `App_tool/output/digests/` |
 | D2 | `scripts/generate_killer_curves.py` | ~~legge `analisidef/output/killer_curves_*.json`~~ | ✅ CHIUSO 16/04 — pipeline nativa: digest PG → OpenAI → PG `killer_curves` |
-| D3 | `scripts/generate_matchup_reports.py` | ~~legge `dashboard_data.json`~~ | ✅ CHIUSO 16/04 — 7 report types nativi da digest PG + turns JSONB |
+| D3 | `scripts/generate_matchup_reports.py` | ~~legge `dashboard_data.json`~~ | ✅ CHIUSO 16/04 — 7 report types nativi da digest PG + turns JSONB; 24/04 — aggiunto `card_scores` nativo con denominatore onesto `in_deck_rate` (distinct player-deck pairs), bug fix `is_current` demote pre-batch |
 
 ### Legacy script da rimuovere in P4 (non attivi runtime, ma coupling residuo)
 
@@ -544,7 +544,7 @@ Checklist fine giornata 15/04/2026:
 - [x] C1 Digest generator senza import da analisidef
 - [x] D1 Playbook generator senza `analisidef/output/digest_*.json` → **CHIUSO 16/04** (`DIGEST_SOURCE=native`)
 - [x] D2 KC pipeline nativa → **CHIUSO 16/04** (E2E: digest PG → OpenAI → PG, $0.034/matchup)
-- [x] D3 Matchup reports nativi → **CHIUSO 16/04** (132 matchup, 924 reports, 0 errors)
+- [x] D3 Matchup reports nativi → **CHIUSO 16/04** (132 matchup, 924 reports, 0 errors) + **24/04 card_scores nativo** (264 matchup × 8 types = 2206 reports, `in_deck_rate` denominator onesto)
 
 **Risposta alla domanda Liberation Day 16/04: AVANZATA**.
 - Runtime (richieste utente): ✅ SÌ — nessun endpoint o assembler rompe se analisidef è down
@@ -724,3 +724,66 @@ Componente Bloomberg-style in cima al Monitor tab. Due stream:
 **Twitch:** Lorecast (disneylorcana) — LIVE pulse + VOD. Setup: `echo 'CLIENT_ID:SECRET' > /tmp/.twitch_creds`
 
 **Crontab:** `0 */3 * * * cd .../App_tool && venv/bin/python scripts/fetch_news_feed.py`
+
+---
+
+## Appendice Z — Legacy → V3 privacy parity (24 Apr 2026)
+
+Il Privacy Layer V3 (ARCHITECTURE.md §24) è **live sul backend + frontend legacy** dal 2026-04-24. Il frontend V3 in `frontend_v3/` eredita automaticamente tutto il backend (stesse API), ma **non ha ancora** il layer UX che forza l'utente attraverso consent flow e mostra disclaimer / dati privacy. Questa sezione traccia cosa portare da `frontend/` a `frontend_v3/` prima del cutover V3.
+
+### Z.1 Cosa V3 eredita gratis (zero lavoro richiesto)
+
+Il backend privacy è server-side, quindi V3 ottiene il comportamento corretto dal momento in cui chiama gli endpoint:
+
+- **Anonymization automatica**: `/api/replay/list`, `/api/replay/game`, `/api/replay/public-log` restituiscono già `"Player"` / `"Opponent"` al posto dei nick raw. V3 deve solo renderizzare quello che arriva — niente logica client-side da scrivere.
+- **Access-control replay upload**: `/api/v1/team/replay/list|{game_id}` filtra per `user_id == current_user.id OR shared_with ∋ user.id OR is_admin`. V3 riceve solo le righe consentite.
+- **Consent check upload**: `POST /api/v1/team/replay/upload` rifiuta con `412 Precondition Failed` se `users.preferences.consents.replay_upload` mancante. V3 deve però intercettare il 412 e mostrare il modal.
+- **Ownership tracking**: ogni upload è ora auto-assegnato `user_id = current_user.id`, `is_private = true`, `consent_version`, `uploaded_via`. V3 non passa nulla di nuovo nel payload.
+- **GDPR export esteso**: `/api/user/export` già include `team_replays[]` con il dump completo. V3 deve esporre un button "Download my data" che fa GET a questo endpoint.
+- **Interest recording**: `POST /api/user/interest` pronto per waitlist soft paywall. V3 deve chiamarlo dai button "Unlock Pro" / "Unlock Coach".
+
+### Z.2 Checklist porting Legacy → V3 (obbligatorio pre-cutover V3)
+
+| # | Item | Source legacy | Destination V3 | Stima |
+|---|---|---|---|---|
+| Z.2.1 | Consent modal pre-upload Board Lab | `frontend/assets/js/team_coaching.js` righe 99-172 (funzioni `tcHasReplayUploadConsent`, `tcRequestReplayUploadConsent`, `tcUpload` guarded) | `frontend_v3/assets/js/team/board_lab.js` (o path equivalente V3) | 40 min |
+| Z.2.2 | Disclaimer footer | `frontend/dashboard.html` righe 5044-5050 (`<div class="footer">...`) | Layout V3 — footer condiviso su tutte le tab | 15 min |
+| Z.2.3 | Link `/about.html` nel footer V3 | Già fatto in legacy — la pagina `/about.html` è servita dallo static mount FastAPI, quindi funziona automaticamente anche da V3. Solo aggiungere `<a href="/about.html">About</a>` al footer V3 | - | 2 min |
+| Z.2.4 | Info popup Privacy + Disclaimer | `frontend/dashboard.html` righe 5065-5068 (sezioni Privacy + Disclaimer nell'`#info-popup`) | Equivalente V3 — wherever V3 ha il popup "i" | 20 min |
+| Z.2.5 | Copy sanitization: zero `duels.ink` in privacy surfaces V3 | Baseline: i testi Data Sources / Privacy / User data non devono menzionare la piattaforma community | `frontend_v3/` — audit + sostituisci con "public community match data" / "non-official Lorcana community platforms" | 30 min (dipende da quanto V3 ha duplicato i testi) |
+| Z.2.6 | Copy fair-use card images | Baseline: se V3 ha una sezione "cosa NON facciamo" o simile, **non** scrivere "we don't use card images" — è falso. Usa il wording fair-use di `about.html` riga 150 | `frontend_v3/` | 10 min |
+| Z.2.7 | No MMR/ELO numeric thresholds in info popup V3 | Baseline: niente `MMR ≥ 1300` / `MMR ≥ 1600` nelle definizioni di scope. Usa "high-tier competitive bracket" / "community ladder" | `frontend_v3/` | 10 min |
+| Z.2.8 | Email contact = `monitorteamfe@gmail.com` (temp, swap a `legal@metamonitor.app` quando alias DNS attivo) | 3 occorrenze legacy: footer dashboard, info popup disclaimer, about contact | `frontend_v3/` — ovunque il contact email appare | 10 min |
+| Z.2.9 | Consent error 412 handling sull'upload V3 | Pattern legacy: pre-check `tcHasReplayUploadConsent()` → se false, show modal → poi upload. Oppure post-check: tentare upload, se 412 → show modal → retry | `frontend_v3/` — stesso pattern, ma anche error handling se l'utente bypassa il consent via manipolazione client | 30 min |
+| Z.2.10 | Service worker strategy V3 — network-first per HTML | V3 ha già un proprio `frontend_v3/sw.js` (vedere `feedback_v3_service_worker_cache.md`). Replicare il pattern usato in `frontend/sw.js` post-`e076524`: `isHtmlRequest()` helper + branch network-first prima del cache-first | `frontend_v3/sw.js` | 20 min |
+| Z.2.11 | "Unlock Pro" / "Unlock Coach" call to `/api/user/interest` | Legacy non ha ancora il paywall button (il fake paywall modal non è stato implementato full in legacy) | `frontend_v3/` — quando implementi il paywall, fai POST `/api/user/interest` con `{tier: "pro"\|"coach"}` prima di mostrare il modal waitlist | 20 min |
+| Z.2.12 | "Download my data" button (GDPR) | Legacy non ha il button esposto in UI, solo l'endpoint esiste | `frontend_v3/` — Settings / Profile → button "Export my data" → GET `/api/user/export` con JWT → trigger download JSON | 25 min |
+
+**Totale stima porting V3**: ~4h se il layout V3 è pulito (1 file per tab + 1 file sw.js + 1 file footer condiviso). Fino a 6-7h se i testi sono duplicati in molti posti.
+
+### Z.3 Cosa NON va portato (intenzionalmente)
+
+- **Card thumbnail CDN URL** (`cards.duels.ink/lorcana/en/thumbnail/*.webp`) — tenere identico in V3. Self-hosting 2822 immagini è fuori scope. V3 legacy già punta a quel CDN via image helpers.
+- **Settings drawer "duels.ink Nickname" / "lorcanito Nickname"** — in V3 la UX del drawer Settings deve dire chiaramente quale piattaforma il nick appartiene (altrimenti l'utente non sa dove andare a recuperarlo). Non genericizzare le label nel drawer.
+- **Board Lab istruzioni upload** — "drag your `.replay.gz` exported from duels.ink" — tenere la menzione platform nelle istruzioni operative (l'utente deve sapere da dove esportare).
+- **Tour/tooltip tip** — se V3 ha un onboarding tour come legacy, le menzioni funzionali della piattaforma restano (sono istruzioni operative, non legal).
+
+Regola ombrello: **privacy/legal surfaces genericizzate, functional UX keeps platform name**. Stessa distinzione applicata al legacy (commit `1c2d5b9`).
+
+### Z.4 Dipendenze post-porting
+
+Una volta completato Z.2, restano 2 azioni operative non-code:
+
+1. **Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com`** (Cloudflare Email Routing, 10 min DNS). Quando attivo, swap indietro le 3 occorrenze legacy + le occorrenze V3 porting Z.2.8.
+2. **Monitoring primo flusso consent reale**: il primo utente non-admin che fa un upload Board Lab in V3 esegue di fatto T2/T3/T5 dello smoke A10 (vedere `scripts/privacy_smoke_test.py`). Nessuna azione preventiva necessaria — solo verifica da log nei primi giorni post-cutover V3.
+
+### Z.5 Head alembic — vincolo per deploy V3
+
+Alla data 2026-04-24 il DB produzione ha 2 head parallele alembic:
+
+- `9a1e47b3f0c2` — privacy M1 (applicata)
+- `7894044b7dd3` — Set12 launch (cassetto dormant, NON applicata)
+
+V3 deploy **non richiede ulteriori migration DB** (il privacy layer è già in M1). Se per qualsiasi motivo V3 aggiunge nuove migration, usare `alembic upgrade <new_revision>` specificando la revision target, NON `alembic upgrade head` (failerebbe su cassetto Set12 fino al reveal Ravensburger).
+
+---

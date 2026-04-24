@@ -3826,3 +3826,66 @@ Questa distinzione va scritta chiaramente nella Privacy Policy ma non impatta l'
 | C5 | Cookie banner se serve (solo se attivi analytics non-essenziali tipo GA) |
 | C6 | DPIA completa (Data Protection Impact Assessment) |
 | C7 | Data Processing Agreement con subprocessor (Hetzner, Paddle, Resend, OpenAI, Anthropic) |
+
+### 24.11 Applied State (Produzione, 2026-04-24)
+
+Tutto il layer §24 descritto sopra è **live in produzione** sul backend `lorcana-api` e sul frontend legacy `frontend/` dal 2026-04-24. La sezione riassume cosa è effettivamente deployato, le divergenze rispetto al plan originale, e l'interazione con V3.
+
+**Timeline applicata sul VPS** (tutti gli orari UTC):
+
+| Ora | Azione | Esito |
+|---|---|---|
+| 13:28 | `systemctl stop lorcana-api`, kill `uvicorn` orphan PID 3661913 (detached da systemd, etime 2d 3h, teneva port 8100 occupata), `daemon-reload`, `systemctl start lorcana-api` | Service up PID 810410 + 2 workers |
+| 13:29 | `ALTER TABLE team_replays OWNER TO lorcana_app;` + `ALTER TABLE team_roster OWNER TO lorcana_app;` (eseguito come user `postgres` via `sudo -u postgres psql`) | Outlier storico risolto: le due tabelle `team_*` erano owned by `postgres`, le altre 26 in `public.*` già by `lorcana_app`. Necessario pre-migration per evitare `InsufficientPrivilege` su `ALTER TABLE` |
+| 13:30 | `venv/bin/alembic upgrade 9a1e47b3f0c2` (NON `upgrade head` — la head parallela `7894044b7dd3` Set12 resta dormant) | Schema M1 live. Singola riga pre-M1 resta orphan (`user_id NULL`, player `Seton`), backup JSON in `/tmp/team_replays_pre_M1_20260424_132428.json` |
+| 13:35 | Smoke test `scripts/privacy_smoke_test.py` | T1 (schema) + T4 (anonymization API) PASS. T2/T3/T5/T6/T7 SKIP — richiedono JWT di 2 user test + 1 admin |
+
+**Stato schema `team_replays` post-M1**:
+
+```
+id              uuid         NOT NULL  default gen_random_uuid()
+player_name     varchar      NOT NULL
+game_id         varchar      NOT NULL  UNIQUE
+perspective     int          NULL
+opponent_name   varchar      NULL
+winner          int          NULL
+victory_reason  varchar      NULL
+turn_count      int          NULL
+replay_data     jsonb        NOT NULL
+created_at      timestamptz  NULL      default now()
+user_id         uuid         NULL      FK users(id) ON DELETE CASCADE  -- M1
+is_private      boolean      NOT NULL  default true                    -- M1
+consent_version varchar(10)  NULL                                      -- M1
+uploaded_via    varchar(20)  NULL                                      -- M1
+shared_with     jsonb        NOT NULL  default '[]'::jsonb             -- M1
+
+indexes:
+  idx_team_replays_user     (user_id) WHERE user_id IS NOT NULL          -- M1
+  idx_team_replays_private  (is_private, user_id)                         -- M1
+```
+
+**Divergenze dal plan iniziale**:
+
+1. **Path endpoint** — il plan originale §24.8 indicava `POST /api/v1/user/interest`. Il router user ha prefix `/api/user`, quindi il path reale è `POST /api/user/interest`. §24.8 aggiornato via commit `b3672d6`.
+2. **Consent endpoint aggiuntivo** — `POST /api/user/consent` non era nel plan iniziale. Aggiunto durante implementazione come dipendenza del consent modal Board Lab (legacy + V3). Scrive `users.preferences.consents.<kind> = { version, accepted_at }` coerente con §24.3.2. Signature: `{ kind: "tos"|"privacy"|"replay_upload"|"marketing", version: str }`.
+3. **Copy sanitization post-review** — durante rendering utente su prod, sono emerse 3 correzioni non previste nel plan:
+   - Menzioni esplicite `duels.ink` rimosse da *privacy/legal surfaces* (about.html Data Sources / Privacy / User data / dashboard info popup Data Sources / Scope Community). Surfaces funzionali (Settings nickname drawer, decklist paste, Board Lab upload instructions, Best Format Players info, card thumbnail CDN) **non modificate** — il nome serve all'utente per localizzare il suo nick/deck/replay file. Commit `1c2d5b9`.
+   - `about.html` prev dichiarava "We don't use Disney or Lorcana logos or card images in our product" — affermazione falsa (usiamo card thumbnails dal CDN `cards.duels.ink`). Riscritto onestamente come fair-use: "Card images are displayed for commentary, analysis, and educational purposes under fair-use principles, loaded directly from public community CDNs. We do not redistribute or re-host them. We don't use official Disney or Lorcana logos." Commit `d13fdc9`.
+   - Threshold MMR numerici (`MMR ≥ 1300`, `MMR ≥ 1600`) e abbreviazione `MMR = Matchmaking Rating` rimossi dalla info popup bottom-right — erano fingerprint verso la piattaforma community. Sostituito con "high-tier competitive bracket" / "community ladder". Button label "SET11 High ELO" nei tab **mantenuto** (è navigation UI, non una definizione pubblica — rimuoverlo toccherebbe 5+ punti nel codice). Commit `d13fdc9`.
+4. **Email contact** — `legal@metamonitor.app` non ancora un alias DNS reale. Sostituito con `monitorteamfe@gmail.com` (lo stesso account Gmail sender SMTP descritto in `reference_smtp_setup.md`) in tutte le 3 occorrenze (footer dashboard, info popup, about contact). Swap back quando l'alias Cloudflare Email Routing sarà configurato (azione ops, 10 min DNS, non-code).
+5. **Service worker strategy upgrade** — non previsto dal plan. Bumps di `CACHE_NAME` ripetuti (`v2` → `v3` → `v4`) hanno mostrato che cache-first su HTML obbliga a un bump manuale ogni edit di contenuto. Strategia cambiata a **network-first per documenti HTML** (con fallback cache offline), **cache-first invariato per JS/CSS/immagini/fonts**. `frontend/about.html` aggiunto a `STATIC_ASSETS` per pre-cache at install. Da `lorcana-privacy-v4` in poi, le edit al contenuto arrivano al client on reload senza dover bumpare. Commit `e076524`.
+
+**Interazione con V3 (frontend separato, `frontend_v3/`)**
+
+Backend ereditato automaticamente: V3 chiama le stesse API (`/api/v1/team/replay/*`, `/api/replay/*`, `/api/user/*`) quindi i check di ownership / consenso / anonymization / interest / export funzionano già adesso se V3 fa le chiamate giuste. Quello che V3 **non ha ancora** è il layer UX che forza l'utente attraverso il consent flow e mostra disclaimer. Vedere `docs/MIGRATION_PLAN.md` Appendice Z per la checklist di porting Legacy → V3.
+
+**Smoke test T2/T3/T5/T6/T7 — copertura manuale (browser)**
+
+Non eseguiti in modalità automatica per evitare creazione di utenti test su DB prod. Ogni check corrisponde a un'azione UX reale, quindi la copertura arriva dal primo reale uso post-deploy:
+- T2 access-control → user A che vede "Your Replays" e NON vede quelli di user B
+- T3 consent required → primo upload Board Lab da utente senza consent → modal
+- T5 GDPR export includes team_replays → chiamata `/api/user/export` autenticata
+- T6 interest record → click "Unlock Pro" (quando il button esiste) + POST `/api/user/interest`
+- T7 orphan denial → non-admin che prova a leggere la singola orphan row `Seton` → 403
+
+Fino al primo utente non-admin reale, T2/T3/T7 restano latenti. T5/T6 si validano da admin con curl autenticato (vedere commenti in `scripts/privacy_smoke_test.py`).
