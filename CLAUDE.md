@@ -192,13 +192,15 @@ Stato progressivo (aggiornato a ogni step):
 - [x] Consent modal UI legacy `frontend/assets/js/team_coaching.js` (pre-upload gate) — commit `1abbdd0`
 - [x] Disclaimer footer + `frontend/about.html` — commit `5d986e5`
 
-**Tutti gli step scritti sono in git. Nessuno è stato ancora applicato/deployato.** Step di apply separati (ordine consigliato):
+**Step deploy — stato:**
 
-1. `alembic upgrade 9a1e47b3f0c2` su staging → smoke test → prod
-2. Restart `lorcana-api.service` per caricare il nuovo codice backend
-3. Hard-refresh browser per caricare il nuovo frontend (consent modal, disclaimer)
-4. Smoke test A10 (§24.10 checklist): utente A non vede replay utente B via curl
-5. Configurare alias mail `legal@metamonitor.app` (azione ops, fuori codebase)
+1. [x] `alembic upgrade 9a1e47b3f0c2` applicato su prod 2026-04-24 13:30 UTC. Head ora = `9a1e47b3f0c2`. Schema `team_replays` esteso (+5 colonne, +2 indici). 1 record pre-M1 resta orphan (`user_id NULL`). **Fix ownership pre-migration**: `team_replays` + `team_roster` erano owned by `postgres` (outlier storico — le altre 26 tabelle `public.*` sono owned by `lorcana_app`). Trasferite con `ALTER TABLE … OWNER TO lorcana_app` eseguito come postgres prima del `alembic upgrade`. Fix raccomandato anche per future migration sulle team tables.
+2. [ ] Restart `lorcana-api.service` per caricare il nuovo codice backend — **non ancora fatto**. Finché non parte il restart, anonymizer/access-control/consent non sono attivi lato API (il servizio gira col codice pre-privacy). T4 smoke test fallisce per questo motivo.
+3. [ ] Hard-refresh browser per caricare il nuovo frontend (consent modal, disclaimer)
+4. [ ] Smoke test A10 completo: richiede 2 user non-admin + 1 admin con JWT token
+5. [ ] Configurare alias mail `legal@metamonitor.app` (azione ops, fuori codebase)
+
+Backup dell'unica riga `team_replays` pre-M1: `/tmp/team_replays_pre_M1_20260424_132428.json` (1 record, player=`Seton`).
 
 **Path divergenze rispetto al doc §24:**
 - `POST /api/user/interest` (non `/api/v1/user/interest` come documentato in §24.8) — il router user già usa prefix `/api/user`.
@@ -209,7 +211,7 @@ Stato progressivo (aggiornato a ogni step):
 - Disclaimer footer (~8 righe HTML)
 - Link `/about.html` dal footer
 
-**Head alembic dopo M1**: 3 head parallele (`7894044b7dd3` Set12 cassetto, `8890033ea91a` meta KC, `9a1e47b3f0c2` privacy). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto resta dormant.
+**Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
 
 ---
 
