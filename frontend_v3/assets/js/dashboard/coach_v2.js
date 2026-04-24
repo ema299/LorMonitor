@@ -1452,14 +1452,11 @@ function renderCoachV2Tab(main) {
     <button onclick="openCheatsheet()" style="background:linear-gradient(135deg,var(--gold),#E8C97A);color:var(--bg);border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:0.8em;cursor:pointer;white-space:nowrap;transition:transform 0.15s" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform=''">Pre-Match</button>
   </div>`;
 
-  // A.3 Conversion header — single-line insight above curves/responses.
-  const _topCurve = kc[0];
-  const _critTurn = _topCurve?.critical_turn?.turn || null;
-  const _topCurveName = _topCurve?.name || (threats[0]?.name) || '';
-  if (_topCurveName) {
-    content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45">
-      <div style="color:var(--gold);font-weight:700;font-size:0.78em;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">The threat</div>
-      <div style="color:var(--text)"><strong>${_topCurveName}</strong>${_critTurn ? ` closes this matchup around turn <strong>${_critTurn}</strong>.` : '.'} Expand a curve below to see how to respond &rarr;</div>
+  // A.3 Conversion header — frames all curves, prompts expansion for responses.
+  const _hasAnyCurve = (kc[0]?.name || threats[0]?.name) ? true : false;
+  if (_hasAnyCurve) {
+    content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45;color:var(--text)">
+      Each curve shows how you lose. Expand to see how to respond.
     </div>`;
   }
 
@@ -1691,8 +1688,7 @@ function renderCoachV2Tab(main) {
             <div class="premium-content" style="filter:blur(3px);pointer-events:none;padding:8px">${kcRenderResponse(tb.response, { compact: true })}</div>
             <div class="paywall-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);border-radius:6px;padding:12px;text-align:center">
               <div style="font-size:1.5em;margin-bottom:4px">🔒</div>
-              <div style="font-weight:700;font-size:0.9em;margin-bottom:4px">Curve ${idx+1} locked</div>
-              <div style="font-size:0.78em;color:var(--text2);margin-bottom:8px">Curves 4+ for Pro &euro;9/m</div>
+              <div style="font-weight:700;font-size:0.9em;margin-bottom:8px">More responses available &mdash; unlock all counterplays</div>
               <button class="unlock-btn" onclick="event.stopPropagation();playSoftUnlock()" style="background:var(--gold);color:#000;border:0;padding:6px 14px;border-radius:4px;font-weight:600;font-size:0.85em;cursor:pointer">Unlock Play — 9&euro;/month</button>
             </div>
           </div>`;
