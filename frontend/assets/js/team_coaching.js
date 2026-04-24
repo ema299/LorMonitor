@@ -103,7 +103,7 @@ function tcInit(containerId) {
 // Privacy layer §24.6: replay upload requires an explicit consent. We check
 // localStorage as a fast path; on first upload per browser we show a modal
 // that records the acceptance both client-side and server-side (POST
-// /api/user/consent). Backend enforces consent too — client-side gating is
+// /api/v1/user/consent). Backend enforces consent too — client-side gating is
 // UX, not security.
 const TC_REPLAY_CONSENT_VERSION = '1.0';
 const TC_REPLAY_CONSENT_KEY = 'tc_replay_upload_consent_v' + TC_REPLAY_CONSENT_VERSION;
@@ -153,7 +153,7 @@ function tcShowConsentModal(resolve) {
   overlay.querySelector('#tc-consent-cancel').onclick = () => close(false);
   overlay.querySelector('#tc-consent-accept').onclick = async () => {
     try {
-      await tcFetch('/api/user/consent', {
+      await tcFetch('/api/v1/user/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kind: 'replay_upload', version: TC_REPLAY_CONSENT_VERSION }),

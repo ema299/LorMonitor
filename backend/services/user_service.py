@@ -68,6 +68,12 @@ def update_nicknames(db: Session, user: User, duels_ink: str | None = None,
 ALLOWED_PREFS = {
     "language", "default_deck", "default_format", "notifications_email",
     "notifications_push", "theme", "country",
+    # Privacy layer V3 — read-only in the export pipeline. Writes go through
+    # the dedicated /api/v1/user/consent and /api/v1/user/interest endpoints,
+    # not through PUT /api/v1/user/preferences (update_preferences still
+    # funnels through this set, so these keys remain accepted there too —
+    # but the UI never writes them via the generic preferences PUT).
+    "consents", "interest_to_pay",
 }
 
 

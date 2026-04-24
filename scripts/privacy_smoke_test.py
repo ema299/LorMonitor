@@ -18,7 +18,7 @@ Checks (matches ARCHITECTURE.md §24.10 A10 and friends):
     T3  Consent — upload without preferences.consents.replay_upload -> 412
     T4  Anonymization — /api/replay/list and /api/replay/public-log hide nicknames
     T5  GDPR export — response includes team_replays + preferences
-    T6  Soft paywall — POST /api/user/interest records intent in preferences
+    T6  Soft paywall — POST /api/v1/user/interest records intent in preferences
     T7  Orphan records — pre-M1 replays (user_id IS NULL) denied for non-admin
 
 T2 and T7 need at least one non-admin user + an admin user. The script uses
@@ -238,7 +238,7 @@ def t5_gdpr_export(base: str, token: str | None) -> Result:
     if not token:
         r.skip("USER_A_TOKEN required")
         return r
-    resp = get(f"{base}/api/user/export", token=token)
+    resp = get(f"{base}/api/v1/user/export", token=token)
     if resp.status_code != 200:
         r.fail(f"status {resp.status_code}: {resp.text[:120]}")
         return r
@@ -252,12 +252,12 @@ def t5_gdpr_export(base: str, token: str | None) -> Result:
 
 
 def t6_interest(base: str, token: str | None) -> Result:
-    r = Result("T6 soft paywall — POST /api/user/interest records intent")
+    r = Result("T6 soft paywall — POST /api/v1/user/interest records intent")
     if not token:
         r.skip("USER_A_TOKEN required")
         return r
     resp = post(
-        f"{base}/api/user/interest",
+        f"{base}/api/v1/user/interest",
         token=token,
         json={"tier": "pro"},
     )
@@ -265,7 +265,7 @@ def t6_interest(base: str, token: str | None) -> Result:
         r.fail(f"status {resp.status_code}: {resp.text[:120]}")
         return r
     # Verify via export
-    exp = get(f"{base}/api/user/export", token=token)
+    exp = get(f"{base}/api/v1/user/export", token=token)
     if exp.status_code != 200:
         r.fail(f"verify via export failed: {exp.status_code}")
         return r
