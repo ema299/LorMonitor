@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
+from backend.models.team import TeamReplay
 from backend.models.user import User
 from backend.models.user_deck import UserDeck
 
@@ -168,13 +169,44 @@ def delete_deck(db: Session, user_id: uuid.UUID, deck_id: uuid.UUID) -> None:
 # ── GDPR Export ──────────────────────────────────────────────────────
 
 def export_user_data(db: Session, user: User) -> dict:
-    """Export all user data for GDPR compliance."""
+    """Export all user data for GDPR compliance.
+
+    Covers: profile, nicknames, preferences (including consents / waitlist /
+    interest_to_pay), saved decks, and Board Lab replay uploads owned by
+    this user. See ARCHITECTURE.md §24.9.
+    """
     decks = list_decks(db, user.id)
+
+    # Privacy §24.9: include all replays owned by this user (team_replays
+    # with user_id = user.id). Replays shared with this user but owned by
+    # others are intentionally excluded — they belong to the owner's export.
+    replays = db.query(TeamReplay).filter(TeamReplay.user_id == user.id).all()
+    replays_out = [
+        {
+            "id": str(r.id),
+            "game_id": r.game_id,
+            "player_name": r.player_name,
+            "opponent_name": r.opponent_name,
+            "perspective": r.perspective,
+            "winner": r.winner,
+            "victory_reason": r.victory_reason,
+            "turn_count": r.turn_count,
+            "is_private": r.is_private,
+            "consent_version": r.consent_version,
+            "uploaded_via": r.uploaded_via,
+            "shared_with": r.shared_with or [],
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "replay_data": r.replay_data,  # full parsed payload
+        }
+        for r in replays
+    ]
+
     return {
         "profile": get_profile(user),
         "nicknames": get_nicknames(user),
         "preferences": get_preferences(user),
         "decks": decks,
+        "team_replays": replays_out,
         "exported_at": datetime.utcnow().isoformat(),
     }
 
