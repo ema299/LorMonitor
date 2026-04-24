@@ -47,6 +47,12 @@ class UpdateDeckRequest(BaseModel):
     cards: dict | list | None = None
 
 
+class InterestRequest(BaseModel):
+    """Soft paywall / waitlist intent — user clicks "Unlock Pro" / "Unlock Coach"
+    before we have Stripe/Paddle live. See ARCHITECTURE.md §24.8."""
+    tier: str = Field(..., pattern="^(pro|coach|team)$")
+
+
 # ── Profile ──────────────────────────────────────────────────────────
 
 @router.get("/profile")
@@ -187,3 +193,34 @@ def export_data(
 ):
     """GDPR: export all user data as JSON."""
     return user_service.export_user_data(db, user)
+
+
+# ── Soft paywall / waitlist (pre-monetization) ───────────────────────
+
+@router.post("/interest")
+def register_interest(
+    payload: InterestRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Record user intent to upgrade tier, before Stripe/Paddle is live.
+
+    See ARCHITECTURE.md §24.8 (Fake Paywall / Waitlist).
+
+    Writes to users.preferences.interest_to_pay = { tier, at }.
+    Overwrites on each call (only the most recent intent is kept).
+    Use this to size demand before enabling real billing.
+    """
+    from datetime import datetime, timezone
+
+    prefs = dict(user.preferences or {})
+    prefs["interest_to_pay"] = {
+        "tier": payload.tier,
+        "at": datetime.now(timezone.utc).isoformat(),
+    }
+    user.preferences = prefs
+    # Mark the JSONB column as modified so SQLAlchemy flushes the change.
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(user, "preferences")
+    db.commit()
+    return {"ok": True, "tier": payload.tier}
