@@ -174,6 +174,25 @@ Azioni VPS eseguite 2026-04-22 07:45 UTC:
 
 La migration cassetto `7894044b7dd3_set12_launch_meta_epoch.py` NON è stata applicata (resta dormant, guard env). Head alembic = `7dec24a98839`.
 
+### Privacy Layer V3 (work in corso, 2026-04-24)
+
+Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Documentato in `ARCHITECTURE.md §24 "Sensitive Data & Privacy Architecture — V3 Launch Layer"`.
+
+Stato progressivo (aggiornato a ogni step):
+
+- [x] **§24 in ARCHITECTURE.md** — commit `2bb4ff3` (24 Apr)
+- [x] **Migration `9a1e47b3f0c2_team_replays_ownership.py`** scritta — aggiunge `user_id`, `is_private`, `consent_version`, `uploaded_via`, `shared_with` + 2 indici. Revises `8890033ea91a`. **Non ancora applicata** (serve `alembic upgrade 9a1e47b3f0c2` su staging → prod)
+- [ ] Update `backend/models/team.py` con i 5 campi nuovi del model `TeamReplay`
+- [ ] Deps helper `require_replay_access` / `require_replay_owner` in `backend/deps.py`
+- [ ] Wiring access-control su 5 endpoint `/api/v1/team/replay/*`
+- [ ] `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service` + `match_log_features_service`
+- [ ] Endpoint `POST /api/user/interest` (waitlist soft paywall)
+- [ ] Extend `user_service.export_user_data()` con `team_replays` + `preferences`
+- [ ] Consent checkbox UI Board Lab (legacy `frontend/`, da portare su V3 quando deployato)
+- [ ] Disclaimer footer "Unofficial fan-made" + `/about` page + `legal@` alias
+
+**Head alembic dopo M1**: 3 head parallele (`7894044b7dd3` Set12 cassetto, `8890033ea91a` meta KC, `9a1e47b3f0c2` privacy). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto resta dormant.
+
 ---
 
 ## Memoria persistente rilevante (`~/.claude/projects/*/memory/`)
@@ -188,4 +207,4 @@ La migration cassetto `7894044b7dd3_set12_launch_meta_epoch.py` NON è stata app
 
 ---
 
-*Ultimo aggiornamento: 22 Apr 2026 — Set12 readiness Fase S0 applicata (codice), restano alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
+*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 kickoff: §24 in ARCHITECTURE.md + migration M1 `9a1e47b3f0c2` scritta (non ancora applicata). Pre-22 Apr: Set12 readiness Fase S0 applicata (codice), alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
