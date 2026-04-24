@@ -180,16 +180,34 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 
 Stato progressivo (aggiornato a ogni step):
 
-- [x] **§24 in ARCHITECTURE.md** — commit `2bb4ff3` (24 Apr)
-- [x] **Migration `9a1e47b3f0c2_team_replays_ownership.py`** scritta — aggiunge `user_id`, `is_private`, `consent_version`, `uploaded_via`, `shared_with` + 2 indici. Revises `8890033ea91a`. **Non ancora applicata** (serve `alembic upgrade 9a1e47b3f0c2` su staging → prod)
-- [ ] Update `backend/models/team.py` con i 5 campi nuovi del model `TeamReplay`
-- [ ] Deps helper `require_replay_access` / `require_replay_owner` in `backend/deps.py`
-- [ ] Wiring access-control su 5 endpoint `/api/v1/team/replay/*`
-- [ ] `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service` + `match_log_features_service`
-- [ ] Endpoint `POST /api/user/interest` (waitlist soft paywall)
-- [ ] Extend `user_service.export_user_data()` con `team_replays` + `preferences`
-- [ ] Consent checkbox UI Board Lab (legacy `frontend/`, da portare su V3 quando deployato)
-- [ ] Disclaimer footer "Unofficial fan-made" + `/about` page + `legal@` alias
+- [x] **§24 in ARCHITECTURE.md** — commit `2bb4ff3`
+- [x] **Migration `9a1e47b3f0c2_team_replays_ownership.py`** scritta — aggiunge `user_id`, `is_private`, `consent_version`, `uploaded_via`, `shared_with` + 2 indici. Revises `8890033ea91a`. **Non ancora applicata** (serve `alembic upgrade 9a1e47b3f0c2` su staging → prod) — commit `5f4b72d`
+- [x] Update `backend/models/team.py` con i 5 campi nuovi — commit `7aafab1`
+- [x] Deps helper `require_replay_access` / `require_replay_owner` — commit `1e7f6b2`
+- [x] Wiring access-control su endpoint `/api/v1/team/replay/*` (upload: consent check + ownership; list/get: filter per user_id + admin bypass) — commit `5999d66`
+- [x] `backend/services/replay_anonymizer.py` + wiring in `replay_archive_service.build_replay_list` / `get_replay_game` + `main.py /api/replay/public-log` — commit `6f40d8d`
+- [x] Endpoint `POST /api/user/interest` (waitlist soft paywall) — commit `f032129`
+- [x] Endpoint `POST /api/user/consent` — commit `1abbdd0`
+- [x] Extend `user_service.export_user_data()` con `team_replays` — commit `6043444`
+- [x] Consent modal UI legacy `frontend/assets/js/team_coaching.js` (pre-upload gate) — commit `1abbdd0`
+- [x] Disclaimer footer + `frontend/about.html` — commit `5d986e5`
+
+**Tutti gli step scritti sono in git. Nessuno è stato ancora applicato/deployato.** Step di apply separati (ordine consigliato):
+
+1. `alembic upgrade 9a1e47b3f0c2` su staging → smoke test → prod
+2. Restart `lorcana-api.service` per caricare il nuovo codice backend
+3. Hard-refresh browser per caricare il nuovo frontend (consent modal, disclaimer)
+4. Smoke test A10 (§24.10 checklist): utente A non vede replay utente B via curl
+5. Configurare alias mail `legal@metamonitor.app` (azione ops, fuori codebase)
+
+**Path divergenze rispetto al doc §24:**
+- `POST /api/user/interest` (non `/api/v1/user/interest` come documentato in §24.8) — il router user già usa prefix `/api/user`.
+- `POST /api/user/consent` — endpoint aggiuntivo emerso durante impl, usato dal consent modal Board Lab.
+
+**V3 eredita tutto il backend automaticamente.** Il frontend V3 dovrà portare manualmente:
+- Consent modal (~40 righe JS, copiabili da `team_coaching.js`)
+- Disclaimer footer (~8 righe HTML)
+- Link `/about.html` dal footer
 
 **Head alembic dopo M1**: 3 head parallele (`7894044b7dd3` Set12 cassetto, `8890033ea91a` meta KC, `9a1e47b3f0c2` privacy). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto resta dormant.
 
@@ -207,4 +225,4 @@ Stato progressivo (aggiornato a ogni step):
 
 ---
 
-*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 kickoff: §24 in ARCHITECTURE.md + migration M1 `9a1e47b3f0c2` scritta (non ancora applicata). Pre-22 Apr: Set12 readiness Fase S0 applicata (codice), alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
+*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 completo (10/10 step in git): §24 ARCHITECTURE + migration M1 + model + deps + access-control + anonymizer + interest + consent + GDPR export extension + legacy consent UI + disclaimer footer + /about.html. Nessun apply ancora eseguito (alembic upgrade + systemctl restart pending). Pre-22 Apr: Set12 readiness Fase S0 applicata (codice), alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
