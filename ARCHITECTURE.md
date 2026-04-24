@@ -3648,7 +3648,7 @@ Al lancio non fatturiamo ancora. Il paywall serve comunque per misurare intent e
 ```
 User clicca "Unlock Pro — €9/m"
   ↓
-  writeInterest('pro')                 // POST /api/v1/user/interest
+  writeInterest('pro')                 // POST /api/user/interest
   ↓
   UI overlay: "Sei in waitlist. Ti scriveremo quando apriamo i pagamenti.
               Intanto, codice promo? [ input ]"
@@ -3657,24 +3657,58 @@ User clicca "Unlock Pro — €9/m"
   Altrimenti → nessun cambio tier, solo intent registrato
 ```
 
-**Endpoint nuovo (1 solo):**
+**Endpoint nuovo (implementazione reale, commit `f032129`):**
 
 ```python
 # backend/api/user.py — additive
+# Mounted under router prefix /api/user → full path POST /api/user/interest
+class InterestRequest(BaseModel):
+    tier: str = Field(..., pattern="^(pro|coach|team)$")
+
 @router.post("/interest")
 def register_interest(
-    tier: str = Body(..., regex="^(pro|coach)$"),
+    payload: InterestRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    prefs = user.preferences or {}
+    prefs = dict(user.preferences or {})
     prefs["interest_to_pay"] = {
-        "tier": tier,
-        "at": datetime.utcnow().isoformat()
+        "tier": payload.tier,
+        "at": datetime.now(timezone.utc).isoformat(),
     }
     user.preferences = prefs
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(user, "preferences")
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "tier": payload.tier}
+```
+
+**Nota path:** la prima bozza di questa sezione riportava `/api/v1/user/interest`.
+Il prefix effettivo del router user è `/api/user`, quindi il path reale è
+`/api/user/interest`. Allineato post-implementazione.
+
+**Endpoint collegato (commit `1abbdd0`): `POST /api/user/consent`** — usato dal
+consent modal Board Lab prima dell'upload. Vedi §24.3.2 per lo schema di
+`preferences.consents.<kind>` scritto da questo endpoint:
+
+```python
+class ConsentRequest(BaseModel):
+    kind: str = Field(..., pattern="^(tos|privacy|replay_upload|marketing)$")
+    version: str = Field(..., min_length=1, max_length=10)
+
+@router.post("/consent")
+def register_consent(payload: ConsentRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    prefs = dict(user.preferences or {})
+    consents = dict(prefs.get("consents", {}))
+    consents[payload.kind] = {
+        "version": payload.version,
+        "accepted_at": datetime.now(timezone.utc).isoformat(),
+    }
+    prefs["consents"] = consents
+    user.preferences = prefs
+    flag_modified(user, "preferences")
+    db.commit()
+    return {"ok": True, "kind": payload.kind, "version": payload.version}
 ```
 
 **Cosa evitare:**
