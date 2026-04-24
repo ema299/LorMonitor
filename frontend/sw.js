@@ -1,7 +1,8 @@
-const CACHE_NAME = 'lorcana-privacy-v3';
+const CACHE_NAME = 'lorcana-privacy-v4';
 const STATIC_ASSETS = [
   '/',
   '/dashboard.html',
+  '/about.html',
   '/chart.min.js',
   '/manifest.json',
   '/icon-192.svg',
@@ -28,6 +29,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isHtmlRequest(request, url) {
+  if (request.destination === 'document') return true;
+  if (url.pathname === '/' || url.pathname.endsWith('.html')) return true;
+  return false;
+}
+
 // Fetch strategy
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -53,7 +60,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets
+  // Network-first for HTML documents. Keeps content edits visible without
+  // needing a CACHE_NAME bump each time; offline fallback served from cache.
+  if (isHtmlRequest(event.request, url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for non-HTML static assets (JS, CSS, images, fonts)
   event.respondWith(
     caches.match(event.request)
       .then(cached => {
