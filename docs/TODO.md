@@ -1,261 +1,306 @@
-# App_tool — TODO Prodotto
+# App_tool — TODO Master
 
-Master TODO del prodotto finale `metamonitor.app`. Questo file vive in App_tool (non in analisidef) perché qui abita il prodotto utente.
+**Ultimo aggiornamento:** 24 Aprile 2026 (sera, reality-aligned)
+**Scope:** master TODO operativo di `metamonitor.app`. Tre sezioni ordinate per impatto business.
 
-Linka a:
-- [`ARCHITECTURE.md`](../ARCHITECTURE.md) — architettura target, endpoint, schema DB
-- [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) — migrazione runtime da analisidef (Fase F-H futuro)
-- [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) — readiness per release Set 12 (capture match transition window, meta_epochs, dual perimeter)
-- [`KC_REVIEW.md`](KC_REVIEW.md) — review costo/qualità killer curves (schema v2, lingua EN, cost tracking)
-- [`CLAUDE.md`](../CLAUDE.md) — entry point operativo (layout, pattern UI, flow lavoro)
+## Regola operativa per Claude
 
-**Separazione di scope**:
-- `analisidef/` = ambiente R&D, dashboard porta 8060 per sperimentazione, generazione killer curves + replay viewer
-- `App_tool/` = **prodotto finale** (`metamonitor.app`), questo TODO qui
+- **Sezione A — PRE-LAUNCH (max 7 giorni)**: tutto ciò che sblocca lancio/conversione. Non si aggiungono task qui se non davvero bloccanti. Se in dubbio → Sezione B.
+- **Sezione B — POST-LAUNCH (entro 30 giorni)**: miglioramenti che contano ma non bloccano. Ordinati per impatto business, non per eleganza tecnica.
+- **Sezione C — TECH DEBT (separato, non bloccante)**: refactor, split file, cleanup, migration. Nessuno di questi blocca il lancio.
 
----
+**Non spezzare questa distinzione.** Ogni task deve stare in A o B o C. Se un task appare in A ma è refactor, viene spostato in C.
 
-## 1. Feature completate (14 Apr 2026)
+**Vincoli preservati (non rinegoziabili pre-launch):**
+- V3 resta a **7 tab primary** (Home · Play · Meta · Deck · Team · Improve · Events). NO 5+2. NO drawer. NO Pro Tools / Community contenitore.
+- Meta, Deck, Events non si toccano salvo bug. Sono già maturi.
+- Pagamento reale SOLO dopo struttura fiscale chiara. Fino ad allora: fake paywall + interest tracking (già live).
+- Focus correzioni pre-launch: **Play** (conversion clarity) + **privacy minima** + **Board Lab wiring minimo**. Improve debole, migliorato post-launch.
 
-| Feature | Dove | Doc |
-|---------|------|-----|
-| **Deck Fitness Score** (strip 0-100 meta-weighted) | Monitor tab | `ARCHITECTURE.md` "Monitor redesign" + §7.1 endpoint `/deck-fitness` |
-| **Matchup Matrix 14×14** (heatmap desktop + list mobile, click → Coach V2) | Monitor tab | `ARCHITECTURE.md` "Monitor redesign" |
-| **Card Impact (IWD)** causal drawn-by-T3 | Lab tab | `ARCHITECTURE.md` "Card Impact (IWD) — Lab tab" + §7.1 endpoint `/iwd` |
-| **Uniformità accordion** gold-title + "?" + chevron dx | Monitor, Coach V2, Lab (10 accordion) | `ARCHITECTURE.md` "UI uniformity pass" |
-| **Cross-tab navigation** click matrix cell → Coach V2 pre-selected | Monitor → Coach V2 | `CLAUDE.md` pattern cross-tab |
-
-**Zero regressione**: tutti i cambi additivi. Pattern `monAccordion` retrocompatibile (default `desktopOpen: true`).
+**Documenti sibling:** [`BP.md`](BP.md) · [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) · [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) · [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) · [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md) · [`DECK_REFACTOR_PARITY.md`](DECK_REFACTOR_PARITY.md) · [`KC_REVIEW.md`](KC_REVIEW.md) · [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md) · [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
 
 ---
 
-## 1b. Feature completate (16 Apr 2026)
+# Sezione A — PRE-LAUNCH (max 7 giorni)
 
-| Feature | Dove | Doc |
-|---------|------|-----|
-| **Meta Ticker** scrolling (Bloomberg-style) | Monitor tab (sopra Deck Fitness) | NEWS/VIDEO/BUZZ/META/LIVE labels, pause on hover |
-| YouTube RSS news feed (13 canali, auto 3h) | `scripts/fetch_news_feed.py` | Tier 1+2 EN + 2 affiliati IT (ToL, IkB), filtro keyword multi-TCG |
-| Twitch Helix integration (Lorecast) | `scripts/fetch_news_feed.py` | LIVE pulse + VOD recenti (attende credenziali dev.twitch.tv) |
-| News admin API | `backend/api/news.py` | GET `/api/v1/news/ticker` (pub), POST+DELETE (admin) |
-| Tabella `news_feed` PG | `backend/models/news_feed.py` | UUID PK, label/source/title/url/channel, expires_at 24h, partial unique (source,url) |
-| **Format toggle in tab bar** (desktop) | Monitor/Coach/Lab tabs | Core/Infinity a dx nella tab bar desktop, format-bar mobile |
-| **Copy decklist pulito** (import-friendly) | Monitor Best Players + Lab Optimized | Rimossi `*` e `?` dal copy text, formato `qty CardName` |
-| **Copy buttons mobile-friendly** | Monitor Best Players | Info + bottoni su righe separate, `flex:1`, min-height 34px |
-| **Standard List senza scroll** | Profile tab | Rimosso max-height/overflow, blocco unico visibile |
+Scope: sblocco lancio + conversione minima. **Non toccare Meta, Deck, Events, Community salvo bug.**
 
----
+Ordine non è temporale 1→2→3→… ma per impatto business. Sequenza giorno-per-giorno in [`BP.md`](BP.md) §12.1.
 
-## 2. Feature pending — Benchmark competitivo
+## A.1. Privacy — bug fix reali + verifica regressione
 
-Dal benchmark vs tool TCG (17Lands, HSReplay, Untapped.gg, Firestone, Limitless Labs, inkDecks, Duels.ink, Lorcanito, Metafy) del 14/04/2026.
+| Task | Dove | Stato | Priorità |
+|------|------|-------|----------|
+| Verifica `POST /api/v1/user/consent` funziona (consent modal Board Lab legacy) | `backend/api/user.py` + `frontend/assets/js/team_coaching.js` (commit `05845e3`) | Fix committato 24/04, verifica post-deploy | P0 |
+| Export GDPR include `consents` + `interest_to_pay` nel whitelist | `backend/services/user_service.py` ALLOWED_PREFS | Fix committato 24/04, verifica | P0 |
+| Smoke test `scripts/privacy_smoke_test.py` aggiornato con i 2 fix sopra | `scripts/privacy_smoke_test.py` | Verifica dopo restart | P0 |
+| Alias mail `legal@metamonitor.app` → `monitorteamfe@gmail.com` su Cloudflare Email Routing | Ops DNS | 10 min | P1 |
 
-**Differenziatori nostri unici** (nessun competitor ha): threats LLM, killer curves multi-profilo, Board Lab replay animato, multi-language (IT/DE/ZH/JA), pre-match cheatsheet, Events + Community hub, Deck Fitness Score, Card Impact IWD, Matchup Matrix NxN cliccabile.
+## A.2. Porting minimo V3 (solo quello che manca davvero)
 
-**Gap da colmare**:
+| Task | Dove | Effort | Priorità |
+|------|------|--------|----------|
+| Consent modal V3 (port da legacy commit `1abbdd0`) | `frontend_v3/assets/js/dashboard/team.js` + nuovo modal component | 0.5 dev day | P0 |
+| 412 handling upload Board Lab (se consent mancante) | `frontend_v3/assets/js/dashboard/team.js` upload hook | 2 h | P0 |
+| Placeholder Set 12 Hub → URL reali (`FORM_ACTION` + `DISCORD_INVITE`) | `frontend_v3/assets/js/dashboard/set12_hub.js:27-34` | 15 min (quando URL pronti) | P0 |
+| Verifica footer disclaimer + `/about.html` link (già live) | `frontend_v3/dashboard.html:89-116` | Regressione check | P1 |
+| Verifica fake paywall → POST `/api/v1/user/interest` (già live, `monolith.js:858`) | E2E test manuale | 1 h | P0 |
 
-| # | Feature | Competitor leader | Effort | Priorità | Sblocco |
-|---|---------|------------------|--------|----------|---------|
-| A | Replay v2 animato dashboard viewer (port Board Lab → Coach V2 + Lab) | Duels.ink (solo .gz raw) | 5-7 dev days | Alta | Nessuno |
-| B | **Sideboard LLM cheatsheet + Copy Discord** | Metafy (human coach pagamento) | 4-5 dev days + ~$3-5/mese OpenAI | **CRITICAL PATH** | Fase B LLM batch (attiva anche Key Threats + How to Respond) |
-| C | Public Player Profile `/player/<nick>` shareable | Untapped.gg (2024, driver virale) | 6-8 dev days | Media | Privacy review + opt-in flow + email duels.ink |
-| D | Tournament path / conversion rate per round | Limitless Labs | 2-3 dev days | Bassa | Dati PRO/TOP già disponibili |
-| E | In-game overlay live tracking | HSReplay, Firestone, Untapped | Strutturale | **No-go** | Duels.ink è browser chiuso |
-| F | VOD annotation collaborative review | Insights.gg | Scope ampio | Post-MVP | — |
+**NON fare pre-launch:** refactor `team_coaching.js` (resta copia legacy), rimozione `views/` scaffolding, ristrutturazione nav, drawer.
 
-## 2.0. Priorità operative correnti
+## A.3. Play — conversion clarity (core commerciale)
 
-- **P0** = rischio produzione / qualità dato / verifica post-fix
-- **P1** = backlog vicino al prodotto, utile nelle prossime iterazioni
-- **P2** = medio termine, infra o feature più ampie
+Oggi Play ha killer curves ma manca la narrativa "insight → risposta" che guida al paywall. Vedi [`BP.md`](BP.md) §3.2 (conversion loop) + [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) §4.2.
 
-## 2.1. Replay viewer logs pubblico — update 16/04/2026
+| Task | Dove | Effort | Priorità |
+|------|------|--------|----------|
+| **Header conversion** sopra killer curves: 1-2 righe di insight matchup-specific ("Questo matchup ti chiude a T5 con queste carte. Ecco come rispondi.") | `coach_v2.js:1539` render prima del blocco Killer Curves | 0.5 dev day | P0 |
+| **How to Respond** come sezione dedicata (archetype-based ok per lancio, limitazione dichiarata in [`BP.md`](BP.md) §2.4), gated `wrapPremium('coach')` | `coach_v2.js` + `deck_response_check.js` | 1 dev day | P0 |
+| **Mulligan reveal gated** — verificare che fake unlock avvenga solo dopo `recordPaywallIntent('pro')`, non di default | `deck_improve.js` + `improve_play_tools.js` + `wrapPremium` hook | 2 h verify | P0 |
+| **Paywall 4° matchup/giorno** — counter localStorage `matchups_viewed_today`, reset 00:00 UTC, overlay Pro on trigger | `monolith.js` + `coach_v2.js` hook su matchup render | 0.5 dev day | P0 |
+| **Home headline insight teaser** sopra matchup chip ("Your worst matchup is X · Open Play →"). Dati già nel blob, solo render. | `profile.js:181` Home | 2 h | P1 |
 
-Stato reale dopo la sessione di oggi:
+## A.4. Board Lab — wiring minimo
 
-- il viewer logs pubblico ora e' **PG-first**
-- `/api/replay/list` e `/api/replay/game` espongono `match_id`
-- `/api/replay/public-log?match_id=...` serve `viewer_public_log` derivato da PG
-- `viewer_public_log.viewer_timeline` e' il contratto canonico del viewer logs
-- il frontend `rv*` in `frontend/dashboard.html` usa `viewer_timeline` e fallbacka al legacy solo se il `public-log` manca
+**Obiettivo pre-launch:** upload owner-only funziona + access-control attivo. Flusso completo resta nel legacy `team_coaching.js` (NO refactor).
 
-Lavori fatti oggi:
+| Task | Dove | Effort | Priorità |
+|------|------|--------|----------|
+| Verifica `require_replay_access` / `require_replay_owner` wired su `/api/v1/team/replay/*` | `backend/api/team.py` dependency injection | 1 h | P0 |
+| Verifica ownership `team_replays.user_id` attiva (migration M1 `9a1e47b3f0c2`) | PG check | 15 min | P0 |
+| Stub `team.js:300` "coming soon" — lasciare così, decidere se nascondere o mostrare placeholder | `frontend_v3/assets/js/dashboard/team.js:300` | 15 min | P1 |
 
-| Task | Dove | Stato | Note |
-|------|------|-------|------|
-| `match_id` / `external_id` nel replay viewer pubblico | `backend/services/replay_archive_service.py` | Fatto | collega archive PG ai match reali |
-| Endpoint `GET /api/replay/public-log` | `backend/main.py` | Fatto | lazy-build se row assente o vecchia |
-| `viewer_timeline` canonico | `backend/services/match_log_features_service.py` | Fatto | `source/targets/fx/board_before/after/resources` |
-| Viewer logs legge `viewer_timeline` | `frontend/dashboard.html` | Fatto | niente bypass raw nel path principale |
-| Micro-step virtuali | `frontend/dashboard.html` | Fatto | `attack→damage→banish`, `quest→lore`, `spell/effect`, `ability/resolve` |
-| Strip turni per mezzo turno | `frontend/dashboard.html` | Fatto | `T1 Us`, `T1 Opp`; click = autoplay di quel mezzo turno |
-| Board pass stile tavolo | `frontend/dashboard.html` | Parziale | zone `exerted/ready/items`, inkwell, deck/discard |
+## A.5. Go-live ops
 
-TODO residui specifici viewer logs:
+| Task | Dove | Effort | Priorità |
+|------|------|--------|----------|
+| **V3 swap one-liner** — `FRONTEND_DIR` in `_serve_dashboard()` da `frontend/` a `frontend_v3/`. Eseguire come ULTIMA azione settimana 1. | `backend/main.py` | 5 min + restart | P0 (ultima azione) |
+| QA end-to-end: tab switch, paywall triggers, consent flow, upload owner-only, mobile + desktop | manuale | 1 dev day | P0 |
+| Verifica service worker `frontend_v3/sw.js` self-destruct pulisce cache utenti legacy | client-side monitoring | auto | P1 |
 
-| Task | Dove | Effort | Note |
-|------|------|--------|------|
-| Canonicalizzare `deck` / `discard` nel decoder backend | `backend/services/match_log_features_service.py` | 0.5-1 dev day | oggi sono ancora derived nel viewer |
-| Inkwell con identita' carta stabile + stato `spent` per carta | backend decoder + viewer | 1-2 dev days | serve per transizioni precise "gira l'ink usato" |
-| Board renderer con slot stabili (meno `flex-wrap`) | `frontend/dashboard.html` | 2-3 dev days | e' il passo vero verso "come duels" |
-| Frecce board-level vere (coordinate sorgente→target) | frontend viewer | 1-2 dev days | oggi highlight + pannello, non arrow geometry |
-| Dedup effect edge cases nel decoder backend | `match_log_features_service.py` | 0.5-1 dev day | Bobby/T2 e simili oggi mitigati in frontend |
+## A.6. Ciò che NON si fa pre-launch (decisioni preservate)
 
----
+Se qualcuno propone uno di questi, rispondere "post-launch" e non discutere. Vale anche per Claude.
 
-## 3. Frontend accordion in attesa di dati backend
-
-Sezioni **già implementate** in `frontend/dashboard.html` con pattern `monAccordion` uniforme, guardia `if (data.length > 0)` → **"fail closed"** (non appaiono finché il campo blob è vuoto).
-
-Documento di riferimento: `ARCHITECTURE.md` §12.
-
-| Sezione | Tab | Campo blob atteso | Sblocco |
-|---------|-----|-------------------|---------|
-| **Key Threats** | Coach V2 | `matchup_analyzer.<deck>.vs_<opp>.threats_llm.threats[]` | Fase B LLM batch |
-| **How to Respond — OTP vs OTD** | Coach V2 | `matchup_analyzer.<deck>.vs_<opp>.killer_responses[]` | Fase B LLM pass 3 + importer update |
-| **Best Plays** | Profile | `best_plays`, `best_plays_infinity` | Query Python su killer curves avversarie (1 dev day) |
-
-**Principio**: nessuna sezione rimossa anche se il dato manca. Il rebuild blob (cache 2h) popola automaticamente al prossimo batch senza richiedere modifiche frontend.
+- ❌ Ristrutturazione nav 5+2 / drawer "..." / creazione tab Community contenitore / Pro Tools
+- ❌ School of Lorcana placeholder
+- ❌ Replay Viewer inline in Play ("See it happen")
+- ❌ Sideboard LLM batch (Feature B) — richiede $3-5/m OpenAI + 1 settimana dev
+- ❌ Nickname bridge completo / country segmentation
+- ❌ Coach page pubblica `/coach/<slug>` + affiliate tracking
+- ❌ Split file `monolith.js` / `coach_v2.js` / `monitor.js` / `profile.js`
+- ❌ Refactor `team_coaching.js` copia legacy
+- ❌ Rimozione `views/` scaffolding
+- ❌ Label enrichment Board Lab (chi ha cantato, chi ha banished, ecc.)
+- ❌ Error Detection / replay review personale
+- ❌ Pagamento reale Paddle (solo fake paywall + interest tracking)
+- ❌ Meta / Deck / Events / Community: non toccare salvo bug
+- ❌ Improve ristrutturazione a percorso (resta raccolta strumenti pre-launch, dichiarato limite)
 
 ---
 
-## 4. P1 — Cleanup immediato (low-effort, high-value)
+# Sezione B — POST-LAUNCH (entro 30 giorni)
 
-| Task | Dove | Effort | Rischio |
-|------|------|--------|---------|
-| Best Plays query Python (su killer curves avversarie) | nuovo service `best_plays_service.py` + snapshot_assembler | 1 dev day | Zero (additivo) |
-| Uniformità 4 `section-title` in Community+Events tab | `frontend/dashboard.html` | 30 min | Zero |
-| Uniformità pattern Team tab (`player-card` → `monAccordion`) | `frontend/dashboard.html` | 1-2 dev days | Medio |
+Scope: migliorie che contano, non bloccanti. Ordinate per impatto business.
 
-**Audit 20/04/2026: gia' chiusi e rimossi dall'open backlog**
-- `tech_choices` duplicato nel blob per-perimetro: rimosso da `backend/services/snapshot_assembler.py`
-- campo top-level `analysis`: verificato dead e rimosso dal blob runtime
+## B.1. Improve — da raccolta a percorso di miglioramento
 
-## 4.0-bis. P0 — Set 12 readiness (Fase S0, 22/04/2026)
+Oggi Improve è un menu (My Stats + Blind Playbook + Card Analysis + Mulligan + Replay). L'utente entra e non sa da dove cominciare. Dichiarato come limite in [`BP.md`](BP.md) §2.4.
 
-Piano consolidato in [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) v3. Tutto il codice S0 è in repo.
+| Task | Effort | Impatto business |
+|------|--------|------------------|
+| Header "Your improvement path" con 3-4 step ordinati basati sul dato utente ("1. Your worst matchup → study. 2. Your mulligan WR → practice. 3. Your curve drop → fix") | 1 dev day | Alto (retention Pro) |
+| Nickname bridge più utile: quando bridge attivo, mostrare "X match associati, Y% WR personale" in Home + Improve | 1 dev day | Alto (feature hook, sblocca country segmentation futura) |
+| Confidence / sample size surface su Mulligan ("Based on N hands, confidence: low/med/high") | 0.5 dev day | Medio (honesty) |
+| Blind Playbook personalizzato per-matchup (non solo per-deck) | 2 dev day | Medio |
+
+## B.2. Board Lab — da stub a flusso coach
+
+Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tier €39/m serve ownership completa + coach flow.
+
+| Task | Effort | Impatto business |
+|------|--------|------------------|
+| Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | 0.5 dev day | Alto (Coach tier justification) |
+| Session notes persistenti per replay | 2 dev day | Alto (Coach tier) |
+| Coach flow più chiaro: landing Team → upload → viewer → notes → export | 2 dev day | Alto (Coach tier) |
+| Export PDF sessione (base: snapshot + note) | 2 dev day | Medio |
+
+## B.3. Privacy — hardening
+
+| Task | Effort | Impatto business |
+|------|--------|------------------|
+| Tabella `user_consents` dedicata (se serve versioning append-only) invece di JSONB `preferences.consents` | 1 dev day | Basso (compliance seria) |
+| Rate limit upload replay (DoS prevention + abuse) | 0.5 dev day | Medio |
+| `DELETE /api/v1/team/replay/:id` endpoint + UI trigger | 0.5 dev day | Alto (GDPR right to delete) |
+
+## B.4. Play — evoluzione post-lancio
+
+| Task | Effort | Impatto business |
+|------|--------|------------------|
+| Replay Viewer inline "See it happen" sulla killer curve (se dati engagement post-launch lo giustificano) | 2-3 dev day | Medio |
+| How to Respond **personalized** (non più archetype-based) — Feature B LLM batch | 1 settimana + $3-5/m OpenAI | Alto (sblocca anche Key Threats + Sideboard in un solo cantiere) |
+| Best Plays top-3 sequenze NOSTRO deck vs opp | 1 dev day | Basso-medio |
+
+## B.5. Home + acquisition
+
+| Task | Effort | Impatto business |
+|------|--------|------------------|
+| Set 12 Hub → decommissionare post drop Maggio, rimpiazzare con evergreen hero | 0.5 dev day | Medio |
+| Improve onboarding più aggressivo sul nickname bridge | 0.5 dev day | Alto (sblocca Improve + country segmentation) |
+
+## B.6. NON in B — resta fuori scope 30 gg
+
+- Country segmentation / meta locale (richiede ≥500 utenti con country; post-60 gg minimo)
+- Coach page pubblica `/coach/<slug>` + affiliate (post-validazione Coach tier, non prima)
+- School of Lorcana full build (placeholder solo se emerge segnale)
+- Multi-TCG expansion (mai in scope 30 gg)
+
+---
+
+# Sezione C — TECH DEBT (separato, non bloccante)
+
+Scope: debiti che il codebase ha accumulato. **Nessuno blocca il lancio.** Affrontati con sprint dedicati post-launch, in ordine di manutenibilità.
+
+## C.1. V3 — split file over 800 LOC cap
+
+Da `feedback_v3_anti_monolith_rules.md`:
+
+| File | LOC | Strategia |
+|------|-----|-----------|
+| `monitor.js` | 2183 | Split per sezione (Ticker, Fitness, Rogue, Matrix, Analysis, BestPlayers, NonStandard) in `monitor_*.js` |
+| `coach_v2.js` | 1981 | Split per blocco (selector, curves, cards, ratings, responses) in `coach_v2_*.js` |
+| `profile.js` | 1444 | Separare Home (`home.js`) da Improve (`improve.js`) usando lo scaffolding `views/` |
+| `lab.js` | 1276 | Split per sezione Deck |
+| `monolith.js` | 1357 (**frozen**) | Non toccare. Nuove feature in file separati. |
+
+## C.2. V3 — `team_coaching.js` legacy copy
+
+1936 LOC copia-incollato dal legacy `frontend/`. Flagged come cautionary tale in `feedback_v3_anti_monolith_rules.md`.
+
+- Refactor: modularizza in `team_coaching_*.js` (upload, viewer, notes)
+- Dedup: sostituisci con chiamate a moduli V3-native dove possibile
+- Effort stimato: 1 settimana
+
+## C.3. V3 — `views/` scaffolding non wired
+
+`assets/js/views/` (148 LOC totali, 8 file) sono placeholder per split futuro.
+
+- Decidere: wire o rimuovere
+- Raccomandazione: wire gradualmente quando si fa C.1 (profile.js split → home.js + improve.js useranno lo scaffolding)
+
+## C.4. Service Worker cleanup
+
+`sw.js` oggi è **self-destruct** (elimina cache + unregister) per risolvere cache-first trap storica.
+
+- Quando tutti i client legacy sono stati toccati ≥1 volta → rimuovere `sw.js`
+- Sostituire con SW network-first per HTML (pattern già in legacy, memoria `feedback_v3_service_worker_cache`)
+
+## C.5. Performance
+
+Non blocker ora. Post-launch, se i dati mostrano regressioni:
+
+- Chart.js instances cachate (`charts`), verificare `destroy()` su tab switch
+- Lazy-load `rvCardsDB` già attivo
+- `DATA` blob da `/api/v1/dashboard-data` — cache 2h server + ETag client
+
+## C.6. Doc cleanup
+
+- `ARCHITECTURE.md` root (182KB, enterprise) — archiviare o ridurre a §ridotta + link ai 3 canonici ([`BP.md`](BP.md), [`TODO.md`](TODO.md), [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md))
+- `frontend_v3/point/V3_ARCHITECT_POINT.md` originale EN — mantenere come archivio GPT 24/04, linkato dal canonico
+- `frontend_v3/point/V3_CURRENT_STATE.md` — mantenere aggiornato come snapshot as-is di V3
+- `analisidef/BUSINESS_PLAN.md` v3.1 + `BP_STRATEGIST_POINT.md` — già archivi, no action
+- [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) + [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) — mantenere, fonte dettaglio per §C.7
+
+## C.7. Migration pipeline (analisidef → App_tool + Set 12)
+
+Stato generale:
+- Runtime coupling R1/R2/R3/C1 chiusi 15/04
+- D1-D3 data-level coupling ancora aperti (bridge JSON via cron)
+- Dettaglio completo: [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md)
+
+### C.7.1. P0 Set 12 readiness (FATTO 22/04)
+
+Piano: [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) v3.
 
 | Task | Stato | Dove |
 |------|-------|------|
-| Regex folder/queue future-proof (SETNN, S12-BO*) | FATTO | `backend/workers/match_importer.py`, `scripts/import_matches.py` |
-| Digest generator `_is_core_perimeter()` (SQL regex) | FATTO | `pipelines/digest/generator.py` |
-| Canary filesystem-level FS vs DB | FATTO | `scripts/monitor_unmapped_matches.py` |
+| Regex folder/queue future-proof (SETNN) | FATTO | `backend/workers/match_importer.py`, `scripts/import_matches.py` |
+| Digest generator `_is_core_perimeter()` | FATTO | `pipelines/digest/generator.py` |
+| Canary FS vs DB | FATTO | `scripts/monitor_unmapped_matches.py` (cron 07:05) |
 | `SET_MAP` estensibile via env | FATTO | `backend/workers/static_importer.py` |
 | Admin endpoint `reset-legality-cache` + `refresh-dashboard` | FATTO | `backend/api/admin.py`, `backend/deps.py` |
-| Wrapper `refresh_static_and_reset.sh` | FATTO | `scripts/refresh_static_and_reset.sh` |
-| `default_core_perimeter` nel blob + helper frontend | FATTO | `backend/services/snapshot_assembler.py`, `frontend/dashboard.html` |
-| Migration S0.5 `set12_launch` in cassetto (guard env) | FATTO | `db/migrations/versions/7894044b7dd3_*.py` |
-| Migration S0.6 partial index future-proof | FATTO (codice + DB) | `db/migrations/versions/7dec24a98839_*.py` + `backend/models/match.py:44`. `alembic current = 7dec24a98839`. |
-| E2E dry-run SETXX → `perimeter=setXX`/`format=core` | VERIFICATO | — |
-| Token admin + systemd drop-in | FATTO | `/etc/apptool.env` (0600) + `lorcana-api.service.d/admin-token.conf`. Smoke test endpoint: 200 con token, 401 senza. |
-| Crontab Dom 04:45 → wrapper | FATTO | backup `/tmp/crontab_backup_1776843879.bak`. |
-| Cron canary 07:05 UTC | FATTO | `scripts/monitor_unmapped_matches.py` installato. |
+| Wrapper `refresh_static_and_reset.sh` | FATTO | `scripts/refresh_static_and_reset.sh` (cron dom 04:45) |
+| `default_core_perimeter` nel blob + helper frontend | FATTO | `snapshot_assembler.py`, `dashboard.html`, V3 |
+| Migration S0.5 `set12_launch` in cassetto (guard env) | FATTO (dormant) | `db/migrations/versions/7894044b7dd3_*.py` |
+| Migration S0.6 partial index `idx_matches_lookup` | FATTO (applicata) | `7dec24a98839_*.py`, alembic current |
+| Token admin + systemd drop-in | FATTO | `/etc/apptool.env` (0600) + `lorcana-api.service.d/admin-token.conf` |
 
-**S0 chiuso end-to-end 22/04/2026 07:45 UTC.** Azioni VPS tutte applicate — vedi `SET12_MIGRATION_PLAN.md` §9 per la quick-verify checklist.
+**Prossima finestra rotation attesa:** Settembre 2026 (Set 12 release Ravensburger, non ancora annunciato). Al D-day:
 
-## 4.0. P0 — Follow-up incidente 20/04/2026
+```bash
+SET12_RELEASE_DATE=2026-09-DD SET12_LEGAL_SETS=3,4,5,6,7,8,9,10,11,12 \
+  alembic upgrade 7894044b7dd3
+systemctl restart lorcana-api
+curl -X POST -H "X-Admin-Token: ..." /api/v1/admin/reset-legality-cache
+```
 
-Issue emersi in produzione su metamonitor.app dopo snapshot InkDecks parziali e alcune KC Core contaminate da carte Infinity.
+### C.7.2. P2 Migrazione Fase F-H (da analisidef)
 
-| Task | Dove | Effort | Note |
-|------|------|--------|------|
-| Alert "snapshot InkDecks sparse" | `scripts/monitor_kc_freshness.py` | Fatto | aggiunto guard su streak di snapshot con archetipi sotto soglia |
-| Audit `decks_db_builder.py` fuori repo | `/mnt/HC_Volume_104764377/finanza/Lor/decks_db_builder.py` | Fatto | trovati timeout browser; aggiunti retry + sparse snapshot guard |
-| Rebuild/verify blob dopo fix static data | runtime/cache | Fatto | blob assemblato live contro PG: `consensus_decks=15`, `reference_decks=15` |
-| Verifica batch KC core post-fix | `scripts/generate_killer_curves.py` + PG `killer_curves` | 10-20 min | controllare matchups RS/rosso-blu senza carte fuori rotazione |
+| Fase | Scope | Stato | Note |
+|------|-------|-------|------|
+| **Sprint-1 Mossa A** | Blind Playbook in PG + endpoint + accordion Profile | FATTO 15/04 | Importer bridge da analisidef |
+| **Sprint-1 Mossa B** | Porting nativo `gen_deck_playbook.py` in App_tool + cron settimanale + chiave OpenAI propria | DA FARE | [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md). ⚠️ prompt da EN-only (memoria `feedback_app_language_english`) |
+| **Fase F** | Matchup report refresh autonomo | DA FARE | Oggi dipende da `analisidef/dashboard_data.json` importato da cron |
+| **Fase G** | Killer curves batch autonomo | FUTURO | Oggi parte da `analisidef/output/killer_curves_*.json`. Prompt EN |
+| **Fase H** | Player scouting reports LLM nativo | FUTURO | Prompt EN |
 
-**Nota operativa 20/04/2026**
-- `snapshot_20260420.json` e' stato recuperato dal contenuto dell'ultimo snapshot sano (`snapshot_20260416.json`) per non lasciare come latest un file sparse a 5 archetipi
+### C.7.3. P1 KC meta-relevance (applicato 24/04 pm)
 
-## 4.1. Audit chiuso — Rogue / scouting
+Doppio guard attivo in `pipelines/kc/`: prompt-time (`build_prompt._build_meta_relevance_guard`) + post-filter (`scripts/generate_killer_curves._strip_non_meta_cards`). Helper `pipelines/kc/meta_relevance.get_meta_relevant_cards(db, format, days=30, min_plays=20)` — cached per-format.
 
-- `rogue_scout` risulta gia' fatto lato prodotto; rimosso dall'open backlog su richiesta utente il `20/04/2026`
-- endpoint/admin preview presente: `GET /api/v1/monitor/rogue-scout-preview`
-- backlog rogue UI/backfill non piu' trattato come open in questo file
+Admin endpoint `/api/v1/admin/reset-legality-cache` invalida anche `kc_meta_relevant` + `meta_relevance_cache`. One-shot `scripts/reclean_kc_meta.py` già eseguito (209 card ref strippate). Sync rapido `scripts/refresh_kc_matchup_reports.py`: `killer_curves` → `matchup_reports` senza full regen (12 min → 5 sec).
 
-## 4.2. P2 — Lab tab — Deck Comparator (piramide)
+### C.7.4. Invarianti KC da memoria
 
-Endpoint backend pronto: `GET /api/v1/lab/tournament-lists/{deck}` (15 liste da inkdecks snapshot).
+- KC full batch solo **martedì 01:30** — non lanciare run manuali (`project_kc_pipeline_cost`)
+- KC Spy = canary $0.05/die
+- OpenAI gpt-5.4-mini, mai crediti Anthropic API (`feedback_claude_subscription_not_api`, `project_api_constraint`)
 
-**Layout**:
-- **Desktop**: piramide — My List centrata in alto (griglia carte max 3-4 colonne, immagini zoomabili), sotto max 4 liste torneo affiancate con diff evidenziata (verde = add, rosso = cut)
-- **Mobile**: My List in alto + 4 badge cliccabili sotto; click badge → overlay fullscreen con lista + diff
-- Stesso formato carte del Profile (gallery thumbnails zoomabili)
-- My List da saved deck Profile (o consensus/standard se nessun saved deck)
-- Filtro liste torneo da dropdown (player + evento + data)
+### C.7.5. Canary + monitoring ops
 
-| Task | Dove | Effort | Note |
-|------|------|--------|------|
-| Frontend comparatore desktop (piramide + diff) | `frontend/dashboard.html` Lab tab | FATTO 20/04/2026 | CSS griglia + JS fetch + diff calc |
-| Frontend comparatore mobile (badge → fullscreen) | `frontend/dashboard.html` | OPEN | Oggi responsive stack/chips, manca bottom-sheet fullscreen dedicato |
-| Integrare in Lab tab come prima sezione | `frontend/dashboard.html` | FATTO 20/04/2026 | Prima di Mulligan Trainer |
+| Cron | Ora | Cosa alerta |
+|------|-----|-------------|
+| `monitor_unmapped_matches.py` | 07:05 UTC | Nuovo folder FS, drop_rate > 10%, `perimeter='other'` > 50/die |
+| `monitor_kc_freshness` | 07:00 UTC | KC stale, snapshot InkDecks sparse (post-incidente 20/04) |
+| `import_kc_spy` | 04:05 UTC | Validazione 268 file KC, auto-fix |
 
----
+## C.8. Legacy — eventuale deprecation
 
-## 5. P2 — Infrastruttura pre go-pubblico serio
+Post-launch, dopo conferma che V3 non ha regressioni vs legacy per ≥2 settimane:
+- Archivia `frontend/dashboard.html` (10.6K LOC inline) come `frontend/dashboard_legacy_20260501.html`
+- Mantieni endpoint, model, services legacy — servono al V3 (zero divergenza API)
+- Prima del lancio: **non toccare legacy.**
 
-| Task | Status | Rischio se non fatto |
-|------|--------|----------------------|
-| **systemd service** `lorcana-api` per uvicorn | Da verificare | docs in drift: `CLAUDE.md` lo dà pending, `ARCHITECTURE.md` lo dà fatto |
-| **CORS stringere** (oggi permissivo) | Non fatto | Bassa priorità finché no API pubbliche cross-origin; da stringere pre go-pubblico |
-| **OAuth Discord bridge** (per opt-in Public Profile) | Non pianificato | Blocca feature #C |
-| **Email duels.ink** per allineamento legale | Scritta in `../analisidef/business/email_duels_ink_v4.md`, non ancora spedita | Blocca feature #C pubblico |
-| **Rate limit per endpoint pubblici nuovi** (`/iwd`, `/deck-fitness`) | Ereditato dal middleware Redis globale | OK |
+Backlog legacy-specifico (viewer rv*, accordion pending backend data, benchmark competitivo) spostato qui da §A vecchio. **Se il lancio V3 fallisce e si torna a legacy, questi task tornano attivi.**
 
----
+## C.9. Privacy Layer V3 (applicato 24/04)
 
-## 6. P2 — Migrazione da analisidef (Fase F-H)
+Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 
-Dettaglio in [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md).
+| Componente | Stato |
+|------------|-------|
+| Alembic head `9a1e47b3f0c2` (team_replays ownership) | Applicato |
+| Deps `require_replay_access` / `require_replay_owner` | Live |
+| `replay_anonymizer.py` + wiring API | Live |
+| `POST /api/v1/user/interest` + `POST /api/v1/user/consent` | Live |
+| GDPR export esteso con `team_replays` | Live |
+| Consent modal legacy + footer disclaimer + `/about.html` | Live legacy (porting V3 in §A.2) |
+| Copy sanitization (no duels, no MMR/ELO, fair-use card images) | Live legacy |
+| Email swap `legal@` → `monitorteamfe@gmail.com` | Live legacy. V3 da allineare dopo alias Cloudflare up |
+| SW `CACHE_NAME=lorcana-privacy-v4` + network-first HTML | Live legacy (V3 ha self-destruct, vedi §C.4) |
 
-- **Sprint-1 Mossa A FATTO 15/04/2026**: Blind Playbook in PG + endpoint + accordion Profile (importer bridge da analisidef)
-- **Sprint-1 Mossa B (DA FARE)**: porting nativo `gen_deck_playbook.py` in App_tool + cron settimanale + chiave OpenAI propria. Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md).
-  - **⚠️ CAVEAT LINGUA**: il prompt analisidef forza output `italiano fluido`. App e' inglese-only. Quando porteremo il generator in App_tool, modificare il prompt in `fluent English` e tutte le istruzioni (vedi `SPRINT_1_MOSSA_B.md` §3 e memoria `feedback_app_language_english.md`). Le 24 narrative attualmente in PG sono in italiano e resteranno tali fino a Mossa B.
-- **Fase F (DA FARE)**: matchup report refresh autonomo (oggi dipende ancora da `analisidef/dashboard_data.json` importato da cron)
-- **Fase G (FUTURO)**: killer curves batch autonomo (oggi parte da `analisidef/output/killer_curves_*.json` via `import_killer_curves.py`). **Anche qui prompt deve produrre EN**.
-- **Fase H (FUTURO)**: player scouting reports LLM nativo App_tool. **Anche qui prompt EN**.
-
----
-
-## 7. Roadmap estesa Q2-Q3 2026
-
-1. **Sprint 1 (2-3 giorni) — Cleanup immediato**
-   - Best Plays query Python (§4)
-   - 4 section-title Community+Events uniformi (§4)
-   - Cleanup `tech_choices` + `analysis` (§4)
-
-2. **Sprint 2 (1 settimana) — Feature B Sideboard LLM** ⭐ critical path
-   - Pipeline `run_all_reviews.sh` batch settimanale OpenAI (~$3-5/mese)
-   - Prompt B esteso con blocchi strutturati `<!-- THREATS_LLM -->`, `<!-- KILLER_RESPONSES -->`, `<!-- SB_PLAN -->`
-   - Parser in `import_matchup_reports.py` per popolare campi blob
-   - Render SB_PLAN nel Coach V2 con bottone "Copy to Discord"
-   - **Sblocca 3 sezioni Coach V2 con un cantiere solo** (Key Threats + How to Respond + Sideboard)
-
-3. **Sprint 3 (1-2 settimane) — Feature A Replay v2 animato**
-   - Port animazioni da Board Lab (`team_coaching.js`) in modulo condiviso `replay_anim_core.js`
-   - Integrazione nel Replay Viewer dashboard (Coach V2 + Lab)
-   - Feature flag `localStorage.rv_anim_v2` per rollback rapido
-
-4. **Sprint 4 (mezza giornata) — Infra pre-pubblico**
-   - systemd service `lorcana-api` (§5)
-   - CORS stringere (§5)
-
-5. **Sprint 5 (Q3, 2-3 settimane) — Feature C Public Profile**
-   - Prerequisito: email duels.ink spedita + OK ricevuto
-   - Opt-in registry `public_profiles.json`
-   - 4 endpoint pubblici + pagina `/player/<nick>` SSR-like
-   - OG meta tags per Discord/Twitter embed
-   - Rate limit aggressivo
+**Head alembic:** 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiede revision esplicita (NON `upgrade head`).
 
 ---
 
-## 8. Principi architetturali invariabili
-
-- **App_tool = prodotto, analisidef = R&D** (`../.memory/feedback_analisidef_scope.md`)
-- **UX: semplicità + parità iPhone/web + componenti "a scomparsa"** (`../.memory/feedback_ux_principles.md`)
-- **Fail closed sul frontend**: guardia `if (data.length > 0)` → nessuna sezione rotta quando i dati mancano
-- **Additivo, mai breaking**: nuovi endpoint + nuovi blob fields + `monAccordion` opzioni retrocompatibili
-- **Cache blob 2h + stale-while-revalidate**: feature nuove si propagano automaticamente al prossimo rebuild senza downtime
-
----
-
-*Ultimo aggiornamento: 20 Apr 2026 — dopo sessione "incident hardening static data + KC legality + priority pass"*
+*TODO consolidato il 24 Aprile 2026 (sera) reality-aligned. Sostituisce struttura precedente (§A App_tool legacy / §B V3 target-based / §C Migration). Nuova tassonomia: A = pre-launch, B = post-launch 30gg, C = tech debt. Sibling: [`BP.md`](BP.md) v4.1, [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) v1.1.*
