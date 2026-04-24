@@ -745,10 +745,39 @@ function renderProfileTab(main) {
     ${!myNick ? `<div class="pf-onboard-footer">Have a duels.ink nickname? <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link it</a> to unlock personal stats.</div>` : ''}
   </div>` : '';
 
+  // A.3 Home insight teaser — single-line hook into Play tab (worst matchup CTA).
+  let teaserHtml = '';
+  try {
+    const activeForTeaser = activeDk;
+    if (activeForTeaser && typeof getAnalyzerData === 'function') {
+      const _az = getAnalyzerData();
+      const _deckData = _az && _az[activeForTeaser];
+      const _matchups = _deckData && _deckData.matchups;
+      if (_matchups) {
+        let _worst = null;
+        for (const [opp, m] of Object.entries(_matchups)) {
+          const g = (m.wins || 0) + (m.losses || 0);
+          if (g < 20) continue;
+          if (_worst === null || m.wr < _worst.wr) _worst = { opp, wr: m.wr, games: g };
+        }
+        if (_worst) {
+          const _oppName = DECK_NAMES[_worst.opp] || _worst.opp;
+          teaserHtml = `<div class="home-insight-teaser" style="margin:10px 0 14px;padding:10px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.08),rgba(212,160,58,0.02));border-left:3px solid var(--gold);border-radius:6px;cursor:pointer;font-size:0.92em" onclick="coachDeck='${activeForTeaser}';coachOpp='${_worst.opp}';switchToTab('play')">
+            <span style="color:var(--text2);font-size:0.82em">Your worst matchup:</span>
+            <strong style="color:var(--text)">${_oppName}</strong>
+            <span style="color:var(--red);font-weight:700;margin-left:4px">${_worst.wr}% WR</span>
+            <span style="color:var(--gold);margin-left:8px">&rarr; Open Play</span>
+          </div>`;
+        }
+      }
+    }
+  } catch (_) { teaserHtml = ''; }
+
   main.innerHTML = `<div class="pf-dash">
     ${headerHtml}
     ${onboardHtml}
     ${nudgeHtml}
+    ${teaserHtml}
     <div class="pf-hero-row">
       ${heroDeckCard}
       ${heroRadarCard}

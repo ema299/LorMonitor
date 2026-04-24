@@ -1430,6 +1430,11 @@ function renderCoachV2Tab(main) {
   const la = mu.loss_analysis || {};
   const threats = tl.threats || [];
 
+  // A.3 Play soft gate — register this matchup view (deduped by day).
+  if (typeof playRegisterMatchupView === 'function') {
+    playRegisterMatchupView(coachDeck, coachOpp);
+  }
+
   let content = selectorHtml;
 
   // 1. Compact KPI strip
@@ -1446,6 +1451,17 @@ function renderCoachV2Tab(main) {
     <div class="cv2-sep"></div>
     <button onclick="openCheatsheet()" style="background:linear-gradient(135deg,var(--gold),#E8C97A);color:var(--bg);border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:0.8em;cursor:pointer;white-space:nowrap;transition:transform 0.15s" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform=''">Pre-Match</button>
   </div>`;
+
+  // A.3 Conversion header — single-line insight above curves/responses.
+  const _topCurve = kc[0];
+  const _critTurn = _topCurve?.critical_turn?.turn || null;
+  const _topCurveName = _topCurve?.name || (threats[0]?.name) || '';
+  if (_topCurveName) {
+    content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45">
+      <div style="color:var(--gold);font-weight:700;font-size:0.78em;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">The threat</div>
+      <div style="color:var(--text)"><strong>${_topCurveName}</strong>${_critTurn ? ` closes this matchup around turn <strong>${_critTurn}</strong>.` : '.'} Scroll for how to respond &rarr;</div>
+    </div>`;
+  }
 
   // 2. Build unified threat list from killer_curves + threats_llm
   // Group curves by name similarity to threats
@@ -1710,6 +1726,42 @@ function renderCoachV2Tab(main) {
 
     content += `</div></div>`; // cv2-threat-body + cv2-threat
   });
+
+  // A.3 How to Respond — dedicated block, soft-gated after 3rd daily matchup.
+  const _responses = mu.killer_responses || [];
+  const _responseFromThreats = threats.filter(t => t.response || t.response_otp || t.response_otd).map(t => ({
+    title: t.name || 'Threat',
+    otp: t.response_otp || t.response,
+    otd: t.response_otd || t.response,
+  }));
+  const _respItems = _responses.length ? _responses : _responseFromThreats;
+  if (_respItems.length) {
+    const _gated = (typeof playShouldGateResponse === 'function') && playShouldGateResponse(coachDeck, coachOpp);
+    const _inner = _respItems.slice(0, 3).map(r => `
+      <div style="padding:10px 12px;background:var(--bg1);border-radius:6px;margin-bottom:8px">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:6px">${r.title || 'Response'}</div>
+        ${r.otp ? `<div style="font-size:0.88em;margin-bottom:4px"><span style="color:var(--green);font-weight:600">OTP:</span> ${r.otp}</div>` : ''}
+        ${r.otd && r.otd !== r.otp ? `<div style="font-size:0.88em"><span style="color:var(--sapphire);font-weight:600">OTD:</span> ${r.otd}</div>` : ''}
+      </div>`).join('');
+    content += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
+      <span class="tab-section-hdr__eyebrow">How to Respond</span>
+      <span class="tab-section-hdr__title">Play this, avoid that</span>
+    </div>`;
+    if (_gated) {
+      const _count = (typeof playMatchupsViewedCount === 'function') ? playMatchupsViewedCount() : 4;
+      content += `<div class="cv2-respond-block premium-wall" style="margin:12px 0">
+        <div class="premium-content" style="filter:blur(4px);pointer-events:none">${_inner}</div>
+        <div class="paywall-overlay">
+          <div class="lock-big">🔒</div>
+          <h3>You've scouted ${_count} matchups today</h3>
+          <p>Unlock unlimited matchup responses and full killer curve analysis &rarr; Pro &euro;9/m</p>
+          <button class="unlock-btn" onclick="playSoftUnlock()">Unlock Play — 9&euro;/month</button>
+        </div>
+      </div>`;
+    } else {
+      content += `<div class="cv2-respond-block" style="margin:12px 0">${_inner}</div>`;
+    }
+  }
 
   // 4. Secondary data: tabs at bottom — with section header
   content += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">

@@ -1,6 +1,6 @@
 # App_tool — TODO Master
 
-**Ultimo aggiornamento:** 24 Aprile 2026 (sera — A.1 + A.2 chiusi)
+**Ultimo aggiornamento:** 24 Aprile 2026 (sera — A.1 + A.2 + A.3 partial chiusi)
 **Scope:** master TODO operativo di `metamonitor.app`. Tre sezioni ordinate per impatto business.
 
 ## Regola operativa per Claude
@@ -55,15 +55,15 @@ Ordine non è temporale 1→2→3→… ma per impatto business. Sequenza giorno
 
 ## A.3. Play — conversion clarity (core commerciale)
 
-Oggi Play ha killer curves ma manca la narrativa "insight → risposta" che guida al paywall. Vedi [`BP.md`](BP.md) §3.2 (conversion loop) + [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) §4.2.
+Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred per decisione utente (Mulligan reveal, impatto globale).
 
-| Task | Dove | Effort | Priorità |
-|------|------|--------|----------|
-| **Header conversion** sopra killer curves: 1-2 righe di insight matchup-specific ("Questo matchup ti chiude a T5 con queste carte. Ecco come rispondi.") | `coach_v2.js:1539` render prima del blocco Killer Curves | 0.5 dev day | P0 |
-| **How to Respond** come sezione dedicata (archetype-based ok per lancio, limitazione dichiarata in [`BP.md`](BP.md) §2.4), gated `wrapPremium('coach')` | `coach_v2.js` + `deck_response_check.js` | 1 dev day | P0 |
-| **Mulligan reveal gated** — verificare che fake unlock avvenga solo dopo `recordPaywallIntent('pro')`, non di default | `deck_improve.js` + `improve_play_tools.js` + `wrapPremium` hook | 2 h verify | P0 |
-| **Paywall 4° matchup/giorno** — counter localStorage `matchups_viewed_today`, reset 00:00 UTC, overlay Pro on trigger | `monolith.js` + `coach_v2.js` hook su matchup render | 0.5 dev day | P0 |
-| **Home headline insight teaser** sopra matchup chip ("Your worst matchup is X · Open Play →"). Dati già nel blob, solo render. | `profile.js:181` Home | 2 h | P1 |
+| Task | Status | Nota |
+|------|--------|------|
+| **Header conversion** sopra killer curves | **DONE** | `cv2-conv-hdr` dinamico da top killer curve + critical turn |
+| **How to Respond** come sezione dedicata (archetype-based) | **DONE** | fallback da `threats[].response_*`; auto-popola da `mu.killer_responses` quando blob pieno (Fase B LLM) |
+| **Mulligan reveal gated** | **DEFERRED** | richiede toccare Deck/Improve, rinviato per isolamento Play-only |
+| **Paywall 4° matchup/giorno** | **DONE** | nuovo `play_gate.js` (55 LOC), counter localStorage `play_matchups_viewed_YYYY-MM-DD`, overlay su "How to Respond" dal 4° matchup distinto |
+| **Home headline insight teaser** | **DONE** | worst matchup (min 20 games) sopra hero-row, click → Play con deck+opp preselezionati |
 
 ## A.4. Board Lab — wiring minimo
 
@@ -311,4 +311,4 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 
 *TODO consolidato il 24 Aprile 2026 (sera) reality-aligned. Sostituisce struttura precedente (§A App_tool legacy / §B V3 target-based / §C Migration). Nuova tassonomia: A = pre-launch, B = post-launch 30gg, C = tech debt. Sibling: [`BP.md`](BP.md) v4.1, [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) v1.1.*
 
-*Update 24/04 sera: A.1 + A.2 chiusi. Set 12 Hub URLs spostati in B.5 come BLOCKED non-blocker. Focus ora: A.3 Play conversion + A.4 Board Lab wiring.*
+*Update 24/04 sera: A.1 + A.2 + A.3 partial chiusi. A.3 Opzione B (Play-only soft gate via `play_gate.js`) implementato; Mulligan reveal deferred. Set 12 Hub URLs spostati in B.5 come BLOCKED non-blocker. Focus ora: A.4 Board Lab wiring minimo.*
