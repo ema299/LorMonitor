@@ -1,11 +1,17 @@
 """Team coaching — replay upload, viewer, roster management.
 TODO: Re-enable JWT auth (require_tier) when frontend login is implemented.
 Currently protected only by nginx basic auth.
+
+Privacy layer V3 (ARCHITECTURE.md §24.5):
+- upload requires authenticated user (ownership non-negotiable)
+- list/get filter by ownership when user is authenticated non-admin
+- transitional nginx-only mode (user=None) preserves legacy behavior
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db, require_team_access
+from backend.deps import get_current_user, get_db, require_team_access
 from backend.models.team import TeamReplay, TeamRoster
 from backend.models.user import User
 from backend.services import replay_service
@@ -17,10 +23,24 @@ router = APIRouter()
 async def upload_replay(
     file: UploadFile = File(...),
     player_override: str = Query(None, description="Override auto-matched player name"),
-    user: User | None = Depends(require_team_access),
+    user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Upload a .replay.gz file from duels.ink. Parses and stores compact coaching data."""
+    """Upload a .replay.gz file from duels.ink. Parses and stores compact coaching data.
+
+    Privacy layer §24.5/24.6:
+    - authenticated user required (ownership non-negotiable)
+    - explicit replay_upload consent required in preferences.consents.replay_upload
+    - replay assigned user_id=current_user, is_private=true, uploaded_via='board_lab'
+    """
+    # Consent check — preferences.consents.replay_upload must exist with accepted_at
+    consent = (user.preferences or {}).get("consents", {}).get("replay_upload")
+    if not consent or not consent.get("accepted_at"):
+        raise HTTPException(
+            status_code=412,
+            detail="replay_upload consent required — accept terms before uploading",
+        )
+
     if not file.filename or not file.filename.endswith((".gz", ".replay", ".replay.gz")):
         raise HTTPException(400, "File must be .replay.gz")
 
@@ -71,6 +91,11 @@ async def upload_replay(
         victory_reason=parsed["victory_reason"],
         turn_count=parsed["turn_count"],
         replay_data=parsed,
+        # Privacy layer — ownership + consent tracking
+        user_id=user.id,
+        is_private=True,
+        consent_version=consent.get("version", "1.0"),
+        uploaded_via="board_lab",
     )
     db.add(replay)
     db.commit()
@@ -91,10 +116,26 @@ def list_replays(
     user: User | None = Depends(require_team_access),
     db: Session = Depends(get_db),
 ):
-    """List uploaded replays, optionally filtered by player."""
+    """List uploaded replays, optionally filtered by player.
+
+    Privacy layer §24.5:
+    - transitional mode (user=None, nginx-only): legacy behavior, all replays shown
+    - authenticated admin: all replays shown
+    - authenticated non-admin: only own replays + replays where user_id in shared_with
+    """
     q = db.query(TeamReplay).order_by(TeamReplay.created_at.desc())
     if player:
         q = q.filter(TeamReplay.player_name.ilike(player))
+
+    # Access-control: restrict to owned / shared when user is authenticated non-admin.
+    # If user is None (transitional nginx-only mode) or admin, no filter applied.
+    if user is not None and not user.is_admin:
+        q = q.filter(
+            or_(
+                TeamReplay.user_id == user.id,
+                TeamReplay.shared_with.op("@>")(f'["{user.id}"]'),
+            )
+        )
 
     replays = q.limit(100).all()
     return [
@@ -118,10 +159,25 @@ def get_replay(
     user: User | None = Depends(require_team_access),
     db: Session = Depends(get_db),
 ):
-    """Get full replay data for the coaching viewer."""
+    """Get full replay data for the coaching viewer.
+
+    Privacy layer §24.5:
+    - transitional mode (user=None): legacy behavior
+    - admin: always allowed (incl. orphan records)
+    - authenticated non-admin: owner or in shared_with only; 403 otherwise
+    """
     replay = db.query(TeamReplay).filter(TeamReplay.game_id == game_id).first()
     if not replay:
         raise HTTPException(404, f"Replay {game_id} not found")
+
+    # Access-control: apply only when user is authenticated
+    if user is not None and not user.is_admin:
+        if replay.user_id is None:
+            # orphan legacy record, restricted to admin
+            raise HTTPException(403, "replay access denied")
+        if replay.user_id != user.id and str(user.id) not in (replay.shared_with or []):
+            raise HTTPException(403, "replay access denied")
+
     return replay.replay_data
 
 
