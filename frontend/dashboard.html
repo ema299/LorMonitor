@@ -5041,8 +5041,13 @@
   <!-- Populated by JS -->
 </div>
 
-<!-- FOOTER (hidden — content moved to info popup) -->
-<div class="footer" style="display:none"></div>
+<!-- FOOTER — unofficial disclaimer (privacy layer §24) -->
+<div class="footer" style="display:block;text-align:center;padding:14px 12px;color:var(--text2);font-size:0.78em;border-top:1px solid rgba(255,255,255,0.08);margin-top:24px;line-height:1.6">
+  Lorcana Monitor — unofficial fan-made analytics tool. Not affiliated with, endorsed by, or sponsored by Disney or Ravensburger.
+  Disney Lorcana TCG is a trademark of Disney and Ravensburger.<br>
+  <a href="/about.html" style="color:var(--text2);text-decoration:underline;margin:0 6px">About</a>·
+  <a href="mailto:legal@metamonitor.app" style="color:var(--text2);text-decoration:underline;margin:0 6px">legal@metamonitor.app</a>
+</div>
 
 <!-- INFO FAB -->
 <button class="info-fab" onclick="event.stopPropagation();const p=document.getElementById('info-popup');p.classList.toggle('open');if(p.classList.contains('open')){const h=e=>{if(!p.contains(e.target)&&e.target!==this){p.classList.remove('open');document.removeEventListener('click',h)}};setTimeout(()=>document.addEventListener('click',h),0)}" aria-label="Info">i</button>
@@ -5058,7 +5063,9 @@
   <strong>WR</strong> = Win Rate · <strong>OTP</strong> = On The Play · <strong>OTD</strong> = On The Draw · <strong>MMR</strong> = Matchmaking Rating<br>
   <strong>Ink</strong>: Ab=Amber, Amy=Amethyst, Em=Emerald, R=Ruby, Sa=Sapphire, St=Steel.<br><br>
   <strong style="color:var(--gold)">Privacy</strong><br>
-  Player names from public profiles. No personal data collected. Aggregated for community statistical purposes.
+  Player nicknames from public match logs are <strong>anonymized</strong> in the public Replay Viewer ("Player" / "Opponent"). Your own uploaded replays are stored privately and accessible only to you and coaches you explicitly share with. See <a href="/about.html" style="color:var(--gold)">About</a> for the full policy and data sources.<br><br>
+  <strong style="color:var(--gold)">Disclaimer</strong><br>
+  Unofficial fan-made tool. Not affiliated with Disney or Ravensburger. Contact: <a href="mailto:legal@metamonitor.app" style="color:var(--gold)">legal@metamonitor.app</a>
 </div>
 
 <!-- PRE-MATCH CHEATSHEET OVERLAY -->

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About — Lorcana Monitor</title>
+<meta name="description" content="Lorcana Monitor is an unofficial fan-made analytics tool for Disney Lorcana TCG. Privacy policy and data sources.">
+<link rel="icon" href="/icon-192.svg">
+<style>
+  :root {
+    --bg0: #0e0e0e;
+    --bg1: #1a1a1a;
+    --text: #eee;
+    --text2: #aaa;
+    --gold: #D4A03A;
+    --border: rgba(255,255,255,0.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg0);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  h1 {
+    color: var(--gold);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-top: 0;
+  }
+  h2 {
+    color: var(--gold);
+    margin-top: 32px;
+    font-size: 1.2em;
+  }
+  a { color: var(--gold); }
+  a:hover { opacity: 0.85; }
+  .hdr {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    color: var(--text2);
+    font-size: 0.9em;
+  }
+  .hdr a { color: var(--text2); }
+  ul { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  .box {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 0.95em;
+  }
+  .disclaimer {
+    border-left: 3px solid var(--gold);
+    padding-left: 14px;
+    color: var(--text2);
+    font-size: 0.92em;
+    margin: 16px 0;
+  }
+  footer {
+    text-align: center;
+    margin-top: 50px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text2);
+    font-size: 0.82em;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <a href="/">&larr; Back to dashboard</a>
+  </div>
+
+  <h1>About Lorcana Monitor</h1>
+
+  <p>
+    Lorcana Monitor is a free analytics and coaching platform for
+    <strong>Disney Lorcana TCG</strong> players. It aggregates match statistics,
+    derives playbooks and coaching insights, and provides tools to review your
+    own games.
+  </p>
+
+  <div class="disclaimer">
+    <strong>Unofficial fan-made tool.</strong> Not affiliated with, endorsed by,
+    or sponsored by Disney or Ravensburger. Disney Lorcana TCG is a trademark of
+    Disney and Ravensburger.
+  </div>
+
+  <h2>Data Sources</h2>
+  <ul>
+    <li><strong>duels.ink</strong> — non-official community simulator. We read public match data and aggregated meta statistics.</li>
+    <li><strong>inkdecks.com</strong> — public tournament results and reference decklists.</li>
+    <li><strong>Your own uploads</strong> — .replay.gz files you explicitly upload to Board Lab for personal and coaching review.</li>
+  </ul>
+
+  <h2>Privacy</h2>
+  <p>We distinguish between two data flows:</p>
+  <ul>
+    <li><strong>Public Replay Viewer</strong> — match logs scraped from duels.ink
+      are shown with nicknames <strong>anonymized</strong>: "Player" and
+      "Opponent" / "Opponent A, B...". Raw nicknames are never exposed in the
+      public API responses. External profile links are not generated.</li>
+    <li><strong>Board Lab uploads</strong> — replays you upload are
+      <strong>private by default</strong>. They are accessible only to you, and
+      to any coach you explicitly share with. You can delete any replay at any
+      time from your account. Uploads require a one-time consent.</li>
+  </ul>
+
+  <h2>User data we store</h2>
+  <ul>
+    <li>Account data: email, hashed password, tier, display name.</li>
+    <li>Preferences: language, theme, pinned decks, optional nicknames (duels.ink / lorcanito) for personal-stats lookup, optional country.</li>
+    <li>Consents: timestamped acceptance of Terms, Privacy, replay upload.</li>
+    <li>Saved decks you create.</li>
+    <li>Board Lab replay uploads (owned by you; deletable).</li>
+  </ul>
+  <p>
+    We do <strong>not</strong> collect credit card or payment information
+    at this time (no billing provider is live). If and when we enable paid
+    tiers, payment data will be handled exclusively by a PCI-compliant
+    third-party payment processor; we never store card numbers ourselves.
+  </p>
+
+  <h2>GDPR rights</h2>
+  <p>
+    You can export all your data as JSON (<code>GET /api/user/export</code>)
+    and you can request deletion of your account. Deletion marks the account
+    and purges personal data after a 30-day grace window during which you can
+    reverse the request. Your uploaded replays are hard-deleted at that point.
+  </p>
+
+  <h2>What we do NOT do</h2>
+  <ul>
+    <li>We don't sell cards, rank players for money, or run paid tournaments.</li>
+    <li>We don't publish your own match replays unless you explicitly choose to share.</li>
+    <li>We don't expose your Lorcana nickname outside your own account context.</li>
+    <li>We don't use Disney or Lorcana logos or card images in our product.</li>
+  </ul>
+
+  <h2>Contact</h2>
+  <div class="box">
+    For data requests, privacy questions, removal requests, or any legal
+    concerns: <a href="mailto:legal@metamonitor.app">legal@metamonitor.app</a>.
+    We will respond within a reasonable timeframe.
+  </div>
+
+  <footer>
+    Lorcana Monitor — unofficial fan-made analytics tool.<br>
+    Not affiliated with Disney or Ravensburger.
+  </footer>
+</div>
+</body>
+</html>
