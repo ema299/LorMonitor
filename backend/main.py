@@ -15,7 +15,7 @@ from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
 from backend.middleware.error_handler import global_exception_handler
 from backend.middleware.rate_limit import RateLimitMiddleware
-from backend.services import replay_archive_service, match_log_features_service
+from backend.services import replay_archive_service, match_log_features_service, replay_anonymizer
 from backend.models.match import Match
 from backend.models.log_feature import MatchLogFeature
 
@@ -165,12 +165,15 @@ def replay_public_log(
             db.refresh(row)
     if not row:
         return JSONResponse({"error": "public log not found"}, 404)
+    # Privacy layer §24.7: anonymize nicknames on the public viewer path.
+    # Row persists raw nicknames; masking happens only on the response.
+    masked_log = replay_anonymizer.anonymize_viewer_public_log(row.viewer_public_log)
     return JSONResponse(
         {
             "match_id": row.match_id,
             "extractor_version": row.extractor_version,
             "match_summary": row.match_summary,
-            "viewer_public_log": row.viewer_public_log,
+            "viewer_public_log": masked_log,
             "player1_features": row.player1_features,
             "player2_features": row.player2_features,
         }

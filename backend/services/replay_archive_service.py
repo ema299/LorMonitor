@@ -8,6 +8,10 @@ from sqlalchemy.orm import Session
 
 from backend.models.analysis import ReplayArchive
 from backend.models.match import Match
+from backend.services.replay_anonymizer import (
+    anonymize_replay_game,
+    anonymize_replay_list_item,
+)
 
 _LEGACY_TO_PG = {"AS": "AmSa", "ES": "EmSa"}
 
@@ -47,9 +51,15 @@ def _game_won(g: dict) -> bool:
 
 
 def build_replay_list(archive: ReplayArchive) -> list[dict]:
+    """Build compact replay list for public viewer. Player nicknames anonymized.
+
+    Privacy layer §24.7: 'on' and 'en' fields are replaced with "Player" /
+    "Opponent" placeholders before leaving the service. Raw nicknames never
+    appear in /api/replay/list responses.
+    """
     games = archive.games or []
     refs = _lookup_match_refs(archive, games)
-    return [
+    items = [
         {
             "i": i,
             "r": "W" if _game_won(g) else "L",
@@ -65,16 +75,21 @@ def build_replay_list(archive: ReplayArchive) -> list[dict]:
         }
         for i, g in enumerate(games)
     ]
+    return [anonymize_replay_list_item(item) for item in items]
 
 
 def get_replay_game(archive: ReplayArchive, idx: int) -> dict | None:
+    """Get a single replay game for the public viewer. Nicknames anonymized.
+
+    Privacy layer §24.7: our_name / opp_name fields replaced with placeholders.
+    """
     games = archive.games or []
     if idx < 0 or idx >= len(games):
         return None
     game = dict(games[idx])
     refs = _lookup_match_refs(archive, [game])
     game.update(refs.get(0, {}))
-    return game
+    return anonymize_replay_game(game)
 
 
 def _extract_external_id(game: dict) -> str | None:
