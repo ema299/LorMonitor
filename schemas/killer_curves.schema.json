@@ -18,7 +18,24 @@
           "critical_turn": {"type": "object"},
           "key_cards": {"type": "array", "items": {"type": "string"}},
           "sequence": {"type": "object"},
-          "response": {"type": "object"},
+          "response": {
+            "type": "object",
+            "properties": {
+              "format_version": {"type": "string"},
+              "strategy": {"type": "string"},
+              "cards": {"type": "array", "items": {"type": "string"}},
+              "ink_required": {"type": "integer"},
+              "turn_needed": {"type": "integer"},
+              "headline": {"type": "string"},
+              "core_rule": {"type": "string"},
+              "priority_actions": {"type": "array", "items": {"type": "string"}},
+              "what_to_avoid": {"type": "array", "items": {"type": "string"}},
+              "stock_build_note": {"type": "string"},
+              "off_meta_note": {"type": "string"},
+              "play_draw_note": {"type": "string"},
+              "failure_state": {"type": "string"}
+            }
+          },
           "worst_case_validated": {"type": "boolean"},
           "validation": {"type": "object"}
         },

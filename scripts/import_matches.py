@@ -6,6 +6,7 @@ Usage: python scripts/import_matches.py [--dry-run]
 """
 import json
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -51,12 +52,25 @@ def colors_to_deck(ink_colors: list[str]) -> str | None:
     return _COLORS_TO_DECK.get(key)
 
 
+_SET_FOLDER_RE = re.compile(r'^SET(\d+)$')
+_CORE_SET_QUEUE_RE = re.compile(r'^SET\d+$')
+# Matches S11-BO1, S11-BO3, S12-EA-BO1, S12-EA-BO3, ...
+_CORE_QUEUE_RE = re.compile(r'^S\d+(-EA)?-(BO1|BO3)$')
+
+
 def folder_to_perimeter(folder_name: str) -> str:
-    """Convert folder name (SET11, TOP, PRO, INF) to perimeter."""
+    """Convert folder name to perimeter.
+
+    `SETNN` → `setNN` (accepts SET11, SET12, SET13, ...) so new-set folders
+    land in a dedicated perimeter without code change at release-day.
+    Everything else lowercased (TOP→top, PRO→pro, INF→inf, FRIENDS→friends).
+    """
+    m = _SET_FOLDER_RE.match(folder_name)
+    if m:
+        return f'set{m.group(1)}'
     return folder_name.lower()
 
 
-CORE_QUEUES = {'S11-BO1', 'S11-BO3', 'SET11'}
 INF_QUEUES = {'INF-BO1', 'INF-BO3', 'INF', 'JA-BO1', 'ZH-BO1'}
 CARD_OBS_EVENT_TYPES = {'CARD_PLAYED', 'CARD_INKED', 'INITIAL_HAND', 'CARD_DRAWN', 'MULLIGAN'}
 # RUSH, SEALED, SEAL-S11, QP, PRO, TOP, ? → not core constructed
@@ -65,11 +79,11 @@ CARD_OBS_EVENT_TYPES = {'CARD_PLAYED', 'CARD_INKED', 'INITIAL_HAND', 'CARD_DRAWN
 def determine_game_format(queue_name: str | None, perimeter: str) -> str:
     """Determine game format from queue name (primary) and perimeter (fallback)."""
     q = (queue_name or '').upper().strip()
-    if q in CORE_QUEUES:
+    if _CORE_QUEUE_RE.match(q) or _CORE_SET_QUEUE_RE.match(q):
         return 'core'
     if q in INF_QUEUES:
         return 'infinity'
-    if perimeter == 'inf':
+    if perimeter == 'inf' or perimeter == 'infinity':
         return 'infinity'
     # Unknown queue — not core constructed (RUSH, SEALED, QP, etc.)
     return 'other'
@@ -220,8 +234,27 @@ def iter_json_files(matches_dir: str):
 
 
 # Perimeter priority: more specific perimeter wins on conflict
-# pro > top > set11  (PRO ⊂ TOP ⊂ SET11)
-PERIM_PRIORITY = {'pro': 3, 'top': 2, 'inf': 2, 'set11': 1, 'friends': 1, 'mygame': 1}
+# pro > top > setNN  (PRO ⊂ TOP ⊂ SETNN)
+# setNN (set11, set12, ...) receives default priority 1 via _perim_priority()
+_PERIM_PRIORITY_STATIC = {'pro': 3, 'top': 2, 'inf': 2, 'infinity': 2, 'friends': 1, 'mygame': 1}
+
+
+def _perim_priority(perimeter: str) -> int:
+    if perimeter in _PERIM_PRIORITY_STATIC:
+        return _PERIM_PRIORITY_STATIC[perimeter]
+    if perimeter.startswith('set') and perimeter[3:].isdigit():
+        return 1
+    return 0
+
+
+# Backwards-compat alias: older code calls `PERIM_PRIORITY.get(p, 0)`.
+class _PerimPriorityView(dict):
+    def get(self, key, default=0):
+        val = _perim_priority(key)
+        return val if val else default
+
+
+PERIM_PRIORITY = _PerimPriorityView(_PERIM_PRIORITY_STATIC)
 
 INSERT_SQL = text("""
     INSERT INTO matches

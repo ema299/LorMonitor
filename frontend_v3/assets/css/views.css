@@ -1,0 +1,248 @@
+.v3-hero,
+.v3-panel,
+.v3-rail-card {
+  border: 1px solid var(--v3-border);
+  border-radius: var(--v3-radius-xl);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015)), var(--v3-surface);
+  box-shadow: var(--v3-shadow);
+}
+
+.v3-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+}
+
+.v3-hero__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 12px;
+  min-width: min(320px, 100%);
+}
+
+.v3-overline {
+  margin: 0 0 8px;
+  color: var(--v3-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.v3-title {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.96;
+}
+
+.v3-copy {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: var(--v3-text-dim);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.v3-kpi {
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--v3-radius-lg);
+  background: var(--v3-surface-2);
+}
+
+.v3-kpi__value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.v3-kpi__label {
+  color: var(--v3-text-soft);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.v3-main {
+  display: grid;
+  gap: 18px;
+}
+
+.v3-panel,
+.v3-rail-card {
+  padding: 24px;
+}
+
+.v3-section-head {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.v3-section-head h2,
+.v3-section-head p,
+.v3-stage h3,
+.v3-stage p,
+.v3-blueprint-card p,
+.v3-rail-card__item p,
+.v3-placeholder p {
+  margin: 0;
+}
+
+.v3-section-head h2 {
+  font-size: 1.1rem;
+}
+
+.v3-section-head p {
+  color: var(--v3-text-dim);
+  line-height: 1.6;
+}
+
+.v3-blueprint-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.v3-blueprint-card,
+.v3-stage,
+.v3-placeholder,
+.v3-rail-card__item {
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--v3-radius-lg);
+  background: var(--v3-surface-2);
+}
+
+.v3-blueprint-card__top,
+.v3-stage__meta,
+.v3-rail-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.v3-blueprint-card__label {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.v3-blueprint-card__ownership,
+.v3-stage__phase {
+  color: var(--v3-text-soft);
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.v3-blueprint-card p,
+.v3-rail-card__item p,
+.v3-stage p,
+.v3-placeholder p {
+  color: var(--v3-text-dim);
+  line-height: 1.6;
+}
+
+.v3-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.v3-chip {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  color: var(--v3-text-dim);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+}
+
+.v3-stage-list {
+  display: grid;
+  gap: 12px;
+}
+
+.v3-stage--active {
+  border-color: rgba(215, 166, 79, 0.28);
+}
+
+.v3-stage--next {
+  border-color: rgba(103, 167, 217, 0.22);
+}
+
+.v3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.v3-badge--ready {
+  color: #0d1d18;
+  background: var(--v3-ok);
+}
+
+.v3-badge--active {
+  color: #1d1400;
+  background: var(--v3-warn);
+}
+
+.v3-badge--next {
+  color: #081822;
+  background: var(--v3-next);
+}
+
+.v3-badge--locked {
+  color: #0f151b;
+  background: var(--v3-locked);
+}
+
+.v3-rail {
+  display: grid;
+  gap: 18px;
+  align-self: start;
+  position: sticky;
+  top: 18px;
+}
+
+.v3-rail[data-density="compact"] .v3-rail-card {
+  padding: 18px;
+}
+
+.v3-rail-card {
+  display: grid;
+  gap: 12px;
+}
+
+.v3-placeholder {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 960px) {
+  .v3-hero {
+    flex-direction: column;
+  }
+
+  .v3-hero__meta,
+  .v3-blueprint-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .v3-rail {
+    position: static;
+  }
+}

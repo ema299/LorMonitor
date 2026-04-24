@@ -40,11 +40,12 @@ def matchup_matrix(
     game_format: str = Query("core"),
     perimeter: str | None = Query(None),
     days: int = Query(7, ge=1, le=30),
+    queue_filter: str | None = Query(None, pattern="^(bo1|bo3)$"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Full matchup matrix (all deck pairs)."""
-    return stats_service.get_matchup_matrix(db, game_format, perimeter, days)
+    """Full matchup matrix (all deck pairs). queue_filter=bo1|bo3 to restrict by format."""
+    return stats_service.get_matchup_matrix(db, game_format, perimeter, days, queue_filter)
 
 
 @router.get("/deck-fitness")
@@ -75,11 +76,12 @@ def otp_otd(
     game_format: str = Query("core"),
     perimeter: str | None = Query(None),
     days: int = Query(7, ge=1, le=30),
+    queue_filter: str | None = Query(None, pattern="^(bo1|bo3)$"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """OTP vs OTD win rates per matchup."""
-    return stats_service.get_otp_otd(db, game_format, perimeter, days)
+    """OTP vs OTD win rates per matchup. queue_filter=bo1|bo3 to restrict by format."""
+    return stats_service.get_otp_otd(db, game_format, perimeter, days, queue_filter)
 
 
 @router.get("/trend")

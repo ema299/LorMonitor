@@ -40,3 +40,7 @@ output/
 scripts/.import_skip_cache
 backups/
 .codex
+
+# Frontend V3 local archives (docs backup tarballs, not for repo)
+frontend_v3/_archive_*.tar.gz
+frontend_v3/_archive_*/

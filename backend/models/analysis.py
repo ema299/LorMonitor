@@ -20,6 +20,9 @@ class KillerCurve(Base):
     loss_count: Mapped[int | None] = mapped_column(Integer)
     version: Mapped[int] = mapped_column(Integer, server_default="1")
     is_current: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    meta: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
 
     __table_args__ = (
         UniqueConstraint("game_format", "our_deck", "opp_deck", "generated_at"),

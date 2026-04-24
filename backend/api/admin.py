@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.deps import get_db, require_admin
+from backend.deps import get_db, require_admin, require_admin_or_server_token
 from backend.models.user import User
 
 router = APIRouter()
@@ -60,6 +60,51 @@ def metrics(
         {"day": r.day.isoformat(), "format": r.game_format, "games": r.games}
         for r in rows
     ]
+
+
+@router.post("/reset-legality-cache")
+def reset_legality_cache(admin: User | None = Depends(require_admin_or_server_token)):
+    """Invalidate in-process caches that depend on cards/meta_epochs.
+
+    Call this after static_importer refreshes the `cards` table (new set
+    reveal) or after an `alembic upgrade` that touches `meta_epochs`, so the
+    running uvicorn picks up the change without a full restart.
+
+    Cross-process use: the static importer cron runs in a separate process
+    (uvicorn caches are unaffected by reset_checkers() from inside the worker).
+    The wrapper `scripts/refresh_static_and_reset.sh` curls this endpoint
+    immediately after the importer to keep the two in sync.
+    """
+    from backend.services.legality_service import reset_checkers
+    reset_checkers()
+
+    reset = ["legality_checkers"]
+    # Invalidate the KC prompt-builder's cached legal_sets so the next batch
+    # re-reads meta_epochs.legal_sets. Import inline to avoid cycles.
+    try:
+        from pipelines.kc import build_prompt
+        build_prompt._core_legal_sets = None
+        reset.append("kc_legal_sets")
+    except Exception:
+        pass
+
+    return {"status": "ok", "reset": reset}
+
+
+@router.post("/refresh-dashboard")
+def refresh_dashboard(
+    admin: User | None = Depends(require_admin_or_server_token),
+    db: Session = Depends(get_db),
+):
+    """Force rebuild of the dashboard blob cache (2h TTL).
+
+    Used after a cutover event (set rotation, legal_sets change) to make the
+    fresh data visible immediately instead of waiting for the stale-while-
+    revalidate window to flip.
+    """
+    from backend.api.dashboard import _rebuild_cache
+    _rebuild_cache(db)
+    return {"status": "ok", "refreshed": "dashboard_blob"}
 
 
 @router.get("/logs")

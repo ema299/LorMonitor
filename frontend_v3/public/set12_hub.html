@@ -1,0 +1,328 @@
+<!--
+  Set 12 Hub — hero banner per Home view.
+  Da incollare nel template Home (home.js) o fetchare come partial.
+  Stile minimale, si adatta ai token di monolith.css / tokens.css.
+
+  Integration:
+    - in home.js, container.innerHTML include questa stringa PRIMA del resto
+    - il countdown JS sotto e' in-line, si attiva a DOMContentLoaded
+    - form email: sostituire action URL con endpoint reale (Mailchimp / ConvertKit / Resend / Google Form)
+    - Discord invite: sostituire href con invite reale
+-->
+
+<section class="v3-panel set12-hub" id="set12Hub" data-release-date="2026-05-12T00:00:00Z">
+  <div class="set12-hub__inner">
+
+    <div class="set12-hub__header">
+      <span class="set12-hub__eyebrow">SET 12 — Coming Soon</span>
+      <h1 class="set12-hub__title">
+        100,000 matches simulated with Set 12 cards.<br>
+        <span class="set12-hub__title-accent">See the meta before it arrives.</span>
+      </h1>
+      <p class="set12-hub__lede">
+        Il Set 12 sta per uscire. Mentre tutti aspettano di testare, noi abbiamo gia' simulato
+        il meta con le carte nuove. Tier list data-driven, killer curves rotte, combo day-one.
+        Iscriviti, lo ricevi appena esce.
+      </p>
+    </div>
+
+    <div class="set12-hub__countdown" id="set12Countdown" aria-live="polite">
+      <div class="set12-hub__cd-item">
+        <span class="set12-hub__cd-value" data-cd="days">--</span>
+        <span class="set12-hub__cd-label">days</span>
+      </div>
+      <div class="set12-hub__cd-item">
+        <span class="set12-hub__cd-value" data-cd="hours">--</span>
+        <span class="set12-hub__cd-label">hours</span>
+      </div>
+      <div class="set12-hub__cd-item">
+        <span class="set12-hub__cd-value" data-cd="mins">--</span>
+        <span class="set12-hub__cd-label">min</span>
+      </div>
+    </div>
+
+    <form class="set12-hub__form" id="set12LeadForm" novalidate
+          action="https://REPLACE-WITH-REAL-ENDPOINT.example.com/subscribe"
+          method="POST">
+      <label class="set12-hub__label" for="set12Email">
+        Get the Meta Preview PDF the day Set 12 drops
+      </label>
+      <div class="set12-hub__form-row">
+        <input type="email" id="set12Email" name="email" required autocomplete="email"
+               placeholder="you@example.com" class="set12-hub__input">
+        <button type="submit" class="set12-hub__submit">
+          Reserve my copy
+        </button>
+      </div>
+      <p class="set12-hub__disclaimer">
+        Free. No spam. Unsubscribe anytime. Powered by 50K+ real match data.
+      </p>
+      <div class="set12-hub__form-feedback" id="set12FormFeedback" role="status" aria-live="polite"></div>
+    </form>
+
+    <div class="set12-hub__ctas">
+      <a class="set12-hub__cta set12-hub__cta--discord"
+         href="https://discord.gg/REPLACE-WITH-REAL-INVITE"
+         target="_blank" rel="noopener">
+        <span class="set12-hub__cta-icon" aria-hidden="true">#</span>
+        Join the Discord
+      </a>
+      <a class="set12-hub__cta set12-hub__cta--preview"
+         href="#set12Preview">
+        See the early sneak peek
+      </a>
+    </div>
+
+    <div class="set12-hub__teaser" id="set12Preview">
+      <h2 class="set12-hub__teaser-title">What you'll get in the Meta Preview</h2>
+      <ul class="set12-hub__teaser-list">
+        <li><strong>Tier list data-driven</strong> da 100K match simulati con carte Set 12</li>
+        <li><strong>Top 5 carte shock</strong> che cambiano il meta</li>
+        <li><strong>3 combo rotte</strong> con killer curve e risposta tattica</li>
+        <li><strong>Matchup matrix</strong> post-Set 12 confrontata con Set 11</li>
+        <li><strong>Deck rising / falling</strong> con WR proiettata</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<style>
+  /* Set 12 Hub — scoped styles. Adattare a tokens.css quando disponibile. */
+  .set12-hub {
+    background: linear-gradient(135deg, #1a0f2e 0%, #2d1a4a 100%);
+    color: #fff;
+    border-radius: 12px;
+    padding: 32px 24px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  .set12-hub__inner { max-width: 720px; margin: 0 auto; }
+  .set12-hub__eyebrow {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: #ffd700;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .set12-hub__title {
+    font-size: 1.75rem;
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 0 0 16px;
+  }
+  @media (min-width: 768px) {
+    .set12-hub__title { font-size: 2.25rem; }
+  }
+  .set12-hub__title-accent { color: #ffd700; }
+  .set12-hub__lede {
+    font-size: 1rem;
+    line-height: 1.55;
+    margin: 0 0 24px;
+    opacity: 0.92;
+  }
+  .set12-hub__countdown {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin: 0 0 24px;
+  }
+  .set12-hub__cd-item { text-align: center; }
+  .set12-hub__cd-value {
+    display: block;
+    font-size: 2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #ffd700;
+    line-height: 1;
+  }
+  .set12-hub__cd-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.7;
+  }
+  .set12-hub__form {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 215, 0, 0.15);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .set12-hub__label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .set12-hub__form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  @media (min-width: 640px) {
+    .set12-hub__form-row { flex-direction: row; }
+  }
+  .set12-hub__input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #fff;
+    padding: 12px 14px;
+    border-radius: 6px;
+    font-size: 1rem;
+    outline: none;
+  }
+  .set12-hub__input:focus { border-color: #ffd700; }
+  .set12-hub__submit {
+    background: #ffd700;
+    color: #1a0f2e;
+    font-weight: 700;
+    border: 0;
+    padding: 12px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    white-space: nowrap;
+    transition: transform 0.15s ease;
+  }
+  .set12-hub__submit:hover { transform: translateY(-1px); }
+  .set12-hub__submit:disabled { opacity: 0.5; cursor: not-allowed; }
+  .set12-hub__disclaimer {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin: 10px 0 0;
+  }
+  .set12-hub__form-feedback {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    min-height: 1.25em;
+  }
+  .set12-hub__form-feedback.is-success { color: #7ae27a; }
+  .set12-hub__form-feedback.is-error { color: #ff8a8a; }
+  .set12-hub__ctas {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .set12-hub__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: transform 0.15s ease;
+  }
+  .set12-hub__cta:hover { transform: translateY(-1px); }
+  .set12-hub__cta--discord {
+    background: #5865F2;
+    color: #fff;
+  }
+  .set12-hub__cta--preview {
+    background: transparent;
+    color: #ffd700;
+    border: 1px solid rgba(255, 215, 0, 0.4);
+  }
+  .set12-hub__cta-icon {
+    display: inline-block;
+    font-weight: 900;
+  }
+  .set12-hub__teaser {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 20px;
+  }
+  .set12-hub__teaser-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: #ffd700;
+  }
+  .set12-hub__teaser-list {
+    margin: 0;
+    padding-left: 20px;
+    line-height: 1.8;
+    font-size: 0.95rem;
+  }
+  .set12-hub__teaser-list strong { color: #ffd700; }
+</style>
+
+<script>
+  (function () {
+    'use strict';
+    // Countdown — reads data-release-date on root element
+    const root = document.getElementById('set12Hub');
+    if (!root) return;
+
+    const releaseIso = root.getAttribute('data-release-date');
+    const release = new Date(releaseIso).getTime();
+    const fields = {
+      days: root.querySelector('[data-cd="days"]'),
+      hours: root.querySelector('[data-cd="hours"]'),
+      mins: root.querySelector('[data-cd="mins"]'),
+    };
+
+    function tick() {
+      const now = Date.now();
+      const diff = Math.max(0, release - now);
+      const days = Math.floor(diff / 86400000);
+      const hours = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      if (fields.days) fields.days.textContent = String(days).padStart(2, '0');
+      if (fields.hours) fields.hours.textContent = String(hours).padStart(2, '0');
+      if (fields.mins) fields.mins.textContent = String(mins).padStart(2, '0');
+      if (diff === 0) {
+        // Drop arrivato: puoi cambiare copy, attivare CTA "Read the full report"
+        root.classList.add('set12-hub--dropped');
+      }
+    }
+    tick();
+    setInterval(tick, 30000);
+
+    // Lead form — MVP, intercetta submit e mostra feedback
+    const form = document.getElementById('set12LeadForm');
+    const feedback = document.getElementById('set12FormFeedback');
+    if (!form || !feedback) return;
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      feedback.className = 'set12-hub__form-feedback';
+      feedback.textContent = '';
+
+      const email = form.email.value.trim();
+      if (!email || email.indexOf('@') < 1) {
+        feedback.className = 'set12-hub__form-feedback is-error';
+        feedback.textContent = 'Please enter a valid email.';
+        return;
+      }
+
+      const submitBtn = form.querySelector('.set12-hub__submit');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ email: email }).toString(),
+        });
+        if (!res.ok && res.status !== 0) throw new Error('bad status ' + res.status);
+        feedback.className = 'set12-hub__form-feedback is-success';
+        feedback.textContent = 'You are in. Watch your inbox on Set 12 drop day.';
+        form.reset();
+      } catch (err) {
+        feedback.className = 'set12-hub__form-feedback is-error';
+        feedback.textContent = 'Something broke. Try again in a moment.';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Reserve my copy';
+      }
+    });
+  })();
+</script>

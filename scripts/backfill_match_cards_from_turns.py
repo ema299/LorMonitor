@@ -94,8 +94,8 @@ def main() -> None:
                 db.execute(
                     text("""
                         UPDATE matches
-                        SET cards_a = :cards_a::jsonb,
-                            cards_b = :cards_b::jsonb
+                        SET cards_a = CAST(:cards_a AS jsonb),
+                            cards_b = CAST(:cards_b AS jsonb)
                         WHERE id = :id
                     """),
                     batch,
@@ -109,8 +109,8 @@ def main() -> None:
             db.execute(
                 text("""
                     UPDATE matches
-                    SET cards_a = :cards_a::jsonb,
-                        cards_b = :cards_b::jsonb
+                    SET cards_a = CAST(:cards_a AS jsonb),
+                        cards_b = CAST(:cards_b AS jsonb)
                     WHERE id = :id
                 """),
                 batch,

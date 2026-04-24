@@ -90,7 +90,28 @@ LEGACY_TO_PG = {v: k for k, v in PG_TO_LEGACY.items()}
 
 # Perimeters we treat as "competitive core" — matches outside this set are
 # noise for digest purposes (RUSH, SEALED, QP, ...).
-PERIMETERS = {"set11", "top", "pro", "friends"}
+#
+# Post-rotation the killer-curve pipeline must operate ONLY on the active
+# set (e.g. after Set 12 release, KC prompts must be built from set12 games,
+# not a set11+set12 mix). We therefore bind the digest perimeter filter to
+# the single source of truth ``APPTOOL_DEFAULT_CORE_PERIMETER`` — the same
+# env var ``snapshot_assembler`` reads. To flip the pipeline to a new set
+# we change the env and restart uvicorn; no code change.
+#
+# Older / legacy setNN rows remain in the ``matches`` table (historical) but
+# are intentionally invisible to the digest.
+import os as _os
+_STATIC_CORE_PERIMETERS = ("top", "pro", "friends")
+_ACTIVE_SET_PERIMETER = (
+    _os.environ.get("APPTOOL_DEFAULT_CORE_PERIMETER", "set11").strip() or "set11"
+)
+_ACTIVE_CORE_PERIMETERS = frozenset((_ACTIVE_SET_PERIMETER, *_STATIC_CORE_PERIMETERS))
+# Kept for legacy Python-level importers; same semantics as above.
+PERIMETERS = _ACTIVE_CORE_PERIMETERS
+
+
+def _is_core_perimeter(p: str | None) -> bool:
+    return bool(p) and p in _ACTIVE_CORE_PERIMETERS
 
 # Mirror of `run_kc_production.DECKS`, the canonical matchup list, translated
 # into App_tool (PG-canonical) deck codes.
@@ -260,11 +281,15 @@ def _fetch_matches(
     `our_is_a = True` when our deck appeared as ``deck_a`` in the row; this is
     what :func:`_materialise_game` needs to map ``player_a_*`` to our side.
     """
+    # Perimeter filter: the currently-active core set (DEFAULT_CORE_PERIMETER)
+    # plus the static competitive buckets. Legacy setNN rows in `matches`
+    # stay out of the digest so KC / matchup reports operate strictly on the
+    # active set — critical post-rotation to avoid cross-set contamination.
     q = (
         select(Match)
         .where(
             Match.game_format == game_format,
-            Match.perimeter.in_(PERIMETERS),
+            Match.perimeter.in_(_ACTIVE_CORE_PERIMETERS),
             Match.played_at >= since,
             or_(
                 (Match.deck_a == our_deck_pg) & (Match.deck_b == opp_deck_pg),

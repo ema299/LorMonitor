@@ -1,6 +1,7 @@
 """Worker: import new match JSON files into PostgreSQL."""
 import json
 import logging
+import re
 from pathlib import Path
 from datetime import datetime
 
@@ -14,15 +15,22 @@ BATCH_SIZE = 500
 DATE_FOLDERS_PATTERN = "[0-9][0-9][0-9][0-9][0-9][0-9]"
 CARD_OBS_EVENT_TYPES = {"CARD_PLAYED", "CARD_INKED", "INITIAL_HAND", "CARD_DRAWN", "MULLIGAN"}
 
+_SET_FOLDER_RE = re.compile(r"^SET(\d+)$")
+_STATIC_FOLDER_FORMAT = {"TOP": "core", "PRO": "core", "FRIENDS": "core", "INF": "infinity"}
+_STATIC_FOLDER_PERIMETER = {"TOP": "top", "PRO": "pro", "FRIENDS": "friends", "INF": "infinity"}
+
 
 def get_format_from_folder(folder_name: str) -> str:
-    mapping = {"SET11": "core", "TOP": "core", "PRO": "core", "FRIENDS": "core", "INF": "infinity"}
-    return mapping.get(folder_name, "other")
+    if _SET_FOLDER_RE.match(folder_name):
+        return "core"
+    return _STATIC_FOLDER_FORMAT.get(folder_name, "other")
 
 
 def get_perimeter_from_folder(folder_name: str) -> str:
-    mapping = {"SET11": "set11", "TOP": "top", "PRO": "pro", "FRIENDS": "friends", "INF": "infinity"}
-    return mapping.get(folder_name, "other")
+    m = _SET_FOLDER_RE.match(folder_name)
+    if m:
+        return f"set{m.group(1)}"
+    return _STATIC_FOLDER_PERIMETER.get(folder_name, "other")
 
 
 def _extract_cards_seen(logs: list[dict], player_num: int) -> list[str]:

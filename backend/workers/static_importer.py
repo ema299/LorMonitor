@@ -1,6 +1,7 @@
 """Worker: import static data (cards_db, consensus) into PostgreSQL."""
 import json
 import logging
+import os
 from pathlib import Path
 from datetime import date
 
@@ -12,12 +13,30 @@ logger = logging.getLogger(__name__)
 CARDS_DB_PATH = Path("/mnt/HC_Volume_104764377/finanza/Lor/cards_db.json")
 DUELS_INK_CACHE = Path("/mnt/HC_Volume_104764377/finanza/Lor/duels_ink_cards_cache.json")
 
-# Set code → numeric prefix for image URLs
+# Set code → numeric prefix for image URLs.
+# Extend at Set 12 reveal without code change:
+#   EXTRA_SET_CODE=XYZ EXTRA_SET_NUM=12  (single override)
+# For multiple future sets, use EXTRA_SET_MAP='{"XYZ":"12","ABC":"13"}'.
 SET_MAP = {
     "TFC": "1", "ROF": "2", "ITI": "3", "URR": "4",
     "SSK": "5", "AZU": "6", "ABM": "7", "SIX": "8",
     "TMF": "9", "PSC": "10", "FLB": "11",
 }
+
+_EXTRA_SET_CODE = os.environ.get("EXTRA_SET_CODE")
+_EXTRA_SET_NUM = os.environ.get("EXTRA_SET_NUM", "12")
+if _EXTRA_SET_CODE:
+    SET_MAP[_EXTRA_SET_CODE] = _EXTRA_SET_NUM
+
+_EXTRA_SET_MAP_JSON = os.environ.get("EXTRA_SET_MAP")
+if _EXTRA_SET_MAP_JSON:
+    try:
+        extra = json.loads(_EXTRA_SET_MAP_JSON)
+        if isinstance(extra, dict):
+            for code, num in extra.items():
+                SET_MAP[str(code)] = str(num)
+    except json.JSONDecodeError as _e:
+        logger.warning("Invalid EXTRA_SET_MAP (not JSON): %s", _e)
 
 
 def _load_cards_db() -> dict:

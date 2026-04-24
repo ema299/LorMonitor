@@ -5,6 +5,8 @@ Master TODO del prodotto finale `metamonitor.app`. Questo file vive in App_tool 
 Linka a:
 - [`ARCHITECTURE.md`](../ARCHITECTURE.md) — architettura target, endpoint, schema DB
 - [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md) — migrazione runtime da analisidef (Fase F-H futuro)
+- [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) — readiness per release Set 12 (capture match transition window, meta_epochs, dual perimeter)
+- [`KC_REVIEW.md`](KC_REVIEW.md) — review costo/qualità killer curves (schema v2, lingua EN, cost tracking)
 - [`CLAUDE.md`](../CLAUDE.md) — entry point operativo (layout, pattern UI, flow lavoro)
 
 **Separazione di scope**:
@@ -60,6 +62,12 @@ Dal benchmark vs tool TCG (17Lands, HSReplay, Untapped.gg, Firestone, Limitless 
 | E | In-game overlay live tracking | HSReplay, Firestone, Untapped | Strutturale | **No-go** | Duels.ink è browser chiuso |
 | F | VOD annotation collaborative review | Insights.gg | Scope ampio | Post-MVP | — |
 
+## 2.0. Priorità operative correnti
+
+- **P0** = rischio produzione / qualità dato / verifica post-fix
+- **P1** = backlog vicino al prodotto, utile nelle prossime iterazioni
+- **P2** = medio termine, infra o feature più ampie
+
 ## 2.1. Replay viewer logs pubblico — update 16/04/2026
 
 Stato reale dopo la sessione di oggi:
@@ -110,40 +118,61 @@ Documento di riferimento: `ARCHITECTURE.md` §12.
 
 ---
 
-## 4. Cleanup immediato (low-effort, high-value)
+## 4. P1 — Cleanup immediato (low-effort, high-value)
 
 | Task | Dove | Effort | Rischio |
 |------|------|--------|---------|
 | Best Plays query Python (su killer curves avversarie) | nuovo service `best_plays_service.py` + snapshot_assembler | 1 dev day | Zero (additivo) |
 | Uniformità 4 `section-title` in Community+Events tab | `frontend/dashboard.html` | 30 min | Zero |
-| Rimuovere `tech_choices` duplicato dal blob per-perimetro | `backend/services/snapshot_assembler.py` | 30 min | Zero (non usato) |
-| Verifica/rimuovi campo `analysis` top-level vuoto | grep usages → se dead, cleanup | 30 min | Verifica prima |
 | Uniformità pattern Team tab (`player-card` → `monAccordion`) | `frontend/dashboard.html` | 1-2 dev days | Medio |
 
-## 4.1. Scouting meta / rogue decks
+**Audit 20/04/2026: gia' chiusi e rimossi dall'open backlog**
+- `tech_choices` duplicato nel blob per-perimetro: rimosso da `backend/services/snapshot_assembler.py`
+- campo top-level `analysis`: verificato dead e rimosso dal blob runtime
 
-Discovery 16/04/2026 da `analisidef`:
+## 4.0-bis. P0 — Set 12 readiness (Fase S0, 22/04/2026)
 
-- `lib/rogue_scout.py` ha valore prodotto reale: migliora molto il vecchio "emerging decks" con Wilson LB, baseline player/deck, filtri anti-noise e bucket distinti (`emerging_archetypes`, `solo_brews`, `tier0_killers`, `off_meta_validated`).
-- In App_tool il port PG-first esiste gia' in `backend/services/rogue_scout_service.py` ed e' esposto come endpoint admin/debug `GET /api/v1/monitor/rogue-scout-preview`; la UI ancora non lo usa.
-- Blocker dati emerso dallo smoke test reale: `cards_a/cards_b` non venivano valorizzati dal nuovo importer anche se i raw logs contengono `cardRefs`.
-- Fix avviato il 16/04/2026:
-  - `backend/workers/match_importer.py` ora ricostruisce `cards_a/cards_b` dai log (`INITIAL_HAND`, `MULLIGAN`, `CARD_DRAWN`, `CARD_PLAYED`, `CARD_INKED`)
-  - `scripts/import_matches.py` riallineato alla stessa logica
-  - nuovo `scripts/backfill_match_cards_from_turns.py` per ripopolare il DB storico dai `turns` gia' salvati
-  - backfill eseguito su primi chunk recenti: l'endpoint rogue scout e' tornato a produrre bucket `solo_brews` e `off_meta_validated`
+Piano consolidato in [`SET12_MIGRATION_PLAN.md`](SET12_MIGRATION_PLAN.md) v3. Tutto il codice S0 è in repo.
 
-Prossimi step consigliati:
+| Task | Stato | Dove |
+|------|-------|------|
+| Regex folder/queue future-proof (SETNN, S12-BO*) | FATTO | `backend/workers/match_importer.py`, `scripts/import_matches.py` |
+| Digest generator `_is_core_perimeter()` (SQL regex) | FATTO | `pipelines/digest/generator.py` |
+| Canary filesystem-level FS vs DB | FATTO | `scripts/monitor_unmapped_matches.py` |
+| `SET_MAP` estensibile via env | FATTO | `backend/workers/static_importer.py` |
+| Admin endpoint `reset-legality-cache` + `refresh-dashboard` | FATTO | `backend/api/admin.py`, `backend/deps.py` |
+| Wrapper `refresh_static_and_reset.sh` | FATTO | `scripts/refresh_static_and_reset.sh` |
+| `default_core_perimeter` nel blob + helper frontend | FATTO | `backend/services/snapshot_assembler.py`, `frontend/dashboard.html` |
+| Migration S0.5 `set12_launch` in cassetto (guard env) | FATTO | `db/migrations/versions/7894044b7dd3_*.py` |
+| Migration S0.6 partial index future-proof | FATTO (codice + DB) | `db/migrations/versions/7dec24a98839_*.py` + `backend/models/match.py:44`. `alembic current = 7dec24a98839`. |
+| E2E dry-run SETXX → `perimeter=setXX`/`format=core` | VERIFICATO | — |
+| Token admin + systemd drop-in | FATTO | `/etc/apptool.env` (0600) + `lorcana-api.service.d/admin-token.conf`. Smoke test endpoint: 200 con token, 401 senza. |
+| Crontab Dom 04:45 → wrapper | FATTO | backup `/tmp/crontab_backup_1776843879.bak`. |
+| Cron canary 07:05 UTC | FATTO | `scripts/monitor_unmapped_matches.py` installato. |
+
+**S0 chiuso end-to-end 22/04/2026 07:45 UTC.** Azioni VPS tutte applicate — vedi `SET12_MIGRATION_PLAN.md` §9 per la quick-verify checklist.
+
+## 4.0. P0 — Follow-up incidente 20/04/2026
+
+Issue emersi in produzione su metamonitor.app dopo snapshot InkDecks parziali e alcune KC Core contaminate da carte Infinity.
 
 | Task | Dove | Effort | Note |
 |------|------|--------|------|
-| Continuare one-off backfill `cards_a/cards_b` sui match recenti/storici | importer / DB | 0.5-1 dev day | Importer live e script sono pronti; resta da far girare il backfill piu' ampio |
-| Port completo `rogue_scout` PG-first | `backend/services/rogue_scout_service.py` | 2-4 dev days | Il core c'e', ma va rifinito dopo il fix decklist coverage |
-| Endpoint debug `GET /api/v1/monitor/rogue-scout-preview` | `backend/api/monitor.py` | Fatto | Admin/debug only, smoke test reale passato |
-| UI Monitor "Emerging / Rogue / Tier-0 Killers" | `frontend/dashboard.html` | 1-2 dev days | accordion chiuso di default |
-| Decide porting `gen_meta_deck.py` | discovery | 1 dev day | farlo solo dopo valutazione stabilita di `rogue_scout` |
+| Alert "snapshot InkDecks sparse" | `scripts/monitor_kc_freshness.py` | Fatto | aggiunto guard su streak di snapshot con archetipi sotto soglia |
+| Audit `decks_db_builder.py` fuori repo | `/mnt/HC_Volume_104764377/finanza/Lor/decks_db_builder.py` | Fatto | trovati timeout browser; aggiunti retry + sparse snapshot guard |
+| Rebuild/verify blob dopo fix static data | runtime/cache | Fatto | blob assemblato live contro PG: `consensus_decks=15`, `reference_decks=15` |
+| Verifica batch KC core post-fix | `scripts/generate_killer_curves.py` + PG `killer_curves` | 10-20 min | controllare matchups RS/rosso-blu senza carte fuori rotazione |
 
-## 4.2. Lab tab — Deck Comparator (piramide)
+**Nota operativa 20/04/2026**
+- `snapshot_20260420.json` e' stato recuperato dal contenuto dell'ultimo snapshot sano (`snapshot_20260416.json`) per non lasciare come latest un file sparse a 5 archetipi
+
+## 4.1. Audit chiuso — Rogue / scouting
+
+- `rogue_scout` risulta gia' fatto lato prodotto; rimosso dall'open backlog su richiesta utente il `20/04/2026`
+- endpoint/admin preview presente: `GET /api/v1/monitor/rogue-scout-preview`
+- backlog rogue UI/backfill non piu' trattato come open in questo file
+
+## 4.2. P2 — Lab tab — Deck Comparator (piramide)
 
 Endpoint backend pronto: `GET /api/v1/lab/tournament-lists/{deck}` (15 liste da inkdecks snapshot).
 
@@ -156,17 +185,17 @@ Endpoint backend pronto: `GET /api/v1/lab/tournament-lists/{deck}` (15 liste da 
 
 | Task | Dove | Effort | Note |
 |------|------|--------|------|
-| Frontend comparatore desktop (piramide + diff) | `frontend/dashboard.html` Lab tab | 30 min | CSS griglia + JS fetch + diff calc |
-| Frontend comparatore mobile (badge → fullscreen) | `frontend/dashboard.html` | 15 min | Bottom-sheet overlay |
-| Integrare in Lab tab come prima sezione | `frontend/dashboard.html` | 10 min | Prima di Mulligan Trainer |
+| Frontend comparatore desktop (piramide + diff) | `frontend/dashboard.html` Lab tab | FATTO 20/04/2026 | CSS griglia + JS fetch + diff calc |
+| Frontend comparatore mobile (badge → fullscreen) | `frontend/dashboard.html` | OPEN | Oggi responsive stack/chips, manca bottom-sheet fullscreen dedicato |
+| Integrare in Lab tab come prima sezione | `frontend/dashboard.html` | FATTO 20/04/2026 | Prima di Mulligan Trainer |
 
 ---
 
-## 5. Infrastruttura — pre go-pubblico serio
+## 5. P2 — Infrastruttura pre go-pubblico serio
 
 | Task | Status | Rischio se non fatto |
 |------|--------|----------------------|
-| **systemd service** `lorcana-api` per uvicorn (ora nohup manuale) | Non fatto | Crash → dashboard down fino restart manuale |
+| **systemd service** `lorcana-api` per uvicorn | Da verificare | docs in drift: `CLAUDE.md` lo dà pending, `ARCHITECTURE.md` lo dà fatto |
 | **CORS stringere** (oggi permissivo) | Non fatto | Bassa priorità finché no API pubbliche cross-origin; da stringere pre go-pubblico |
 | **OAuth Discord bridge** (per opt-in Public Profile) | Non pianificato | Blocca feature #C |
 | **Email duels.ink** per allineamento legale | Scritta in `../analisidef/business/email_duels_ink_v4.md`, non ancora spedita | Blocca feature #C pubblico |
@@ -174,7 +203,7 @@ Endpoint backend pronto: `GET /api/v1/lab/tournament-lists/{deck}` (15 liste da 
 
 ---
 
-## 6. Migrazione da analisidef (Fase F-H)
+## 6. P2 — Migrazione da analisidef (Fase F-H)
 
 Dettaglio in [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md).
 
@@ -187,7 +216,7 @@ Dettaglio in [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md).
 
 ---
 
-## 7. Priorità consigliata Q2-Q3 2026
+## 7. Roadmap estesa Q2-Q3 2026
 
 1. **Sprint 1 (2-3 giorni) — Cleanup immediato**
    - Best Plays query Python (§4)
@@ -229,4 +258,4 @@ Dettaglio in [`MIGRATION_PLAN.md`](MIGRATION_PLAN.md).
 
 ---
 
-*Ultimo aggiornamento: 16 Apr 2026 — dopo sessione "Meta Ticker + UI polish + Liberation Day D1-D3"*
+*Ultimo aggiornamento: 20 Apr 2026 — dopo sessione "incident hardening static data + KC legality + priority pass"*

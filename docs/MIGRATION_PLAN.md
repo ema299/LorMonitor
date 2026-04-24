@@ -3,10 +3,16 @@
 **Obiettivo prodotto:** `App_tool` e' l'unica app pubblica che serve gli utenti.
 `analisidef` e' un motore transitorio di calcolo/import, non il prodotto.
 
-**Stato attuale (16 Apr 2026 — D1 chiuso, Liberation Day avanza):**
+**Stato attuale (20 Apr 2026 — incident hardening static data + KC legality):**
 API quasi 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
 (snapshot_assembler.py, cache 2h). Match importati ogni 2h con legality gate core
 (Sprint-0). Blind Deck Playbook nativo generato in App_tool via OpenAI (Mossa B).
+
+**Aggiornato oggi (20/04/2026):**
+- fix importer statico: snapshot InkDecks parziale non puo' piu' disattivare globalmente `is_current` per tutti i deck
+- recovery DB eseguito live: promozione del record piu' recente per ogni deck rimasto senza `is_current=true`
+- `player_cards` separati per formato nel blob (`core` + `infinity`), cosi' il compare "Best Format Players" non resta core-only
+- killer curves Core protette da doppio guard di legalita': prompt-time + post-filter prima dell'upsert
 
 **Chiuso oggi (commit `ab03c6e` → `9ec0f45`):**
 - P0 monitor freshness + baseline (commit `ab03c6e`)
@@ -24,7 +30,12 @@ API quasi 100% da PostgreSQL. Dashboard blob assemblato **live** da PG
 - `daily_snapshots` **non serve il blob live**, ma resta in uso per storico/benchmark e ha ancora script legacy attorno (`import_snapshot.py`, `assemble_snapshot.py`, `import_history.py`).
 - Restano alcuni **rischi operativi non legati ad analisidef** da chiudere in parallelo: secret hardcoded `DUELS_SESSION`, fallback `/tmp/.openai_key`, rate limiting "per-tier" non effettivo, CORS troppo permissivo/incoerente in prod.
 
-Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md), [`SPRINT_P1_DIGEST.md`](SPRINT_P1_DIGEST.md), [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
+**Nuovi rischi operativi emersi dall'incidente del 20 Apr 2026:**
+- lo scraper InkDecks upstream puo' restituire snapshot **sparsi** pur girando regolarmente ogni giorno; il problema quindi non e' la schedulazione ma la **completezza del dataset**
+- senza freshness guard dedicato, uno snapshot con pochi archetipi puo' passare inosservato per giorni pur non rompendo piu' la dashboard
+- le killer curves Core non devono fidarsi solo del filtro colori: la legalita' di rotazione va trattata come vincolo separato
+
+Vedi [`SPRINT_1_MOSSA_B.md`](SPRINT_1_MOSSA_B.md), [`SPRINT_P1.5_VENDORED.md`](SPRINT_P1.5_VENDORED.md).
 
 ## Architettura attuale (09 Apr 2026)
 
@@ -118,6 +129,11 @@ La tabella `daily_snapshots` non e' piu' usata per il serving, ma resta per stor
 
 Frontend alleggerito: rimosso blob `_EMBEDDED_DATA` (8.8 MB → 418 KB), fetch da API.
 Frontend resiliente: `getAnalyzerData()` deriva `available_matchups` dalle chiavi `vs_*` se manca.
+
+**Hardening 20/04/2026:**
+- blob esteso con `player_cards_infinity` oltre a `player_cards` core
+- il frontend monitor usa i `player_cards` del formato attivo per `Best Format Players`
+- `buildDeckCompare()` puo' mostrare comunque la lista stimata del player anche se manca la consensus corrente del deck
 
 **File creati/modificati:**
 - `backend/services/snapshot_assembler.py` (~350 LOC) — assembla da PG
@@ -215,6 +231,8 @@ Quando si vorrà eliminare analisidef completamente:
 5. Import finale in `killer_curves` fatto localmente dal job stesso, senza bridge esterno
 
 **Non urgente** — l'import bridge funziona, nessuna duplicazione di costi.
+
+**Nota di qualita' aggiunta il 20/04/2026:** anche nel bridge attuale la legalita' Core va fatta rispettare dentro App_tool. Non basta che i digest core siano costruiti da match legali; anche l'output LLM deve essere validato e filtrato contro `meta_epochs.legal_sets` prima del write su `killer_curves`.
 
 ---
 

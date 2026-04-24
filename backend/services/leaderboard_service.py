@@ -102,7 +102,10 @@ def fetch_leaderboards() -> dict:
         "raw": raw,
     }
 
-    cache_set("leaderboard:all", result, CACHE_TTL)
+    # If every queue came back empty the fetch effectively failed — short TTL
+    # so the next request retries instead of poisoning the dashboard blob for 1h.
+    all_empty = not any(result[k] for k in ("core_top", "core_pro", "inf_top", "inf_pro"))
+    cache_set("leaderboard:all", result, 120 if all_empty else CACHE_TTL)
     return result
 
 

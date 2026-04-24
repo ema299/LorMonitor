@@ -425,6 +425,20 @@ def generate_ability_cards(digest: dict) -> list | None:
 # PUBLIC API
 # ---------------------------------------------------------------------------
 
+def load_killer_curves_from_db(db: Session, our: str, opp: str, game_format: str) -> list | None:
+    """Copy latest current killer_curves row from dedicated table into report form."""
+    row = db.execute(text("""
+        SELECT curves FROM killer_curves
+        WHERE our_deck = :o AND opp_deck = :p AND game_format = :f
+          AND is_current = true
+        ORDER BY generated_at DESC
+        LIMIT 1
+    """), {"o": our, "p": opp, "f": game_format}).fetchone()
+    if not row or not row.curves:
+        return None
+    return row.curves
+
+
 def generate_all_reports(db: Session, our: str, opp: str, game_format: str) -> dict:
     """Generate all report types for a matchup. Returns {type: data}."""
     digest = _load_digest(our, opp, game_format)
@@ -460,5 +474,9 @@ def generate_all_reports(db: Session, our: str, opp: str, game_format: str) -> d
         ac = generate_ability_cards(digest)
         if ac:
             reports["ability_cards"] = ac
+
+    kc = load_killer_curves_from_db(db, our, opp, game_format)
+    if kc:
+        reports["killer_curves"] = kc
 
     return reports

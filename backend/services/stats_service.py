@@ -63,13 +63,21 @@ def get_deck_winrates(db: Session, game_format: str = "core", perimeter: str | N
     ]
 
 
-def get_matchup_matrix(db: Session, game_format: str = "core", perimeter: str | None = None, days: int = 7):
-    """Full matchup matrix: WR for every deck_a vs deck_b pair."""
+def get_matchup_matrix(db: Session, game_format: str = "core", perimeter: str | None = None, days: int = 7, queue_filter: str | None = None):
+    """Full matchup matrix: WR for every deck_a vs deck_b pair.
+
+    queue_filter: None=all, 'bo3'=only Bo3 matches (queue_name ending in -BO3).
+    """
     params = {"fmt": game_format, "days": days}
     where_perim = ""
     if perimeter:
         where_perim = "AND perimeter = :perim"
         params["perim"] = perimeter
+    where_queue = ""
+    if queue_filter == "bo3":
+        where_queue = "AND queue_name LIKE '%-BO3'"
+    elif queue_filter == "bo1":
+        where_queue = "AND queue_name LIKE '%-BO1'"
 
     rows = db.execute(text(f"""
         SELECT deck_a, deck_b,
@@ -80,6 +88,7 @@ def get_matchup_matrix(db: Session, game_format: str = "core", perimeter: str | 
         WHERE game_format = :fmt
           AND played_at >= now() - make_interval(days => :days)
           {where_perim}
+          {where_queue}
         GROUP BY deck_a, deck_b
         ORDER BY deck_a, deck_b
     """), params).fetchall()
@@ -97,17 +106,24 @@ def get_matchup_matrix(db: Session, game_format: str = "core", perimeter: str | 
     return matrix
 
 
-def get_otp_otd(db: Session, game_format: str = "core", perimeter: str | None = None, days: int = 7):
+def get_otp_otd(db: Session, game_format: str = "core", perimeter: str | None = None, days: int = 7, queue_filter: str | None = None):
     """OTP (on-the-play) vs OTD (on-the-draw) win rates per deck.
 
     In the match DB, deck_a is always player 1 (first to play = OTP).
     So deck_a wins as OTP = winner='deck_a', and deck_b wins as OTD = winner='deck_b'.
+
+    queue_filter: None=all, 'bo3'=only Bo3 matches, 'bo1'=only Bo1.
     """
     params = {"fmt": game_format, "days": days}
     where_perim = ""
     if perimeter:
         where_perim = "AND perimeter = :perim"
         params["perim"] = perimeter
+    where_queue = ""
+    if queue_filter == "bo3":
+        where_queue = "AND queue_name LIKE '%-BO3'"
+    elif queue_filter == "bo1":
+        where_queue = "AND queue_name LIKE '%-BO1'"
 
     rows = db.execute(text(f"""
         SELECT deck_a, deck_b,
@@ -118,6 +134,7 @@ def get_otp_otd(db: Session, game_format: str = "core", perimeter: str | None = 
         WHERE game_format = :fmt
           AND played_at >= now() - make_interval(days => :days)
           {where_perim}
+          {where_queue}
         GROUP BY deck_a, deck_b
     """), params).fetchall()
 

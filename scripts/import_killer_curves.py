@@ -81,6 +81,15 @@ def import_killer_curves(dry_run: bool = False):
         for row in rows:
             db.execute(
                 text("""
+                    UPDATE killer_curves SET is_current = false
+                    WHERE game_format = :game_format
+                      AND our_deck = :our_deck AND opp_deck = :opp_deck
+                      AND generated_at < :generated_at AND is_current = true
+                """),
+                row,
+            )
+            db.execute(
+                text("""
                     INSERT INTO killer_curves
                         (generated_at, game_format, our_deck, opp_deck, curves,
                          match_count, loss_count, is_current)

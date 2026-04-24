@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Lorcana Monitor — Lorcana Meta Analytics</title>
+<meta name="description" content="Meta analytics dashboard for Disney Lorcana: matchup data, killer curves, mulligan trainer. 21K+ real matches.">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#D4A03A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lorcana">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="preconnect" href="https://cards.duels.ink">
+<link rel="preload" as="script" href="chart.min.js">
+<script src="chart.min.js"></script>
+<link rel="stylesheet" href="assets/css/dashboard/monolith.css">
+<link rel="stylesheet" href="assets/css/dashboard/deck_summary.css">
+</head>
+<body data-active-tab="home">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="46" stroke="url(#gold-grad)" stroke-width="4" fill="none"/>
+      <path d="M50 18 L58 38 L80 38 L62 52 L68 74 L50 60 L32 74 L38 52 L20 38 L42 38 Z"
+            fill="url(#gold-grad)" opacity="0.9"/>
+      <defs>
+        <linearGradient id="gold-grad" x1="0" y1="0" x2="100" y2="100">
+          <stop offset="0%" stop-color="#D4A03A"/>
+          <stop offset="100%" stop-color="#E8C97A"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <h1>Lorcana Monitor</h1>
+  </div>
+  <button class="guide-btn" onclick="tourStart()" title="Guided tour">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Guide
+  </button>
+</div>
+
+<!-- TABS — 7 primary (rollback 22/04 pm) -->
+<div class="tabs" role="tablist" aria-label="Dashboard sections">
+  <div class="tab active" data-tab="home" role="tab" aria-selected="true" tabindex="0">Home</div>
+  <div class="tab" data-tab="play" role="tab" aria-selected="false" tabindex="-1">Play</div>
+  <div class="tab" data-tab="meta" role="tab" aria-selected="false" tabindex="-1">Meta</div>
+  <div class="tab" data-tab="deck" role="tab" aria-selected="false" tabindex="-1">Deck</div>
+  <div class="tab" data-tab="team" role="tab" aria-selected="false" tabindex="-1">Team</div>
+  <div class="tab" data-tab="improve" role="tab" aria-selected="false" tabindex="-1">Improve</div>
+  <div class="tab" data-tab="events" role="tab" aria-selected="false" tabindex="-1">Events</div>
+  <!-- Format toggle (desktop: inline right, mobile: hidden here, shown in format-bar) -->
+  <div class="format-seg format-seg--tabs" id="format-seg-tabs">
+    <button class="format-btn active" data-format="core">Core</button>
+    <button class="format-btn" data-format="infinity">Infinity</button>
+  </div>
+</div>
+
+<!-- FORMAT SELECTOR + INK PICKER -->
+<div class="format-bar" id="format-bar">
+  <!-- Mobile-only format toggle (desktop: hidden, uses the one in tabs) -->
+  <div class="format-seg format-seg--bar" id="format-seg-bar">
+    <button class="format-btn active" data-format="core">Core</button>
+    <button class="format-btn" data-format="infinity">Infinity</button>
+  </div>
+  <span class="format-badge" id="format-badge" style="display:none"></span>
+  <div class="ink-picker-inline" id="ink-picker-bar">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- PERIMETER SELECTOR -->
+<div class="perimeter-bar">
+  <span class="label">Scope:</span>
+  <button class="perim-btn active" data-perim="set11">SET11 High ELO</button>
+  <button class="perim-btn" data-perim="top">TOP</button>
+  <button class="perim-btn" data-perim="pro">PRO</button>
+  <button class="perim-btn" data-perim="friends_core">Friends</button>
+  <button class="perim-btn" data-perim="community">Community</button>
+  <span class="perim-info" id="perim-info"></span>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main" id="main-content">
+  <!-- Populated by JS -->
+</div>
+
+<!-- FOOTER (hidden — content moved to info popup) -->
+<div class="footer" style="display:none"></div>
+
+<!-- INFO FAB -->
+<button class="info-fab" onclick="event.stopPropagation();const p=document.getElementById('info-popup');p.classList.toggle('open');if(p.classList.contains('open')){const h=e=>{if(!p.contains(e.target)&&e.target!==this){p.classList.remove('open');document.removeEventListener('click',h)}};setTimeout(()=>document.addEventListener('click',h),0)}" aria-label="Info">i</button>
+<div class="info-popup" id="info-popup" style="max-height:70vh;overflow-y:auto">
+  <strong style="color:var(--gold)">Meta Stats</strong>
+  <div class="kpi-bar" id="kpi-bar"></div>
+  <br>
+  <strong style="color:var(--gold)">Data Sources</strong><br>
+  Aggregated from <strong>duels.ink</strong> (community stats) and matches collected across SET11, PRO and TOP categories. Reference decklists from <strong>inkdecks.com</strong>.<br><br>
+  <strong style="color:var(--gold)">Scope</strong><br>
+  <strong>SET11 High ELO</strong> — MMR ≥ 1300, ~4-5K matches/day.<br>
+  <strong>TOP</strong> — Top 100 players, MMR ≥ 1600, ~500 matches.<br>
+  <strong>PRO</strong> — Top 50 players, ~70 matches.<br>
+  <strong>Community</strong> — duels.ink weekly, ~60K+ matches.<br><br>
+  <strong style="color:var(--gold)">Abbreviations</strong><br>
+  <strong>WR</strong> = Win Rate · <strong>OTP</strong> = On The Play · <strong>OTD</strong> = On The Draw · <strong>MMR</strong> = Matchmaking Rating<br>
+  <strong>Ink</strong>: Ab=Amber, Amy=Amethyst, Em=Emerald, R=Ruby, Sa=Sapphire, St=Steel.<br><br>
+  <strong style="color:var(--gold)">Privacy</strong><br>
+  Player names from public profiles. No personal data collected. Aggregated for community statistical purposes.
+</div>
+
+<!-- PRE-MATCH CHEATSHEET OVERLAY -->
+<div class="cheatsheet-overlay" id="cheatsheet-overlay" onclick="if(event.target===this)closeCheatsheet()">
+  <div class="cheatsheet-panel" id="cheatsheet-panel">
+    <div class="cheatsheet-handle"></div>
+    <div class="cheatsheet-hdr">
+      <h2>Pre-Match Cheatsheet</h2>
+      <button class="cs-close" onclick="closeCheatsheet()">&times;</button>
+    </div>
+    <div id="cheatsheet-body"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV (mobile) — 7 chip scrollable (rollback 22/04 pm) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bnav-btn active" data-tab="home" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8v10a2 2 0 01-2 2h-4v-7h-6v7H5a2 2 0 01-2-2z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="bnav-btn" data-tab="play" aria-label="Play">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      <span>Play</span>
+    </button>
+    <button class="bnav-btn" data-tab="meta" aria-label="Meta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>Meta</span>
+    </button>
+    <button class="bnav-btn" data-tab="deck" aria-label="Deck">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v7l4 8H5l4-8V3z"/><path d="M9 3h6"/></svg>
+      <span>Deck</span>
+    </button>
+    <button class="bnav-btn" data-tab="team" aria-label="Team">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Team</span>
+    </button>
+    <button class="bnav-btn" data-tab="improve" aria-label="Improve">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Improve</span>
+    </button>
+    <button class="bnav-btn" data-tab="events" aria-label="Events">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Events</span>
+    </button>
+  </div>
+</nav>
+
+<script src="assets/js/dashboard/monitor.js"></script>
+<script src="assets/js/dashboard/set12_hub.js"></script>
+<script src="assets/js/dashboard/profile.js"></script>
+<script src="assets/js/dashboard/community_events.js"></script>
+<script src="assets/js/dashboard/team.js"></script>
+<script src="assets/js/dashboard/coach_v2.js"></script>
+<script src="assets/js/dashboard/lab.js"></script>
+<script src="assets/js/dashboard/deck_overview.js"></script>
+<script src="assets/js/dashboard/deck_grid.js"></script>
+<script src="assets/js/dashboard/card_analysis.js"></script>
+<script src="assets/js/dashboard/deck_response_check.js"></script>
+<script src="assets/js/dashboard/deck_builder.js"></script>
+<script src="assets/js/dashboard/honesty_badge.js"></script>
+<script src="assets/js/dashboard/deck_recommendation_engine.js"></script>
+<script src="assets/js/dashboard/deck_summary.js"></script>
+<script src="assets/js/dashboard/deck_improve.js"></script>
+<script src="assets/js/dashboard/deck_matchups.js"></script>
+<script src="assets/js/dashboard/deck_list_view.js"></script>
+<script src="assets/js/dashboard/matchup_workspace.js"></script>
+<script src="assets/js/dashboard/builder_status.js"></script>
+<script src="assets/js/dashboard/card_impact.js"></script>
+<script src="assets/js/dashboard/deck_lens.js"></script>
+<script src="assets/js/dashboard/saved_decks.js"></script>
+<script src="assets/js/dashboard/math_tool.js"></script>
+<script src="assets/js/dashboard/improve_play_tools.js"></script>
+<script src="assets/js/dashboard/monolith.js"></script>
+<script src="assets/js/dashboard/shared_ui.js"></script>
+<script src="assets/js/team_coaching.js"></script>
+</body>
+</html>

@@ -1,5 +1,8 @@
 """Dependency injection for FastAPI endpoints."""
-from fastapi import Depends, HTTPException, status
+import hmac
+import os
+
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError
 from sqlalchemy.orm import Session
@@ -10,6 +13,8 @@ from backend.models.user import User
 from backend.services.auth_service import decode_access_token
 
 security = HTTPBearer(auto_error=False)
+
+APPTOOL_ADMIN_TOKEN = os.environ.get("APPTOOL_ADMIN_TOKEN", "").strip()
 
 TIER_LEVEL = {"free": 0, "pro": 1, "team": 2, "admin": 3}
 
@@ -79,6 +84,37 @@ def require_tier(min_tier: str):
 
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user
+
+
+def require_admin_or_server_token(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Admin gate that also accepts a shared-secret header for server-to-self.
+
+    Used by cron wrappers that need to invalidate caches after a static-data
+    refresh. When ``APPTOOL_ADMIN_TOKEN`` env var is set, a matching
+    ``X-Admin-Token`` header bypasses JWT auth. Otherwise behaves like
+    ``require_admin``.
+    """
+    header_token = (request.headers.get("x-admin-token") or "").strip()
+    if APPTOOL_ADMIN_TOKEN and header_token and hmac.compare_digest(header_token, APPTOOL_ADMIN_TOKEN):
+        return None  # server-to-self call; no user context needed
+
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Missing authorization header")
+    try:
+        payload = decode_access_token(credentials.credentials)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not user or not user.is_admin:
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
 

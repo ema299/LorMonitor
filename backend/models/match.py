@@ -41,6 +41,9 @@ class Match(Base):
         Index(
             "idx_matches_lookup",
             "game_format", "deck_a", "deck_b", played_at.desc(),
-            postgresql_where=text("perimeter IN ('set11', 'top', 'pro', 'friends')"),
+            # Future-proof predicate: matches ``perimeter NOT IN ('other')`` so
+            # setNN perimeters (set11, set12, set13, ...) all use the index.
+            # Migration 7dec24a98839 rewrote the historic IN-list predicate.
+            postgresql_where=text("perimeter NOT IN ('other')"),
         ),
     )

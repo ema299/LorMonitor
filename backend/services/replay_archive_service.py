@@ -38,13 +38,21 @@ def get_latest_archive(
     return db.execute(stmt).scalar_one_or_none()
 
 
+def _game_won(g: dict) -> bool:
+    # Legacy analisidef archives carry `result: "W"|"L"`; App_tool-native
+    # archives carry `we_won: bool`. Support both.
+    if g.get("we_won") is not None:
+        return bool(g["we_won"])
+    return str(g.get("result", "")).upper().startswith("W")
+
+
 def build_replay_list(archive: ReplayArchive) -> list[dict]:
     games = archive.games or []
     refs = _lookup_match_refs(archive, games)
     return [
         {
             "i": i,
-            "r": "W" if g.get("we_won") else "L",
+            "r": "W" if _game_won(g) else "L",
             "otp": g.get("we_otp", False),
             "on": g.get("our_name", ""),
             "en": g.get("opp_name", ""),

@@ -16,6 +16,7 @@ Steady-state weekly batch: ~50 rows (e.g. 14/04=53, 31/03=54).
 import sys
 import smtplib
 import traceback
+import json
 from datetime import datetime, date, timezone
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -24,6 +25,9 @@ sys.path.insert(0, "/mnt/HC_Volume_104764377/finanza/Lor/Analisi_deck/App_tool")
 
 THRESHOLD_FRESH_7D = 20
 MAX_NEWEST_AGE_DAYS = 10
+DECKS_DB_HISTORY_DIR = Path("/mnt/HC_Volume_104764377/finanza/Lor/decks_db/history")
+SPARSE_SNAPSHOT_MAX_ARCHETYPES = 10
+SPARSE_SNAPSHOT_STREAK_DAYS = 2
 SMTP_USER = "alexander9.ed@gmail.com"
 SMTP_PASS_FILE = "/tmp/.smtp_pass"
 MAIL_TO = "monitorteamfe@gmail.com"
@@ -48,6 +52,40 @@ def send_alert(subject: str, body: str) -> None:
         print(f"ALERT_SENT to={MAIL_TO} subject={subject!r}", file=sys.stderr)
     except Exception as e:
         print(f"ALERT_SEND_FAILED smtp_err={e}", file=sys.stderr)
+
+
+def _snapshot_arch_count(path: Path) -> int:
+    data = json.loads(path.read_text())
+    archs = data.get("archetypes", {}) or {}
+    return sum(1 for decks in archs.values() if decks)
+
+
+def _sparse_snapshot_info() -> dict:
+    snaps = sorted(DECKS_DB_HISTORY_DIR.glob("snapshot_*.json"))
+    if not snaps:
+        return {
+            "latest": None,
+            "latest_archs": None,
+            "sparse_streak": 0,
+            "status": "missing",
+        }
+
+    latest = snaps[-1]
+    latest_archs = _snapshot_arch_count(latest)
+    streak = 0
+    for snap in reversed(snaps):
+        arch_count = _snapshot_arch_count(snap)
+        if arch_count <= SPARSE_SNAPSHOT_MAX_ARCHETYPES:
+            streak += 1
+        else:
+            break
+
+    return {
+        "latest": latest.name,
+        "latest_archs": latest_archs,
+        "sparse_streak": streak,
+        "status": "sparse" if streak >= SPARSE_SNAPSHOT_STREAK_DAYS else "ok",
+    }
 
 
 def main() -> int:
@@ -84,12 +122,17 @@ def main() -> int:
     age_days = (date.today() - newest).days if newest else 999
     stale_count = r.fresh_7d < THRESHOLD_FRESH_7D
     stale_date = age_days > MAX_NEWEST_AGE_DAYS
-    status = "STALE" if (stale_count or stale_date) else "OK"
+    sparse = _sparse_snapshot_info()
+    stale_sparse = sparse["status"] == "sparse"
+    status = "STALE" if (stale_count or stale_date or stale_sparse) else "OK"
 
     line = (
         f"[{ts}] kc_freshness={status} total={r.total} current={r.current_rows} "
         f"fresh_7d={r.fresh_7d} fresh_14d={r.fresh_14d} newest={newest} age_days={age_days} "
-        f"threshold_7d={THRESHOLD_FRESH_7D} max_age_days={MAX_NEWEST_AGE_DAYS}"
+        f"threshold_7d={THRESHOLD_FRESH_7D} max_age_days={MAX_NEWEST_AGE_DAYS} "
+        f"latest_snapshot={sparse['latest']} latest_archs={sparse['latest_archs']} "
+        f"sparse_streak={sparse['sparse_streak']} sparse_threshold={SPARSE_SNAPSHOT_MAX_ARCHETYPES} "
+        f"sparse_streak_days={SPARSE_SNAPSHOT_STREAK_DAYS}"
     )
     print(line)
 
@@ -99,6 +142,12 @@ def main() -> int:
             reasons.append(f"fresh_7d={r.fresh_7d} below threshold {THRESHOLD_FRESH_7D}")
         if stale_date:
             reasons.append(f"newest={newest} is {age_days} days old (>{MAX_NEWEST_AGE_DAYS})")
+        if stale_sparse:
+            reasons.append(
+                f"latest InkDecks snapshots sparse for {sparse['sparse_streak']} day(s): "
+                f"{sparse['latest']} has {sparse['latest_archs']} archetypes "
+                f"(threshold <= {SPARSE_SNAPSHOT_MAX_ARCHETYPES})"
+            )
         body = f"{line}\n\nReasons:\n- " + "\n- ".join(reasons)
         send_alert("[metamonitor] KC freshness STALE", body)
         return 2

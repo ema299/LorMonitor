@@ -26,11 +26,13 @@ Typical cost: ~$0.02-0.05 per matchup with gpt-5.4-mini (~$1-3/week full batch).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 import time
-from datetime import date
+import uuid
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -48,10 +50,11 @@ from pipelines.kc.vendored.stability import (  # noqa: E402
     extract_digest_snapshot,
 )
 from pipelines.kc.vendored.postfix_response_colors import check_data  # noqa: E402
-from pipelines.kc.vendored.cards_api import refresh_cache  # noqa: E402
+from pipelines.kc.vendored.cards_api import get_cards_db, refresh_cache  # noqa: E402
 
 DIGEST_DIR = _PROJECT_ROOT / "output" / "digests"
 MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
+RUN_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
 
 BATCH_PRICES = {
     "gpt-4o-mini":  {"input": 0.15, "output": 0.60},
@@ -74,6 +77,64 @@ def estimate_cost(model, input_tokens, output_tokens):
 
 def _suffix(game_format):
     return '_inf' if game_format == 'infinity' else ''
+
+
+def _current_core_legal_sets(db):
+    try:
+        from backend.services.meta_epoch_service import get_current_epoch
+        epoch = get_current_epoch(db)
+        return set(epoch.legal_sets or []) if epoch else set()
+    except Exception:
+        return set()
+
+
+def _card_set(card_name: str) -> int | None:
+    card = get_cards_db().get(card_name)
+    if not isinstance(card, dict):
+        return None
+    raw = card.get("set")
+    try:
+        return int(raw) if raw is not None and raw != "" else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _strip_core_illegal_cards(db, data: dict) -> int:
+    legal_sets = _current_core_legal_sets(db)
+    if not legal_sets:
+        return 0
+
+    removed = 0
+    for curve in data.get("curves", []) or []:
+        response = curve.get("response") or {}
+        cards = response.get("cards")
+        if isinstance(cards, list):
+            kept = []
+            for card_name in cards:
+                set_num = _card_set(card_name)
+                if set_num is not None and set_num not in legal_sets:
+                    removed += 1
+                    continue
+                kept.append(card_name)
+            response["cards"] = kept
+
+        sequence = curve.get("sequence") or {}
+        for turn_data in sequence.values():
+            plays = (turn_data or {}).get("plays")
+            if not isinstance(plays, list):
+                continue
+            kept_plays = []
+            for play in plays:
+                if not isinstance(play, dict):
+                    kept_plays.append(play)
+                    continue
+                set_num = _card_set(play.get("card"))
+                if set_num is not None and set_num not in legal_sets:
+                    removed += 1
+                    continue
+                kept_plays.append(play)
+            turn_data["plays"] = kept_plays
+    return removed
 
 
 def _load_existing_kc_from_pg(db, our, opp, game_format):
@@ -145,6 +206,7 @@ def generate_one(client, db, our, opp, game_format='core'):
     existing = _load_existing_kc_from_pg(db, our, opp, game_format)
 
     prompt = build_prompt(our, opp, game_format=game_format, existing_kc=existing)
+    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
     t0 = time.time()
     resp = client.chat.completions.create(
@@ -204,24 +266,51 @@ def generate_one(client, db, our, opp, game_format='core'):
     n_dropped = 0
     _, n_bad, _ = check_data(data, drop_invalid=True)
     n_dropped = n_bad
+    if game_format == "core":
+        n_dropped += _strip_core_illegal_cards(db, data)
 
     curves = data.get("curves", [])
     n_curves = len(curves)
     meta = data.get("metadata", {})
 
-    # Upsert to PG
+    run_meta = {
+        "run_id": RUN_ID,
+        "model": MODEL,
+        "cost_usd": round(cost, 6),
+        "input_tokens": input_tok,
+        "output_tokens": output_tok,
+        "duration_s": round(elapsed, 2),
+        "prompt_hash": prompt_hash,
+        "cards_dropped": n_dropped,
+        "n_curves": n_curves,
+        "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+    db.execute(text("""
+        UPDATE killer_curves SET is_current = false
+        WHERE game_format = :game_format
+          AND our_deck = :our_deck AND opp_deck = :opp_deck
+          AND generated_at < :generated_at AND is_current = true
+    """), {
+        "generated_at": date.today(),
+        "game_format": game_format,
+        "our_deck": our,
+        "opp_deck": opp,
+    })
+
     db.execute(text("""
         INSERT INTO killer_curves
             (generated_at, game_format, our_deck, opp_deck, curves,
-             match_count, loss_count, is_current)
+             match_count, loss_count, is_current, meta)
         VALUES
             (:generated_at, :game_format, :our_deck, :opp_deck, :curves,
-             :match_count, :loss_count, true)
+             :match_count, :loss_count, true, :meta)
         ON CONFLICT (game_format, our_deck, opp_deck, generated_at) DO UPDATE
         SET curves = EXCLUDED.curves,
             match_count = EXCLUDED.match_count,
             loss_count = EXCLUDED.loss_count,
-            is_current = true
+            is_current = true,
+            meta = EXCLUDED.meta
     """), {
         "generated_at": date.today(),
         "game_format": game_format,
@@ -230,6 +319,7 @@ def generate_one(client, db, our, opp, game_format='core'):
         "curves": json.dumps(curves),
         "match_count": meta.get("based_on_games", 0),
         "loss_count": meta.get("based_on_losses", 0),
+        "meta": json.dumps(run_meta),
     })
     db.commit()
 
@@ -325,6 +415,7 @@ def main():
 
     log(f"=== KC Production (native) — {date.today().isoformat()} ===")
     log(f"Model: {MODEL}")
+    log(f"Run ID: {RUN_ID}")
 
     # Refresh cards DB
     log("Phase 1: Refresh cards DB from duels.ink...")

@@ -28,8 +28,8 @@ PostgreSQL (200K+ matches, 2822 cards, 1047 matchup reports)
 ```
 
 - **Backend**: FastAPI + SQLAlchemy + PostgreSQL + Redis (rate limit + dashboard cache 2h stale-while-revalidate)
-- **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker). Il runtime live resta confinato a `frontend/`; `frontend_v2/` e' solo per lavoro parallelo e non fa parte del serving corrente.
-- **Deploy**: VPS 2 vCPU 4GB RAM, manual uvicorn (systemd pending, vedi `TODO.md` §5)
+- **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker). Il runtime live resta confinato a `frontend/`; il redesign in corso vive in `frontend_v3/` (workspace separato, non esposto in serving).
+- **Deploy**: VPS 2 vCPU 4GB RAM, systemd unit `lorcana-api.service` (workers=2). Drop-in `lorcana-api.service.d/admin-token.conf` carica `/etc/apptool.env` (0600, contiene `APPTOOL_ADMIN_TOKEN`). Restart = `systemctl restart lorcana-api`.
 - **Cron**: import matches ogni 2h, backup 03:00 daily, static importer domenica 04:45, import KC martedì 05:30, import_matchup_reports 05:30 daily, import_kc_spy 04:05 daily, monitor_kc_freshness 07:00 daily, generate_playbooks martedì 01:00
 - **Config runtime**: CORS da env (`CORS_ALLOW_ORIGINS`), leaderboard disabilitato se `DUELS_SESSION` manca, rate limit tier-aware via JWT nel middleware
 
@@ -116,7 +116,7 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 ## Flusso lavoro tipico
 
-1. **Modifica backend**: edit `backend/services/*.py` o `backend/api/*.py` → restart uvicorn (`fuser -k 8100/tcp; nohup venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8100 --workers 1 &`)
+1. **Modifica backend**: edit `backend/services/*.py` o `backend/api/*.py` → `systemctl restart lorcana-api` (unit systemd; journalctl per i log).
 2. **Modifica frontend**: edit `frontend/dashboard.html` inline → FastAPI serve il file con `Cache-Control: no-cache`, hard refresh browser per bustare cache.
 3. **Nuove feature**: seguire il pattern `monAccordion` per uniformità. Aggiungere endpoint pubblici se popolabili solo on-demand. Campi blob se pre-computabili via `snapshot_assembler`.
 4. **Test backend**: smoke test via `venv/bin/python3 -c "from backend.services import X; ..."` o curl diretto su localhost:8100.
@@ -152,6 +152,28 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 - `response.strategy` resta una one-line summary; il formato target supporta anche campi strutturati come `headline`, `core_rule`, `priority_actions`, `what_to_avoid`, `stock_build_note`, `off_meta_note`, `play_draw_note`, `failure_state`.
 - `frontend/assets/js/team_coaching.js` non dipende piu' dal replay viewer pubblico per cache carte / image helper / short-name: usa helper locali e chiama solo le API App_tool (`/api/replay/cards_db`, `/api/v1/team/replay/*`, `/api/decks`) piu' `localStorage` browser per auth/deck context.
 
+### Set 12 readiness (S0 applicato, 2026-04-22)
+
+La Fase S0 di `docs/SET12_MIGRATION_PLAN.md` è entrata in repo. Cosa cambia a livello operativo oggi:
+
+- **Folder `SETNN` futuro = automatico**: `backend/workers/match_importer.py` e `scripts/import_matches.py` usano regex `^SET(\d+)$` → `perimeter=setNN`, `format=core`. Zero code change al reveal.
+- **Digest generator env-driven (hard cutover)**: `pipelines/digest/generator.py` filtra perimeter con `_ACTIVE_CORE_PERIMETERS = {APPTOOL_DEFAULT_CORE_PERIMETER, top, pro, friends}`. Post-flip env a `set12`, il digest vede **solo** `set12+top+pro+friends`: i match `set11` restano in DB come storico ma sono invisibili a digest/KC/matchup reports. Policy decisa 22/04: hard cutover, niente overlap 30gg (KC deve operare strettamente sul set attivo).
+- **Default core perimeter env-driven**: `APPTOOL_DEFAULT_CORE_PERIMETER` (default `set11`). Cambiarlo a release-day senza toccare codice. Blob espone `default_core_perimeter`; frontend legge via `getCoreDefaultPerimeter()` con fallback `'set11'`.
+- **SET_MAP estensibile**: `EXTRA_SET_CODE=<3-letter> EXTRA_SET_NUM=12` oppure `EXTRA_SET_MAP='{"XYZ":"12","ABC":"13"}'` JSON.
+- **Admin endpoint cache invalidation**: `POST /api/v1/admin/reset-legality-cache` + `POST /api/v1/admin/refresh-dashboard` con doppio gate (JWT admin **o** `X-Admin-Token` shared via `APPTOOL_ADMIN_TOKEN` env). Consumati dal wrapper `scripts/refresh_static_and_reset.sh` (sostituto del cron `static_importer` diretto la domenica 04:45).
+- **Canary `scripts/monitor_unmapped_matches.py`**: diff FS vs DB vs skip_cache → alert mail se appare un nuovo folder, drop_rate > 10%, o `perimeter='other'` > 50/die. Cron target 07:05 UTC.
+- **Migration `7dec24a98839` (partial index future-proof)**: scritta ma **non ancora applicata** sul DB produzione. Va eseguita con `alembic upgrade 7dec24a98839` (NON `upgrade head` — la head successiva `7894044b7dd3` è la cassetto S0.5 che aborta senza env var di release).
+- **Migration `7894044b7dd3` (Set12 launch)**: in cassetto, deve rimanere non applicata fino all'annuncio Ravensburger.
+
+Azioni VPS eseguite 2026-04-22 07:45 UTC:
+1. `alembic upgrade 7dec24a98839` — indice `idx_matches_lookup` ora con `WHERE perimeter <> 'other'` (9.8 MB, copre 303399/303402 righe).
+2. `/etc/apptool.env` (0600) con `APPTOOL_ADMIN_TOKEN` (64 hex chars). Drop-in systemd `lorcana-api.service.d/admin-token.conf` carica l'env.
+3. `systemctl restart lorcana-api` + smoke test endpoint admin: token valido → 200, assente/sbagliato → 401.
+4. Crontab aggiornato: Dom 04:45 ora esegue `scripts/refresh_static_and_reset.sh` (backup precedente in `/tmp/crontab_backup_1776843879.bak`).
+5. Nuova cron 07:05 UTC: `scripts/monitor_unmapped_matches.py`.
+
+La migration cassetto `7894044b7dd3_set12_launch_meta_epoch.py` NON è stata applicata (resta dormant, guard env). Head alembic = `7dec24a98839`.
+
 ---
 
 ## Memoria persistente rilevante (`~/.claude/projects/*/memory/`)
@@ -166,4 +188,4 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 
 ---
 
-*Ultimo aggiornamento: 20 Apr 2026 — legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
+*Ultimo aggiornamento: 22 Apr 2026 — Set12 readiness Fase S0 applicata (codice), restano alembic upgrade + token setup VPS; legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*

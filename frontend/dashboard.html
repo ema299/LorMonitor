@@ -740,6 +740,31 @@
     vertical-align: middle;
     margin: 0 2px;
   }
+  .mm-toggle-group {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg3);
+    font-size: 0.74em;
+    height: 26px;
+  }
+  .mm-toggle-group .mm-toggle {
+    padding: 0 9px;
+    background: transparent;
+    color: var(--text2);
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-family: inherit;
+    letter-spacing: 0.03em;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mm-toggle-group .mm-toggle + .mm-toggle { border-left: 1px solid var(--border); }
+  .mm-toggle-group .mm-toggle.active { background: #D29922; color: #0d1117; }
+  .mm-toggle-group .mm-toggle:not(.active):hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .mm-toggle-group .mm-toggle:disabled { opacity: 0.5; cursor: progress; }
+  .mm-toolbar-meta { font-size: 0.72em; color: var(--text2); margin-left: auto; }
   /* Desktop heatmap */
   .mm-heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
   .mm-table { border-collapse: separate; border-spacing: 3px; font-size: 0.78em; }
@@ -2230,6 +2255,115 @@
     .db-deck-pill { padding: 4px 10px; font-size: 0.76em; }
     .db-ink-filter .ink-icon-wrap { width: 40px; height: 40px; }
     .db-deck-card .pf-std-gallery { grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 6px 4px; }
+  }
+
+  /* Lab Deck Comparator */
+  .ldc-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .ldc-header {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 10px; background: var(--bg3); border-radius: 10px; font-size: 0.78em;
+  }
+  .ldc-header strong { color: var(--gold); }
+  .ldc-source-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border);
+    background: rgba(212,160,58,0.08); color: var(--text2); font-size: 0.72em;
+  }
+  .ldc-summary { font-size: 0.72em; color: var(--text2); }
+  .ldc-summit {
+    width: min(760px, 100%);
+    margin: 0 auto;
+  }
+  .ldc-row {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start;
+  }
+  .ldc-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px; min-width: 0;
+  }
+  .ldc-card.base { border-color: rgba(212,160,58,0.45); box-shadow: 0 0 0 1px rgba(212,160,58,0.12) inset; }
+  .ldc-top { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px; }
+  .ldc-title { font-weight: 700; color: var(--gold); font-size: 0.88em; line-height: 1.2; }
+  .ldc-sub { color: var(--text2); font-size: 0.68em; line-height: 1.3; }
+  .ldc-total { margin-left: auto; color: var(--text2); font-size: 0.68em; }
+  .ldc-card .pf-std-list { padding-right: 0; }
+  .ldc-base-list { margin-top: 8px; }
+  .ldc-base-grid {
+    display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px 4px;
+    align-items: start;
+  }
+  .ldc-delta-grid {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px 4px;
+    align-items: start;
+  }
+  .ldc-vcard { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .ldc-vart {
+    position: relative; aspect-ratio: 0.715; border-radius: 7px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.15));
+    border: 1px solid rgba(255,255,255,0.08); cursor: pointer;
+  }
+  .ldc-vart img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ldc-vph {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 4px; color: var(--text2); font-size: 0.52em; line-height: 1.15;
+  }
+  .ldc-vname { font-size: 0.54em; line-height: 1.1; color: var(--text2); text-align: center; }
+  .ldc-badge-corner {
+    position: absolute; top: 3px; right: 3px; min-width: 18px; height: 18px; padding: 0 5px;
+    border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.58em; font-weight: 800; color: #fff; background: rgba(0,0,0,0.76);
+  }
+  .ldc-badge-corner.qty { background: rgba(0,0,0,0.76); }
+  .ldc-badge-corner.add { background: rgba(63,185,80,0.95); }
+  .ldc-badge-corner.cut { background: rgba(248,81,73,0.95); }
+  .ldc-vcard.base .ldc-vname { font-size: 0.5em; }
+  .ldc-delta-block { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+  .ldc-delta-section { display: flex; flex-direction: column; gap: 6px; }
+  .ldc-delta-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    font-size: 0.66em; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  }
+  .ldc-delta-head.add { color: var(--green); }
+  .ldc-delta-head.cut { color: var(--red); }
+  .ldc-delta-empty {
+    font-size: 0.68em; color: var(--text2); padding: 10px 8px; border-radius: 8px;
+    background: rgba(255,255,255,0.03); border: 1px dashed var(--border); text-align: center;
+  }
+  .ldc-actions { margin-top: 8px; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  .ldc-mini-btn {
+    padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg3);
+    color: var(--text2); font-size: 0.7em; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .ldc-mini-btn:hover { border-color: var(--gold); color: var(--gold); }
+  .ldc-expand {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .ldc-expand .pf-std-gallery {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px 4px;
+  }
+  .ldc-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.62em; font-weight: 700; padding: 3px 6px; border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .ldc-badge.add { color: var(--green); border-color: rgba(63,185,80,0.35); background: rgba(63,185,80,0.12); }
+  .ldc-badge.cut { color: var(--red); border-color: rgba(248,81,73,0.35); background: rgba(248,81,73,0.12); }
+  .ldc-copy-row { margin-top: 8px; display: flex; justify-content: flex-end; }
+  .ldc-empty {
+    padding: 22px 16px; text-align: center; color: var(--text2); font-size: 0.86em;
+    background: var(--bg2); border: 1px dashed var(--border); border-radius: 10px;
+  }
+  @media (max-width: 1180px) {
+    .ldc-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ldc-base-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+  }
+  @media (max-width: 700px) {
+    .ldc-summit { width: 100%; }
+    .ldc-row { grid-template-columns: 1fr; }
+    .ldc-base-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .ldc-delta-grid, .ldc-expand .pf-std-gallery { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .ldc-vname { font-size: 0.5em; }
   }
 
   /* Card impact bars (left column) */
@@ -3987,7 +4121,7 @@
     background: rgba(255,255,255,0.04);
   }
 
-  /* ── LIST PANEL: Standard List + Tech Cards side by side ── */
+  /* ── LIST PANEL: Consensus List + Tech Cards side by side ── */
   .pf-list-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -4031,7 +4165,7 @@
     .pf-tech-name { font-size: 0.62em; }
   }
 
-  /* Standard/Consensus list card */
+  /* Consensus list card */
   .pf-std-card {
     background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
     padding: 16px 20px;
@@ -4882,7 +5016,7 @@
 <div class="format-bar" id="format-bar">
   <!-- Mobile-only format toggle (desktop: hidden, uses the one in tabs) -->
   <div class="format-seg format-seg--bar" id="format-seg-bar">
-    <button class="format-btn active" data-format="core">Core-Constructed</button>
+    <button class="format-btn active" data-format="core">Core</button>
     <button class="format-btn" data-format="infinity">Infinity</button>
   </div>
   <span class="format-badge" id="format-badge" style="display:none"></span>
@@ -4897,6 +5031,7 @@
   <button class="perim-btn active" data-perim="set11">SET11 High ELO</button>
   <button class="perim-btn" data-perim="top">TOP</button>
   <button class="perim-btn" data-perim="pro">PRO</button>
+  <button class="perim-btn" data-perim="friends_core">Friends</button>
   <button class="perim-btn" data-perim="community">Community</button>
   <span class="perim-info" id="perim-info"></span>
 </div>
@@ -4916,8 +5051,8 @@
   Aggregated from <strong>duels.ink</strong> (community stats) and matches collected across SET11, PRO and TOP categories. Reference decklists from <strong>inkdecks.com</strong>.<br><br>
   <strong style="color:var(--gold)">Scope</strong><br>
   <strong>SET11 High ELO</strong> — MMR ≥ 1300, ~4-5K matches/day.<br>
-  <strong>TOP</strong> — Top 70 players, MMR ≥ 1600, ~500 matches.<br>
-  <strong>PRO</strong> — Top 30 players, ~70 matches.<br>
+  <strong>TOP</strong> — Top 100 players, MMR ≥ 1600, ~500 matches.<br>
+  <strong>PRO</strong> — Top 50 players, ~70 matches.<br>
   <strong>Community</strong> — duels.ink weekly, ~60K+ matches.<br><br>
   <strong style="color:var(--gold)">Abbreviations</strong><br>
   <strong>WR</strong> = Win Rate · <strong>OTP</strong> = On The Play · <strong>OTD</strong> = On The Draw · <strong>MMR</strong> = Matchmaking Rating<br>
@@ -5122,6 +5257,12 @@ const FORMAT_PERIMS = {
 
 // === STATE ===
 let DATA = null;
+// Default core perimeter key — backend advertises the active set via
+// DATA.default_core_perimeter (env-driven). Falls back to 'set11' pre-Set12.
+function getCoreDefaultPerimeter() {
+  return (DATA && typeof DATA.default_core_perimeter === 'string' && DATA.default_core_perimeter)
+    || 'set11';
+}
 let currentFormat = localStorage.getItem('lorcana_format') || 'core';
 let currentPerim = 'set11';
 let currentTab = 'profile';
@@ -5137,6 +5278,28 @@ let PRO_UNLOCKED = true;
 let charts = {};
 let cv2SecTab = 'killer_cards'; // secondary tab in coach v2
 let labBaseMode = 'standard'; // 'standard' or 'personal'
+
+function getScopeContext() {
+  const format = currentFormat === 'infinity' ? 'infinity' : 'core';
+  const isCustomDeck = myDeckMode === 'custom' && !!myDeckCards;
+  const perims = FORMAT_PERIMS[format] || FORMAT_PERIMS.core;
+  const primaryPerimeter = format === 'infinity' ? 'infinity' : getCoreDefaultPerimeter();
+  const effectivePerimeter = perims.some(p => p.id === currentPerim) ? currentPerim : primaryPerimeter;
+  return {
+    format,
+    perimeter: effectivePerimeter,
+    primaryPerimeter,
+    availablePerimeters: perims,
+    isInfinity: format === 'infinity',
+    isCustomDeck,
+    deckMode: isCustomDeck ? 'custom' : 'meta',
+  };
+}
+
+function getScopedPlayerCards() {
+  const scope = getScopeContext();
+  return scope.isInfinity ? (DATA.player_cards_infinity || {}) : (DATA.player_cards || {});
+}
 
 // === LOAD DATA ===
 // /*__INLINE_DATA__*/
@@ -5174,12 +5337,13 @@ function initFormat() {
 }
 
 function initKPI() {
+  const scope = getScopeContext();
   const m = DATA.meta;
   const g = m.games || {};
   const rangeLabel = m.period_range || m.period;
   let kpis = `<div class="kpi"><div class="value">${m.period}</div><div class="label">${rangeLabel}</div></div>`;
 
-  if (currentFormat === 'infinity') {
+  if (scope.isInfinity) {
     kpis += `<div class="kpi"><div class="value">${(g.infinity||0).toLocaleString()}</div><div class="label">Infinity</div></div>`;
     kpis += `<div class="kpi"><div class="value">${(g.infinity_top||0).toLocaleString()}</div><div class="label">TOP</div></div>`;
     kpis += `<div class="kpi"><div class="value">${(g.infinity_pro||0).toLocaleString()}</div><div class="label">PRO</div></div>`;
@@ -5190,17 +5354,28 @@ function initKPI() {
   }
   kpis += `<div class="kpi"><div class="value">${m.updated}</div><div class="label">Last update</div></div>`;
 
-  // KC Spy health badge
+  // KC Spy health badge — distinguishes canary flake (LLM JSON glitch) from
+  // real data rot. Badge reflects what the user actually sees: if the stored
+  // killer_curves files are clean, a canary JSON error is a WARN, not a FAIL.
   const spy = DATA.kc_spy;
   if (spy) {
-    const s = spy.status;
-    const v = spy.validation || {};
-    const color = s === 'OK' ? 'var(--green)' : s === 'WARN' ? 'var(--yellow)' : 'var(--red)';
-    const icon = s === 'OK' ? '✓' : s === 'WARN' ? '⚠' : '✗';
-    const vAfter = spy.validation_after_fix || v;
+    const rawStatus = spy.status;
+    const vAfter = spy.validation_after_fix || spy.validation || {};
     const failCount = vAfter.files_fail || 0;
-    const detail = failCount > 0 ? `${failCount} fail` : `${(v.files_ok||0)+(v.files_warn||0)} files OK`;
-    const tooltip = `KC Spy ${spy.date}: canary ${s}, ${detail}`;
+    const okCount = (vAfter.files_ok || 0) + (vAfter.files_warn || 0);
+    const dataHealthy = failCount === 0 && okCount > 0;
+
+    let effective = rawStatus;
+    let note = '';
+    if (rawStatus === 'FAIL' && dataHealthy) {
+      effective = 'WARN';
+      note = ' (canary flake, stored data OK)';
+    }
+
+    const color = effective === 'OK' ? 'var(--green)' : effective === 'WARN' ? 'var(--yellow)' : 'var(--red)';
+    const icon = effective === 'OK' ? '✓' : effective === 'WARN' ? '⚠' : '✗';
+    const detail = failCount > 0 ? `${failCount} fail` : `${okCount} files OK`;
+    const tooltip = `KC Spy ${spy.date}: canary ${rawStatus}, ${detail}${note}`;
     kpis += `<div class="kpi" title="${tooltip}" style="cursor:help"><div class="value" style="color:${color}">${icon}</div><div class="label">KC Health</div></div>`;
   }
 
@@ -5212,7 +5387,7 @@ function initKPI() {
 }
 
 function getPerimData() {
-  return DATA.perimeters[currentPerim] || null;
+  return DATA.perimeters[getScopeContext().perimeter] || null;
 }
 
 // Check if a perimeter has data
@@ -5224,7 +5399,8 @@ function hasPerimData(perimId) {
 // Sync perimeter buttons to current format
 function syncPerimButtons() {
   const bar = document.querySelector('.perimeter-bar');
-  const perims = FORMAT_PERIMS[currentFormat] || FORMAT_PERIMS.core;
+  const scope = getScopeContext();
+  const perims = scope.availablePerimeters;
 
   // Rebuild perimeter buttons
   let html = '<span class="label">Scope:</span>';
@@ -5292,7 +5468,7 @@ function setFormat(fmt) {
 
 // Profile format toggle helpers
 function pfToggleFormat() {
-  pfSetFormat(currentFormat === 'infinity' ? 'core' : 'infinity');
+  pfSetFormat(getScopeContext().isInfinity ? 'core' : 'infinity');
 }
 function pfSetFormat(fmt) {
   setFormat(fmt);  // reuses existing global format switch + render
@@ -5300,9 +5476,10 @@ function pfSetFormat(fmt) {
 
 // Build ink picker HTML (compact, for format bar)
 function buildInkPickerBar() {
+  const scope = getScopeContext();
   const pd = getPerimData();
   const decks = pd ? Object.keys(pd.wr) : [];
-  const frozen = myDeckMode === 'custom' && !!myDeckCards;
+  const frozen = scope.isCustomDeck;
 
   let html = '<span class="ip-label">Deck:</span>';
 
@@ -5348,14 +5525,14 @@ function buildMyDeckChip() {
 
   // Switch always visible
   html += `<div class="lab-base-seg" style="margin:0">
-    <button class="lab-base-btn${myDeckMode==='standard' || !hasDeck ?' active':''}" style="padding:5px 14px;font-size:0.8em" onclick="event.stopPropagation();myDeckMode='standard';render()">Standard</button>
-    <button class="lab-base-btn${myDeckMode==='custom' && hasDeck ?' active':''}" style="padding:5px 14px;font-size:0.8em" ${!hasDeck?'disabled':''}
+    <button class="lab-base-btn${!getScopeContext().isCustomDeck || !hasDeck ?' active':''}" style="padding:5px 14px;font-size:0.8em" onclick="event.stopPropagation();myDeckMode='standard';render()">Meta Deck</button>
+    <button class="lab-base-btn${getScopeContext().isCustomDeck && hasDeck ?' active':''}" style="padding:5px 14px;font-size:0.8em" ${!hasDeck?'disabled':''}
       onclick="event.stopPropagation();myDeckMode='custom';restoreMyDeckInks();render()">Mio Deck</button>
   </div>`;
 
   if (hasDeck) {
     const total = Object.values(myDeckCards).reduce((s,v) => s+v, 0);
-    const isActive = myDeckMode === 'custom';
+    const isActive = getScopeContext().isCustomDeck;
     const badgeStyle = isActive
       ? 'background:rgba(212,160,58,0.2);border:1px solid var(--gold);color:var(--gold);font-weight:700'
       : 'background:var(--bg3);border:1px solid var(--border);color:var(--text2)';
@@ -5452,7 +5629,7 @@ function buildPentagonSVG(countsA, countsB, radius, labelA, labelB) {
   svg += '<circle cx="' + (cx - 50) + '" cy="' + legendY + '" r="5" fill="#D4A03A"/>';
   svg += '<text x="' + (cx - 42) + '" y="' + (legendY + 4) + '" fill="#D4A03A" font-size="11" font-weight="600">' + (labelA || 'Mio') + '</text>';
   svg += '<circle cx="' + (cx + 10) + '" cy="' + legendY + '" r="5" fill="#2471A3"/>';
-  svg += '<text x="' + (cx + 18) + '" y="' + (legendY + 4) + '" fill="#2471A3" font-size="11" font-weight="600">' + (labelB || 'Standard') + '</text>';
+  svg += '<text x="' + (cx + 18) + '" y="' + (legendY + 4) + '" fill="#2471A3" font-size="11" font-weight="600">' + (labelB || 'Consensus') + '</text>';
 
   svg += '</svg>';
   return svg;
@@ -5484,7 +5661,7 @@ function buildDeckCompareChart(deckCode) {
 
   let html = '<div style="display:flex;flex-direction:column;gap:4px;width:100%">';
   // Legend
-  html += '<div style="display:flex;gap:12px;font-size:0.7em;margin-bottom:2px"><span style="color:var(--gold)">&#9632; Mio</span><span style="color:var(--sapphire)">&#9632; Standard</span></div>';
+  html += '<div style="display:flex;gap:12px;font-size:0.7em;margin-bottom:2px"><span style="color:var(--gold)">&#9632; Mio</span><span style="color:var(--sapphire)">&#9632; Consensus</span></div>';
 
   axes.forEach(a => {
     const my = myCounts[a.key] || 0;
@@ -5561,17 +5738,19 @@ function render() {
   const perimBar = document.querySelector('.perimeter-bar');
 
   if (currentTab === 'monitor') {
+    const scope = getScopeContext();
     perimBar.style.display = '';
     document.getElementById('format-bar').style.display = '';
     renderInkPickerBar();
     const pd = getPerimData();
-    if (currentPerim === 'community') {
+    const isCommunity = scope.perimeter === 'community';
+    if (isCommunity) {
       renderCommunity(main);
     } else if (!pd) {
-      const isTopPro = ['top','pro','infinity_top','infinity_pro'].includes(currentPerim);
+      const isTopPro = ['top','pro','infinity_top','infinity_pro'].includes(scope.perimeter);
       if (isTopPro) {
-        const count = currentPerim.includes('pro') ? 50 : 100;
-        const label = currentPerim.includes('pro') ? 'PRO' : 'TOP';
+        const count = scope.perimeter.includes('pro') ? 50 : 100;
+        const label = scope.perimeter.includes('pro') ? 'PRO' : 'TOP';
         main.innerHTML = `<div class="card" style="text-align:center;padding:40px">
           <h2>No matches yet</h2>
           <p>Not enough recent matches from ${label} ${count} leaderboard players.</p>
@@ -5586,10 +5765,11 @@ function render() {
     // Update perim info
     const info = document.getElementById('perim-info');
     if (info) {
-      if (currentPerim === 'community' && pd) {
-        info.textContent = `${pd.total_games.toLocaleString()} matches | ${pd.players.toLocaleString()} players | OTP WR: ${pd.otp_wr}%`;
+      if (isCommunity) {
+        const cd = DATA.perimeters.community;
+        if (cd) info.textContent = `${cd.total_games.toLocaleString()} matches | ${cd.players.toLocaleString()} players | OTP WR: ${cd.otp_wr}%`;
       } else {
-        const games = DATA.meta.games[currentPerim] || 0;
+        const games = DATA.meta.games[scope.perimeter] || 0;
         info.textContent = `${games.toLocaleString()} matches · last 3 days`;
       }
     }
@@ -5727,8 +5907,9 @@ async function fetchEditorialItems() {
 
 function buildMetaTickerItems() {
   if (!DATA || !DATA.perimeters) return [];
+  const scope = getScopeContext();
   const items = [];
-  const perimKey = currentPerim || 'set11';
+  const perimKey = scope.perimeter || scope.primaryPerimeter;
   const pd = DATA.perimeters[perimKey];
   if (!pd) return [];
 
@@ -5926,7 +6107,7 @@ function renderEmergingDecks() {
   if (!el) return;
 
   const emg = DATA.emerging_decks || {};
-  const fmt = currentFormat === 'infinity' ? 'infinity' : 'core';
+  const fmt = getScopeContext().format;
   const tiles = emg[fmt] || [];
 
   if (!tiles.length) {
@@ -5955,7 +6136,8 @@ function renderEmergingDecks() {
     const player = t.label || '';
     const playerShort = player.length > 16 ? player.slice(0, 15) + '\u2026' : player;
 
-    html += `<div class="emg-tile" style="border-color:${cfg.border}">
+    const cardsJson = JSON.stringify(t.cards || []).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    html += `<div class="emg-tile" style="border-color:${cfg.border};cursor:pointer" onclick="showRogueDeckSheet('${player.replace(/'/g, "\\'")}','${t.deck}',JSON.parse(this.dataset.cards))" data-cards="${cardsJson}">
       <span class="emg-badge ${t.type}">${cfg.icon} ${cfg.label}</span>
       <div class="emg-deck">${dots} ${t.deck}</div>
       <div class="emg-label" title="${player}">${playerShort}</div>
@@ -5970,8 +6152,102 @@ function renderEmergingDecks() {
   el.style.display = '';
 }
 
+function showRogueDeckSheet(playerName, deckCode, signatureCards) {
+  const pc = getScopedPlayerCards();
+  const pCards = (pc[playerName.toLowerCase()] || {})[deckCode];
+  const cons = (DATA.consensus || {})[deckCode];
+  const imgMap = DATA.card_images || {};
+
+  // estQty — same hypergeometric MLE thresholds as buildDeckCompare
+  function estQty(pSeen, total, stdQty) {
+    const rate = total > 0 ? pSeen / total : 0;
+    if (stdQty) return stdQty;
+    if (total >= 8) {
+      if (rate >= 0.67) return 4;
+      if (rate >= 0.54) return 3;
+      if (rate >= 0.37) return 2;
+      return 1;
+    } else {
+      if (rate >= 0.54) return 3;
+      if (rate >= 0.37) return 2;
+      return 1;
+    }
+  }
+
+  if (!pCards || Object.keys(pCards).length === 0) {
+    // No play data — show just signature cards
+    const lines = (signatureCards || []).map(c =>
+      `<div style="padding:4px 0;border-bottom:1px solid var(--border)">${c}</div>`
+    ).join('');
+    showInfoSheet(`${deckCode} — ${playerName}`,
+      `<p style="color:var(--text2);font-size:0.85em">No play data available for a full estimate. Signature cards:</p>${lines}`);
+    return;
+  }
+
+  const observedGames = Math.max(...Object.values(pCards));
+  const std = cons || {};
+
+  // Build estimated list (same logic as buildDeckCompare)
+  const estList = [];
+  for (const [card, qty] of Object.entries(std)) {
+    const pSeen = pCards[card] || 0;
+    estList.push({ card, qty: estQty(pSeen, observedGames, Math.round(qty)), source: pSeen > 0 ? 'kept' : 'assumed', pSeen });
+  }
+  for (const [card, pSeen] of Object.entries(pCards)) {
+    if (!(card in std) && pSeen >= 1) {
+      estList.push({ card, qty: estQty(pSeen, observedGames, 0), source: 'added', pSeen });
+    }
+  }
+
+  let total = estList.reduce((s, c) => s + c.qty, 0);
+  // Trim if over 60
+  while (total > 60) {
+    estList.sort((a, b) => a.pSeen - b.pSeen || a.qty - b.qty);
+    const t = estList.find(c => c.qty > 0);
+    if (!t) break;
+    t.qty--; total--;
+    if (t.qty === 0) estList.splice(estList.indexOf(t), 1);
+  }
+
+  estList.sort((a, b) => b.qty - a.qty || a.card.localeCompare(b.card));
+  total = estList.reduce((s, c) => s + c.qty, 0);
+  const observed = estList.filter(c => c.pSeen > 0).reduce((s, c) => s + c.qty, 0);
+  const conf = Math.round(observed / 60 * 100);
+  const confColor = conf >= 70 ? 'var(--green)' : conf >= 40 ? 'var(--yellow)' : 'var(--red)';
+  const confLabel = conf >= 70 ? 'High' : conf >= 40 ? 'Medium' : 'Low';
+
+  const isSig = new Set((signatureCards || []).map(c => c.toLowerCase()));
+
+  const rows = estList.map(c => {
+    const sig = isSig.has(c.card.toLowerCase()) ? ' *' : '';
+    const clr = c.source === 'added' ? 'color:var(--green)' : c.source === 'assumed' ? 'color:var(--text2)' : '';
+    const marker = c.source === 'added' ? ' <span style="color:var(--green);font-size:0.75em">TECH</span>' : c.source === 'assumed' ? ' <span style="color:var(--text2);font-size:0.75em">?</span>' : '';
+    return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--surface2);${clr}">
+      <span>${c.qty}x ${c.card}${sig}${marker}</span>
+      <span style="color:var(--text2);font-size:0.8em">${c.pSeen > 0 ? c.pSeen + '/' + observedGames + 'g' : ''}</span>
+    </div>`;
+  }).join('');
+
+  const copyId = 'rogue-copy-' + Math.random().toString(36).slice(2, 7);
+  const copyText = estList.map(c => `${c.qty} ${c.card}`).join('\n');
+
+  showInfoSheet(`${deckCode} — ${playerName}`,
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:0.85em;color:var(--text2)">${total} cards · ${observedGames} games observed · <span style="color:${confColor}">Confidence ${confLabel} (${conf}%)</span></span>
+      <button class="copy-btn" style="font-size:0.75em;padding:2px 8px;cursor:pointer" onclick="navigator.clipboard.writeText(document.getElementById('${copyId}').textContent).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)})">Copy</button>
+    </div>
+    <div style="max-height:55vh;overflow-y:auto;font-size:0.88em">${rows}</div>
+    <pre id="${copyId}" style="display:none">${copyText}</pre>
+    <div style="font-size:0.72em;color:var(--text2);margin-top:8px"><span style="color:var(--green)">TECH</span> = non-consensus card · <span style="color:var(--text2)">?</span> = assumed from consensus · * = signature</div>`);
+}
+
 // ── Matchup Matrix (desktop heatmap + mobile list) ──
 let _mmSelectedDeck = null;
+// Sticky session state — persists across perimeter changes
+let _mmView = { side: 'otp', bo: 'all' };
+// Lazy cache for Bo3/Bo1 slices: key = `${format}|${perim}|${bo}` → { matrix, otp_otd }
+let _mmSliceCache = {};
+let _mmLoading = false;
 
 function mmCellColor(wr) {
   // Smooth 3-stop gradient: red 40 → yellow 50 → green 60
@@ -5982,10 +6258,78 @@ function mmCellColor(wr) {
   return 'rgba(248,81,73,0.85)';
 }
 
+function mmCacheKey(fmt, perim, bo) { return `${fmt}|${perim}|${bo}`; }
+
+function mmBaseMatrix(pd) {
+  // Return the "OTP perspective" matrix (deck_a wins against deck_b)
+  // for the currently active slice (all or bo3).
+  if (_mmView.bo === 'all') return pd.matrix || {};
+  const ctx = getScopeContext();
+  const key = mmCacheKey(ctx.format || 'core', ctx.perimeter, _mmView.bo);
+  const slice = _mmSliceCache[key];
+  return slice ? slice.matrix : null;
+}
+
+function mmInvertMatrix(base) {
+  // From OTP view to OTD view: cell[row][col] (row OTD vs col OTP) =
+  // invert of base[col][row] which is col OTP vs row OTD.
+  const inv = {};
+  for (const a of Object.keys(base || {})) {
+    for (const b of Object.keys(base[a] || {})) {
+      const src = base[a][b];
+      if (!src) continue;
+      if (!inv[b]) inv[b] = {};
+      inv[b][a] = { w: src.t - src.w, t: src.t };
+    }
+  }
+  return inv;
+}
+
+async function mmLoadSlice(fmt, perim, bo) {
+  const key = mmCacheKey(fmt, perim, bo);
+  if (_mmSliceCache[key]) return;
+  _mmLoading = true;
+  renderMatchupMatrix(getPerimData());
+  try {
+    const url = `/api/v1/dashboard-data/queue-slice?perimeter=${encodeURIComponent(perim)}&queue_filter=${bo}&days=7`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _mmSliceCache[key] = await res.json();
+  } catch(e) {
+    console.error('[matchup-matrix]', bo, 'slice fetch failed:', e);
+    _mmView.bo = 'all';
+  } finally {
+    _mmLoading = false;
+    renderMatchupMatrix(getPerimData());
+  }
+}
+
+function mmSetSide(side) {
+  if (_mmLoading || _mmView.side === side) return;
+  _mmView.side = side;
+  renderMatchupMatrix(getPerimData());
+}
+
+function mmSetBo(bo) {
+  if (_mmLoading || _mmView.bo === bo) return;
+  _mmView.bo = bo;
+  if (bo === 'all') {
+    renderMatchupMatrix(getPerimData());
+    return;
+  }
+  const ctx = getScopeContext();
+  const fmt = ctx.format || 'core';
+  const perim = ctx.perimeter;
+  if (_mmSliceCache[mmCacheKey(fmt, perim, bo)]) {
+    renderMatchupMatrix(getPerimData());
+  } else {
+    mmLoadSlice(fmt, perim, bo);
+  }
+}
+
 function renderMatchupMatrix(pd) {
   const wrap = document.getElementById('mm-wrap');
   if (!wrap) return;
-  const matrix = pd.matrix || {};
   const wr = pd.wr || {};
   // Decks sorted by popularity (total games)
   const decks = Object.keys(wr)
@@ -5997,6 +6341,10 @@ function renderMatchupMatrix(pd) {
     return;
   }
 
+  // Resolve active matrix based on sticky view state (side + bo).
+  const base = mmBaseMatrix(pd);
+  const matrix = base ? (_mmView.side === 'otd' ? mmInvertMatrix(base) : base) : null;
+
   // Default selected deck = user's selected or EmSa or top
   if (!_mmSelectedDeck || !decks.includes(_mmSelectedDeck)) {
     _mmSelectedDeck = (typeof selectedDeck !== 'undefined' && selectedDeck && decks.includes(selectedDeck))
@@ -6006,7 +6354,6 @@ function renderMatchupMatrix(pd) {
 
   const isMobile = window.innerWidth < 769;
 
-  // Legend is always visible; deck selector only on mobile (where we show a list)
   const legendHtml = `
     <span class="mm-legend">
       <span class="mm-legend-swatch" style="background:rgba(248,81,73,0.85)"></span>&lt;45%
@@ -6014,6 +6361,17 @@ function renderMatchupMatrix(pd) {
       <span class="mm-legend-swatch" style="background:rgba(63,185,80,0.85)"></span>&gt;55%
     </span>
   `;
+  const sideToggle = `
+    <div class="mm-toggle-group" role="group" aria-label="Play side">
+      <button class="mm-toggle ${_mmView.side==='otp'?'active':''}" onclick="mmSetSide('otp')" title="On-the-Play: row deck plays first">OTP</button>
+      <button class="mm-toggle ${_mmView.side==='otd'?'active':''}" onclick="mmSetSide('otd')" title="On-the-Draw: row deck plays second">OTD</button>
+    </div>`;
+  const boToggle = `
+    <div class="mm-toggle-group" role="group" aria-label="Queue format">
+      <button class="mm-toggle ${_mmView.bo==='all'?'active':''}" onclick="mmSetBo('all')" title="All queues">All</button>
+      <button class="mm-toggle ${_mmView.bo==='bo3'?'active':''}" ${_mmLoading?'disabled':''} onclick="mmSetBo('bo3')" title="Only Bo3 matches">Bo3</button>
+    </div>`;
+
   let toolbarHtml;
   if (isMobile) {
     const deckOptions = decks.map(d => `<option value="${d}" ${d === _mmSelectedDeck ? 'selected' : ''}>${d} · ${DECK_NAMES[d] || d}</option>`).join('');
@@ -6021,16 +6379,29 @@ function renderMatchupMatrix(pd) {
       <div class="mm-toolbar">
         <label for="mm-deck">Deck:</label>
         <select class="mm-deck-select" id="mm-deck" onchange="mmOnDeckChange(this.value)">${deckOptions}</select>
+        ${sideToggle}
+        ${boToggle}
         ${legendHtml}
       </div>
     `;
   } else {
     toolbarHtml = `
       <div class="mm-toolbar">
-        <span style="font-size:0.78em;color:var(--text2)">Click any cell to open the matchup in Coach</span>
+        <span class="mm-toolbar-meta" style="margin-left:0">Click any cell to open matchup in Coach</span>
+        ${sideToggle}
+        ${boToggle}
         ${legendHtml}
       </div>
     `;
+  }
+
+  if (_mmLoading) {
+    wrap.innerHTML = `${toolbarHtml}<div style="padding:40px;text-align:center;color:var(--text2);font-size:0.88em">Loading ${_mmView.bo.toUpperCase()} slice…</div>`;
+    return;
+  }
+  if (!matrix) {
+    wrap.innerHTML = `${toolbarHtml}<div style="padding:40px;text-align:center;color:var(--text2);font-size:0.88em">No data for this slice.</div>`;
+    return;
   }
 
   if (isMobile) {
@@ -6398,10 +6769,11 @@ function renderDeckDive(pd) {
       const fullName = DECK_NAMES[d] || d || '?';
       // Find perimeters that have data for this deck
       const altPerims = [];
-      const fmtPerims = FORMAT_PERIMS[currentFormat] || [];
+      const scope = getScopeContext();
+      const fmtPerims = scope.availablePerimeters;
       fmtPerims.forEach(p => {
         const pData = DATA.perimeters[p.id];
-        if (pData && pData.wr && pData.wr[d] && p.id !== currentPerim) altPerims.push(p);
+        if (pData && pData.wr && pData.wr[d] && p.id !== scope.perimeter) altPerims.push(p);
       });
       const altBtns = altPerims.map(p => `<button class="perim-btn" onclick="document.querySelectorAll('.perim-btn').forEach(b=>b.classList.remove('active'));currentPerim='${p.id}';selectedDeck='${d}';syncPerimButtons();render()">${p.label}</button>`).join(' ');
       el.innerHTML = `<div class="card" style="text-align:center;padding:32px">
@@ -6492,7 +6864,7 @@ function renderDeckDive(pd) {
   // Render deck compare strip (pentagon + delta) when custom mode
   const stripEl = document.getElementById('deck-compare-strip');
   if (stripEl) {
-    if (myDeckMode === 'custom' && myDeckCards && DATA.consensus && DATA.consensus[d]) {
+    if (getScopeContext().isCustomDeck && myDeckCards && DATA.consensus && DATA.consensus[d]) {
       const std = DATA.consensus[d];
       const added = [], missing = [];
       for (const [card, qty] of Object.entries(myDeckCards)) {
@@ -6504,8 +6876,8 @@ function renderDeckDive(pd) {
       const common = Object.keys(myDeckCards).filter(c => c in std).length;
 
       let deltaHtml = '';
-      if (added.length) deltaHtml += '<div style="color:var(--green);font-size:0.8em">+' + added.length + ' non in standard: ' + added.slice(0,3).join(', ') + (added.length>3?'...':'') + '</div>';
-      if (missing.length) deltaHtml += '<div style="color:var(--red);font-size:0.8em">-' + missing.length + ' standard mancanti: ' + missing.slice(0,3).join(', ') + (missing.length>3?'...':'') + '</div>';
+      if (added.length) deltaHtml += '<div style="color:var(--green);font-size:0.8em">+' + added.length + ' non in consensus: ' + added.slice(0,3).join(', ') + (added.length>3?'...':'') + '</div>';
+      if (missing.length) deltaHtml += '<div style="color:var(--red);font-size:0.8em">-' + missing.length + ' consensus mancanti: ' + missing.slice(0,3).join(', ') + (missing.length>3?'...':'') + '</div>';
       deltaHtml += '<div style="color:var(--text2);font-size:0.75em">' + common + ' carte in comune</div>';
 
       // Pentagon SVG
@@ -6515,7 +6887,7 @@ function renderDeckDive(pd) {
       stripEl.innerHTML = '<div class="card" style="display:flex;align-items:center;gap:20px;padding:16px 20px;margin-bottom:12px;border-left:3px solid var(--gold);flex-wrap:wrap">'
         + (pentSvg ? '<div style="flex-shrink:0">' + pentSvg + '</div>' : '')
         + '<div>'
-        + '<div style="font-size:0.9em;color:var(--gold);font-weight:600;margin-bottom:6px">Il tuo deck vs Standard</div>'
+        + '<div style="font-size:0.9em;color:var(--gold);font-weight:600;margin-bottom:6px">Il tuo deck vs Consensus</div>'
         + deltaHtml
         + '</div>'
         + '</div>';
@@ -6579,7 +6951,7 @@ function renderDeckAnalysis(deck) {
   }
 
   // Trend
-  const perimKey = currentPerim === 'community' ? 'set11' : currentPerim;
+  const perimKey = getScopeContext().perimeter;
   const trend = (DATA.matchup_trend || {})[perimKey] || {};
   const deckTrend = trend[deck];
   if (deckTrend) {
@@ -6607,7 +6979,7 @@ function renderDeckAnalysis(deck) {
 
 function renderMatchupTrend(deck) {
   const el = document.getElementById('deck-trend');
-  const perimKey = currentPerim === 'community' ? 'set11' : currentPerim;
+  const perimKey = getScopeContext().perimeter;
   const trend = (DATA.matchup_trend || {})[perimKey] || {};
   const deckTrend = trend[deck];
   if (!deckTrend || !Object.keys(deckTrend).length) {
@@ -6772,8 +7144,9 @@ function renderOTPOTDChart(pd, deck) {
 // === PLAYERS ===
 function renderPlayers(pd, deck) {
   const container = document.getElementById('players-list');
+  const scope = getScopeContext();
   // Filter: min 6 games for SET11, min 4 for TOP, min 2 for PRO
-  const minG = currentPerim === 'pro' ? 2 : (currentPerim === 'top' ? 4 : 6);
+  const minG = scope.perimeter.includes('pro') ? 2 : (scope.perimeter.includes('top') ? 4 : 6);
   const players = (pd.top_players || []).filter(p => p.deck === deck && (p.w + p.l) >= minG);
 
   if (!players.length) {
@@ -6787,6 +7160,9 @@ function renderPlayers(pd, deck) {
     const proTag = p.is_pro ? '<span class="pro-tag">PRO</span>' : '';
     const wrCl = wrClass(p.wr);
     const totalG = p.w + p.l;
+    const deckChip = p.deck
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;color:var(--text2);font-size:0.78em;font-weight:500;margin-left:8px">${deckImg(p.deck,20)}<span>${p.deck}</span></span>`
+      : '';
 
     // Matchup grid (colored cells)
     const muEntries = Object.entries(p.matchups || {}).sort((a,b) => (b[1].w+b[1].l) - (a[1].w+a[1].l));
@@ -6808,7 +7184,7 @@ function renderPlayers(pd, deck) {
       <div class="player-card" onclick="this.classList.toggle('open')">
         <div class="player-header">
           <span class="rank">${rank}</span>
-          <span class="name">${p.name} ${proTag}</span>
+          <span class="name">${p.name} ${proTag}${deckChip}</span>
           <div class="stats-mini">
             <span>${p.w}-${p.l}</span>
             <span class="wr-val ${wrCl}">${p.wr}%</span>
@@ -6817,11 +7193,18 @@ function renderPlayers(pd, deck) {
           <span class="arrow">▼</span>
         </div>
         <div class="player-detail">
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:0.8em;color:var(--text2)">
+            <span style="display:inline-flex;align-items:center;gap:6px">
+              <strong style="color:var(--text)">Main Deck:</strong>
+              ${p.deck ? `${deckImg(p.deck,20)} <span>${p.deck}</span>` : '<span>Unknown</span>'}
+            </span>
+            <span><strong style="color:var(--text)">Observed:</strong> ${totalG} games</span>
+          </div>
           <div style="margin-top:12px">
             <h4 style="font-size:0.8em;color:var(--text2);text-transform:uppercase;margin-bottom:6px">Matchup (${totalG} matches)</h4>
             <div class="mu-grid">${muGrid}</div>
           </div>
-          ${myDeckMode === 'custom' && myDeckCards ? buildCustomCompare(p.name, deck, totalG) : deckCompareHtml}
+          ${scope.isCustomDeck && myDeckCards ? buildCustomCompare(p.name, deck, totalG) : deckCompareHtml}
         </div>
       </div>`;
   }).join('');
@@ -6894,7 +7277,7 @@ function buildUnifiedDiff(stdCards, playerCards, stdLabel, playerLabel, footerIn
   html += `<div class="deck-diff-footer">
     <span class="ddf-info">${footerInfoHtml}</span>
     <div class="ddf-btns">
-      <button class="deck-diff-copy-btn std" onclick="event.stopPropagation();copyTextToClipboard('${stdCopyId}',this,'Copied!')">Copy Standard</button>
+      <button class="deck-diff-copy-btn std" onclick="event.stopPropagation();copyTextToClipboard('${stdCopyId}',this,'Copied!')">Copy Consensus</button>
       <button class="deck-diff-copy-btn player" onclick="event.stopPropagation();copyTextToClipboard('${playerCopyId}',this,'Copied!')">Copy Player</button>
     </div>
   </div>`;
@@ -6920,23 +7303,25 @@ function copyTextToClipboard(textareaId, btn, successMsg) {
 
 function buildDeckCompare(playerName, deck, totalGames) {
   const consensus = DATA.consensus || {};
-  const playerCards = DATA.player_cards || {};
+  const playerCards = getScopedPlayerCards();
   const refDecklists = DATA.reference_decklists || {};
   const std = consensus[deck];
   const pCards = (playerCards[playerName.toLowerCase()] || {})[deck];
   const refList = refDecklists[deck];
   const refDeck = Array.isArray(refList) ? refList[0] : refList;
 
-  if (!std || !pCards) return '';
+  if (!pCards) return '';
 
-  // Standard decklist text
+  // Consensus decklist text
   let stdText = '';
   let refInfo = '';
   if (refDeck) {
     refInfo = `${refDeck.player} — ${refDeck.rank || '?'} @ ${(refDeck.event || '').substring(0, 45)}`;
     stdText = refDeck.cards.map(c => `${c.qty} ${c.name}`).join('\n');
-  } else {
+  } else if (std) {
     stdText = Object.entries(std).sort((a,b) => b[1] - a[1]).map(([name, qty]) => `${Math.round(qty)} ${name}`).join('\n');
+  } else {
+    stdText = 'Consensus unavailable for this deck in the current snapshot.';
   }
 
   // Build estimated decklist from player_cards data.
@@ -6955,34 +7340,36 @@ function buildDeckCompare(playerName, deck, totalGames) {
     const rate = total > 0 ? pSeen / total : 0;
     // If we have a consensus qty for this card, use it as baseline
     if (stdQty) return stdQty;
-    // For non-consensus cards, estimate from frequency
-    if (total >= 20) {
-      if (rate >= 0.45) return 4;
-      if (rate >= 0.25) return 3;
-      return 2;
-    } else if (total >= 8) {
-      if (rate >= 0.40) return 4;
-      if (rate >= 0.20) return 3;
-      return 2;
+    // Hypergeometric MLE thresholds (60-card deck, ~20 cards seen, ~16 played per game)
+    // P(≥1 copy played): 1x=27%, 2x=47%, 3x=61%, 4x=72%
+    // Boundaries = midpoints: 37%, 54%, 67%
+    if (total >= 8) {
+      if (rate >= 0.67) return 4;
+      if (rate >= 0.54) return 3;
+      if (rate >= 0.37) return 2;
+      return 1;
     } else {
-      // Very few games: can't distinguish, default 3x
-      if (rate >= 0.50) return 4;
-      return 3;
+      // Very few games: same thresholds but cap at 3x (insufficient data for 4x)
+      if (rate >= 0.54) return 3;
+      if (rate >= 0.37) return 2;
+      return 1;
     }
   }
 
   const added = [], kept = [], cut = [];
-  for (const [card, qty] of Object.entries(std)) {
-    const pSeen = pCards[card] || 0;
-    if (pSeen === 0) {
-      cut.push({ card, stdQty: Math.round(qty) });
-    } else {
-      const sq = Math.round(qty);
-      kept.push({ card, stdQty: sq, pSeen, estQ: estQty(pSeen, observedGames, sq) });
+  if (std) {
+    for (const [card, qty] of Object.entries(std)) {
+      const pSeen = pCards[card] || 0;
+      if (pSeen === 0) {
+        cut.push({ card, stdQty: Math.round(qty) });
+      } else {
+        const sq = Math.round(qty);
+        kept.push({ card, stdQty: sq, pSeen, estQ: estQty(pSeen, observedGames, sq) });
+      }
     }
   }
   for (const [card, pSeen] of Object.entries(pCards)) {
-    if (!(card in std) && pSeen >= 1) {
+    if ((!std || !(card in std)) && pSeen >= 1) {
       added.push({ card, pSeen, estQ: estQty(pSeen, observedGames, 0) });
     }
   }
@@ -7052,15 +7439,17 @@ function buildDeckCompare(playerName, deck, totalGames) {
   const stdCardDict = {};
   if (refDeck) {
     refDeck.cards.forEach(c => { stdCardDict[c.name] = c.qty; });
-  } else {
+  } else if (std) {
     Object.entries(std).forEach(([name, qty]) => { stdCardDict[name] = Math.round(qty); });
   }
   const estCardDict = {};
   estDeckList.forEach(c => { estCardDict[c.card] = c.qty; });
 
-  const stdLabel    = refInfo
-    ? `<span style="color:var(--sapphire)">Standard</span> <span style="color:var(--text2);font-weight:400;font-size:0.88em">(${refDeck.player || ''})</span>`
-    : `<span style="color:var(--sapphire)">Standard</span>`;
+  const stdLabel = !std
+    ? `<span style="color:var(--text2)">Consensus non disponibile</span>`
+    : refInfo
+      ? `<span style="color:var(--sapphire)">Consensus</span> <span style="color:var(--text2);font-weight:400;font-size:0.88em">(${refDeck.player || ''})</span>`
+      : `<span style="color:var(--sapphire)">Consensus</span>`;
   const playerLabel = `<span style="color:var(--gold)">Stimata ${playerName}</span>`;
 
   const footerInfo  = `${observedGames}/${totalGames}g osservate · <span style="color:${confColor}">Confidenza ${confLabel} (${confidence}%)</span>  <span style="color:var(--text2);margin-left:6px">* tech · ? assunta</span>`;
@@ -7078,7 +7467,7 @@ function copyDeck(id) {
   });
 }
 
-// === MY DECK — Standard vs Personalizzato ===
+// === MY DECK — Meta vs Personalizzato ===
 let myDeckMode = 'standard'; // 'standard' or 'custom' — always starts standard
 let myDeckCards = null; // {cardName: qty}
 
@@ -7150,12 +7539,12 @@ function validateDeck(cards) {
     const knownCards = new Set();
     const std = (DATA.consensus || {})[selectedDeck] || {};
     Object.keys(std).forEach(c => knownCards.add(c));
-    const pc = DATA.player_cards || {};
+    const pc = getScopedPlayerCards();
     for (const pdata of Object.values(pc)) {
       const deckCards = pdata[selectedDeck];
       if (deckCards) Object.keys(deckCards).forEach(c => knownCards.add(c));
     }
-    for (const perimKey of ['set11','top','pro']) {
+    for (const perimKey of [getCoreDefaultPerimeter(),'top','pro']) {
       const tornado = ((DATA.tech_tornado || {})[perimKey] || {})[selectedDeck];
       if (tornado && tornado.items) tornado.items.forEach(i => knownCards.add(i.card));
     }
@@ -7451,7 +7840,7 @@ function rerenderPlayers() {
 }
 
 function estimatePlayerDeck(playerName, deck, totalGames) {
-  const playerCards = DATA.player_cards || {};
+  const playerCards = getScopedPlayerCards();
   const consensus = DATA.consensus || {};
   const pCards = (playerCards[playerName.toLowerCase()] || {})[deck];
   const std = consensus[deck];
@@ -7474,7 +7863,7 @@ function estimatePlayerDeck(playerName, deck, totalGames) {
 
 function buildCustomCompare(playerName, deck, totalGames) {
   // In custom mode: MY deck vs player's estimated — show unified diff
-  if (myDeckMode !== 'custom' || !myDeckCards) return '';
+  if (!getScopeContext().isCustomDeck || !myDeckCards) return '';
   const estDeck = estimatePlayerDeck(playerName, deck, totalGames);
   if (!estDeck) return '';
 
@@ -7502,7 +7891,7 @@ function buildCustomCompare(playerName, deck, totalGames) {
 // === TECH TORNADO CHART ===
 function renderTechTornado() {
   if (charts.techTornado) charts.techTornado.destroy();
-  const perimKey = currentPerim === 'community' ? 'set11' : currentPerim;
+  const perimKey = getScopeContext().perimeter;
   const tornado = (DATA.tech_tornado || {})[perimKey] || {};
   const deckData = tornado[selectedDeck];
   const canvas = document.getElementById('chart-tech-tornado');
@@ -7587,7 +7976,7 @@ function renderTechTornado() {
               return [
                 ` ${item.players} player (${item.adoption}% adoption)`,
                 ` WR media: ${item.avg_wr}%`,
-                item.type === 'in' ? ' Card not in standard deck' : ' Standard card not played'
+                item.type === 'in' ? ' Card not in consensus deck' : ' Consensus card not played'
               ];
             }
           }
@@ -8782,6 +9171,58 @@ function rvEscapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function kcResponseSections(resp) {
+  const sections = [];
+  if (!resp || typeof resp !== 'object') return sections;
+  if (resp.headline) sections.push({ title: 'Threat', body: resp.headline });
+  if (resp.core_rule) sections.push({ title: 'How to Respond', body: resp.core_rule });
+  if (Array.isArray(resp.priority_actions) && resp.priority_actions.length) {
+    sections.push({ title: 'Priority Actions', items: resp.priority_actions });
+  }
+  if (Array.isArray(resp.what_to_avoid) && resp.what_to_avoid.length) {
+    sections.push({ title: 'What to Avoid', items: resp.what_to_avoid });
+  }
+  if (resp.stock_build_note) sections.push({ title: 'If You Play the Stock Build', body: resp.stock_build_note });
+  if (resp.off_meta_note) sections.push({ title: 'If Your Build Is Different', body: resp.off_meta_note });
+  if (resp.play_draw_note) sections.push({ title: 'Play / Draw Note', body: resp.play_draw_note });
+  if (resp.failure_state) sections.push({ title: 'Failure State', body: resp.failure_state });
+  return sections;
+}
+
+function kcResponseSummary(resp) {
+  if (!resp || typeof resp !== 'object') return '';
+  return resp.headline || resp.core_rule || resp.strategy || '';
+}
+
+function kcRenderResponse(resp, opts) {
+  opts = opts || {};
+  if (!resp || typeof resp !== 'object') return '';
+  const sections = kcResponseSections(resp);
+  let html = '';
+  if (sections.length) {
+    sections.forEach(section => {
+      html += `<div style="margin-top:${opts.compact ? '6px' : '8px'}">`;
+      html += `<div style="font-size:${opts.compact ? '0.8em' : '0.84em'};font-weight:700;color:var(--green);margin-bottom:4px">${section.title}</div>`;
+      if (section.body) html += `<div style="font-size:${opts.compact ? '0.82em' : '0.85em'}">${section.body}</div>`;
+      if (section.items && section.items.length) {
+        html += `<ul style="margin:4px 0 0 18px;padding:0">`;
+        section.items.forEach(item => { html += `<li style="margin:2px 0;font-size:${opts.compact ? '0.82em' : '0.85em'}">${item}</li>`; });
+        html += `</ul>`;
+      }
+      html += `</div>`;
+    });
+  } else if (resp.strategy) {
+    html += `<div style="font-size:${opts.compact ? '0.82em' : '0.85em'}">${resp.strategy}</div>`;
+  }
+  if (resp.cards && resp.cards.length) {
+    html += `<div style="margin-top:6px;font-size:${opts.compact ? '0.8em' : '0.82em'}"><strong>Key cards:</strong> ${resp.cards.join(', ')}</div>`;
+  }
+  if (resp.turn_needed) {
+    html += `<div style="font-size:${opts.compact ? '0.78em' : '0.8em'};color:var(--text2);margin-top:4px">Needed by: T${resp.turn_needed}</div>`;
+  }
+  return html;
+}
+
 function rvEventSideLabel(side) {
   if (side === 'our') return 'Us';
   if (side === 'opp') return 'Opp';
@@ -9118,7 +9559,7 @@ function wrapPremium(innerHtml, context) {
 
 function getAnalyzerData() {
   if (!DATA) return {};
-  const az = (currentFormat === 'infinity' && DATA.matchup_analyzer_infinity)
+  const az = (getScopeContext().isInfinity && DATA.matchup_analyzer_infinity)
     ? DATA.matchup_analyzer_infinity
     : (DATA.matchup_analyzer || {});
   // Derive available_matchups from vs_* keys if missing
@@ -9410,12 +9851,10 @@ function renderCoachTab(main) {
       });
       cHtml += `</div>`;
       // Response
-      if (resp.strategy) {
+      if (resp.strategy || kcResponseSections(resp).length) {
         cHtml += `<div class="response-card">
-          <h4>Response</h4>
-          <p>${resp.strategy}</p>`;
-        if (resp.cards && resp.cards.length) cHtml += `<div style="margin-top:6px;font-size:0.85em"><strong>Carte:</strong> ${resp.cards.join(', ')}</div>`;
-        if (resp.turn_needed) cHtml += `<div style="font-size:0.85em;color:var(--text2)">Serve entro: T${resp.turn_needed}</div>`;
+          <h4>How to Respond</h4>
+          ${kcRenderResponse(resp)}`;
         cHtml += `</div>`;
       }
       cHtml += `</div></div>`;
@@ -9916,7 +10355,7 @@ function renderCoachV2Tab(main) {
     const seqEntries = Object.entries(tb.sequence);
     const hasSeq = seqEntries.length > 0;
     const hasSections = tb.sections.length > 0;
-    const hasResponse = tb.response.strategy;
+    const hasResponse = tb.response.strategy || kcResponseSections(tb.response).length;
 
     if (hasSeq || hasSections || hasResponse) {
       content += `<div class="cv2-columns">`;
@@ -9989,13 +10428,7 @@ function renderCoachV2Tab(main) {
           content += `</div>`;
         });
       } else if (hasResponse) {
-        content += `<div style="font-size:0.85em">${tb.response.strategy}</div>`;
-        if (tb.response.cards && tb.response.cards.length) {
-          content += `<div style="margin-top:6px;font-size:0.82em"><strong>Carte:</strong> ${tb.response.cards.join(', ')}</div>`;
-        }
-        if (tb.response.turn_needed) {
-          content += `<div style="font-size:0.8em;color:var(--text2);margin-top:4px">Serve entro: T${tb.response.turn_needed}</div>`;
-        }
+        content += kcRenderResponse(tb.response, { compact: true });
       } else {
         content += `<div style="color:var(--text2);font-size:0.85em">Response not yet analyzed.</div>`;
       }
@@ -10471,6 +10904,247 @@ function buildDeckBrowser__pills() {
   }).join('');
 }
 
+const _ldcCache = {};
+const _ldcSel = {};
+const _ldcExpanded = {};
+
+function _ldcNormalizeTo60(consensus) {
+  const entries = Object.entries(consensus || {}).map(([name, qty]) => {
+    const raw = Number(qty) || 0;
+    const floor = Math.floor(raw);
+    return { name, raw, floor, frac: raw - floor };
+  }).filter(x => x.raw > 0);
+  if (!entries.length) return [];
+
+  let total = entries.reduce((sum, x) => sum + x.floor, 0);
+  let delta = 60 - total;
+
+  if (delta > 0) {
+    entries.sort((a, b) => b.frac - a.frac || a.name.localeCompare(b.name));
+    for (let i = 0; i < entries.length && delta > 0; i++, delta--) entries[i].floor += 1;
+  } else if (delta < 0) {
+    entries.sort((a, b) => a.frac - b.frac || a.name.localeCompare(b.name));
+    for (let i = 0; i < entries.length && delta < 0; i++) {
+      if (entries[i].floor > 0) {
+        entries[i].floor -= 1;
+        delta += 1;
+      }
+    }
+  }
+
+  return entries
+    .filter(x => x.floor > 0)
+    .sort((a, b) => b.floor - a.floor || a.name.localeCompare(b.name))
+    .map(x => ({ name: x.name, qty: x.floor }));
+}
+
+function _ldcBaseDeck(deckCode) {
+  if (myDeckMode === 'custom' && myDeckCards) {
+    const cards = Object.entries(myDeckCards).map(([name, qty]) => ({ name, qty }));
+    return { label: 'My Deck', sub: 'Saved personal list', cards };
+  }
+  const consensus = (DATA.consensus || {})[deckCode] || {};
+  const cards = _ldcNormalizeTo60(consensus);
+  return { label: 'Consensus', sub: 'Current standard reference', cards };
+}
+
+function _ldcCardDict(cards) {
+  const out = {};
+  (cards || []).forEach(c => { out[c.name] = c.qty; });
+  return out;
+}
+
+function _ldcDiff(baseCards, refCards) {
+  const base = _ldcCardDict(baseCards);
+  const ref = _ldcCardDict(refCards);
+  const added = [];
+  const cut = [];
+  Object.entries(ref).forEach(([name, qty]) => {
+    const delta = qty - (base[name] || 0);
+    if (delta > 0) added.push({ name, qty: delta });
+  });
+  Object.entries(base).forEach(([name, qty]) => {
+    const delta = qty - (ref[name] || 0);
+    if (delta > 0) cut.push({ name, qty: delta });
+  });
+  added.sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+  cut.sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name));
+  return { added, cut };
+}
+
+function _ldcDeckText(cards) {
+  return (cards || []).map(c => `${c.qty} ${c.name}`).join('\n');
+}
+
+function _ldcGallery(cards, opts = {}) {
+  const {
+    badgeMode = 'qty',
+    baseClass = '',
+    emptyText = '',
+  } = opts;
+  if (!cards || !cards.length) return emptyText || '';
+  return cards.map(c => {
+    const imgUrl = rvCardsDB ? rvCardImgByName(c.name) : '';
+    const shortName = c.name.includes(' - ') ? c.name.split(' - ')[0] : c.name;
+    const safeName = _bpEsc(c.name);
+    const safeShort = _bpEsc(shortName.length > 18 ? shortName.slice(0, 16) + '..' : shortName);
+    const art = imgUrl
+      ? `<img src="${imgUrl}" alt="${safeName}" loading="lazy">`
+      : `<div class="ldc-vph">${safeShort}</div>`;
+    const zoom = imgUrl ? ` data-zoom="${imgUrl}"` : '';
+    let badgeCls = 'qty';
+    let badgeLabel = `${c.qty}x`;
+    if (badgeMode === 'add') {
+      badgeCls = 'add';
+      badgeLabel = `+${c.qty}`;
+    } else if (badgeMode === 'cut') {
+      badgeCls = 'cut';
+      badgeLabel = `-${c.qty}`;
+    }
+    return `<div class="ldc-vcard${baseClass ? ` ${baseClass}` : ''}">
+      <div class="ldc-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+        ${art}
+        <span class="ldc-badge-corner ${badgeCls}">${badgeLabel}</span>
+      </div>
+      <div class="ldc-vname">${safeShort}</div>
+    </div>`;
+  }).join('');
+}
+
+function _ldcCopy(encoded, btn) {
+  const text = decodeURIComponent(encoded || '');
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    if (!btn) return;
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+async function ldcLoad(deckCode) {
+  const wrap = document.getElementById('ldc-wrap');
+  if (!wrap || !deckCode) return;
+  const key = `${deckCode}`;
+  if (_ldcCache[key]) { ldcRender(deckCode, _ldcCache[key]); return; }
+  wrap.innerHTML = '<div class="ldc-empty">Loading tournament lists…</div>';
+  try {
+    const resp = await fetch(`/api/v1/lab/tournament-lists/${encodeURIComponent(deckCode)}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    _ldcCache[key] = data;
+    ldcRender(deckCode, data);
+  } catch (e) {
+    wrap.innerHTML = `<div class="ldc-empty">Tournament lists unavailable (${String(e).slice(0, 60)}).</div>`;
+  }
+}
+
+function ldcPick(deckCode, idx) {
+  _ldcSel[deckCode] = idx;
+  const data = _ldcCache[deckCode];
+  if (data) ldcRender(deckCode, data);
+}
+
+function ldcToggleExpand(deckCode, idx) {
+  const key = `${deckCode}:${idx}`;
+  _ldcExpanded[key] = !_ldcExpanded[key];
+  const data = _ldcCache[deckCode];
+  if (data) ldcRender(deckCode, data);
+}
+
+function ldcRender(deckCode, data) {
+  const wrap = document.getElementById('ldc-wrap');
+  if (!wrap) return;
+  const lists = (data && data.lists) ? data.lists.slice(0, 3) : [];
+  const base = _ldcBaseDeck(deckCode);
+  if (!base.cards.length) {
+    wrap.innerHTML = '<div class="ldc-empty">No base deck available for comparison.</div>';
+    return;
+  }
+  if (!lists.length) {
+    wrap.innerHTML = '<div class="ldc-empty">No tournament lists available for this deck in the latest snapshot.</div>';
+    return;
+  }
+
+  const baseCard = `<div class="ldc-card base">
+    <div class="ldc-top">
+      <div>
+        <div class="ldc-title">${base.label}</div>
+        <div class="ldc-sub">${base.sub}</div>
+      </div>
+      <div class="ldc-total">${base.cards.reduce((s, c) => s + c.qty, 0)}/60</div>
+    </div>
+    <div class="ldc-base-list"><div class="ldc-base-grid">${_ldcGallery(base.cards, { badgeMode: 'qty', baseClass: 'base' })}</div></div>
+    <div class="ldc-copy-row"><button class="db-copy-btn" data-copy="${encodeURIComponent(_ldcDeckText(base.cards))}" onclick="_ldcCopy(this.dataset.copy, this)">Copy</button></div>
+  </div>`;
+
+  const refCards = lists.map((item, idx) => {
+    const cards = (item.cards || []).map(c => ({ name: c.name, qty: c.qty }));
+    const diff = _ldcDiff(base.cards, cards);
+    const addTotal = diff.added.reduce((sum, c) => sum + (c.qty || 0), 0);
+    const cutTotal = diff.cut.reduce((sum, c) => sum + (c.qty || 0), 0);
+    const expanded = !!_ldcExpanded[`${deckCode}:${idx}`];
+    const addHtml = diff.added.length
+      ? `<div class="ldc-delta-grid">${_ldcGallery(diff.added, { badgeMode: 'add' })}</div>`
+      : '<div class="ldc-delta-empty">No adds vs base</div>';
+    const cutHtml = diff.cut.length
+      ? `<div class="ldc-delta-grid">${_ldcGallery(diff.cut, { badgeMode: 'cut' })}</div>`
+      : '<div class="ldc-delta-empty">No cuts vs base</div>';
+    const expandHtml = expanded
+      ? `<div class="ldc-expand"><div class="pf-std-gallery">${_dbBuildGallery(cards)}</div></div>`
+      : '';
+    return `<div class="ldc-card">
+      <div class="ldc-top">
+        <div>
+          <div class="ldc-title">${_bpEsc(item.player || '?')}</div>
+          <div class="ldc-sub">${_bpEsc(item.rank || '?')} · ${_bpEsc((item.event || '').substring(0, 28) || 'Tournament list')}</div>
+        </div>
+        <div class="ldc-total">${cards.reduce((s, c) => s + c.qty, 0)}/60</div>
+      </div>
+      <div class="ldc-delta-block">
+        <div class="ldc-delta-section">
+          <div class="ldc-delta-head add"><span>Adds</span><span>+${addTotal}</span></div>
+          ${addHtml}
+        </div>
+        <div class="ldc-delta-section">
+          <div class="ldc-delta-head cut"><span>Cuts</span><span>-${cutTotal}</span></div>
+          ${cutHtml}
+        </div>
+      </div>
+      <div class="ldc-actions">
+        <button class="ldc-mini-btn" onclick="ldcToggleExpand('${deckCode}', ${idx})">${expanded ? 'Hide List' : 'Expand'}</button>
+        <button class="db-copy-btn" data-copy="${encodeURIComponent(_ldcDeckText(cards))}" onclick="_ldcCopy(this.dataset.copy, this)">Copy</button>
+      </div>
+      ${expandHtml}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="ldc-wrap">
+    <div class="ldc-header">
+      <strong>${deckCode}</strong>
+      <span class="ldc-source-pill">${_bpEsc(data.source || 'snapshot')}</span>
+      <span class="ldc-summary">${lists.length} tournament lists</span>
+    </div>
+    <div class="ldc-summit">
+      ${baseCard}
+    </div>
+    <div class="ldc-row">
+      ${refCards}
+    </div>
+  </div>`;
+}
+
+function buildLabDeckComparator(deckCode) {
+  if (!deckCode) return '';
+  return `<div class="section">
+    ${monAccordion('acc-ldc', 'Deck Comparator', '', '<div id="ldc-wrap" class="ldc-empty">Loading comparator…</div>', {
+      desktopOpen: true,
+      onOpen: () => ldcLoad(deckCode),
+      info: { title: 'About Deck Comparator', body: '<p>Compare your current base list against tournament reference lists from the latest inkdecks snapshot.</p><p><strong>Base</strong> = your saved deck if enabled, otherwise the current consensus list.</p><p>Green badges show additions vs base, red badges show cuts.</p>' }
+    })}
+  </div>`;
+}
+
 function renderLabTab(main) {
   const az = getAnalyzerData();
   const matchups = (az[coachDeck]||{}).available_matchups || [];
@@ -10640,6 +11314,7 @@ function renderLabTab(main) {
 
   // === ASSEMBLE ===
   let content = selectorHtml;
+  content += buildLabDeckComparator(labDeck);
   content += `<div class="lab-layout">
     <div class="lab-left">${leftCol}</div>
     ${rightCol}
@@ -10651,6 +11326,9 @@ function renderLabTab(main) {
 
   main.innerHTML = content;
   initMullCarousel();
+  if (labDeck) {
+    ldcLoad(labDeck);
+  }
   // Init replay viewer if matchup selected
   if (labDeck && labOppDeck) {
     rvInit(labDeck, labOppDeck);
@@ -10819,9 +11497,10 @@ function openCheatsheet() {
   if (kc.length > 0 && kc[0].response) {
     const resp = kc[0].response;
     const cards = (resp.cards || []).slice(0, 3).join(', ');
+    const summary = kcResponseSummary(resp) || 'N/A';
     points.push({
-      text: `<strong>Response:</strong> ${resp.strategy || 'N/A'}${cards ? `<div class="cs-cards">Key cards: ${cards}</div>` : ''}`,
-      plain: `Response: ${resp.strategy || 'N/A'}${cards ? '. Carte: ' + cards : ''}`
+      text: `<strong>Response:</strong> ${summary}${cards ? `<div class="cs-cards">Key cards: ${cards}</div>` : ''}`,
+      plain: `Response: ${summary}${cards ? '. Key cards: ' + cards : ''}`
     });
   }
 
@@ -10843,9 +11522,10 @@ function openCheatsheet() {
   // 5. Second threat or type summary
   if (kc.length > 1) {
     const t2 = kc[1];
+    const t2Summary = kcResponseSummary(t2.response || {});
     points.push({
-      text: `<strong>Minaccia #2: ${t2.name}</strong> (${t2.frequency?.pct||'?'}% loss)${t2.response?.strategy ? ' — ' + t2.response.strategy : ''}`,
-      plain: `Minaccia #2: ${t2.name} (${t2.frequency?.pct||'?'}% loss)${t2.response?.strategy ? ' — ' + t2.response.strategy : ''}`
+      text: `<strong>Minaccia #2: ${t2.name}</strong> (${t2.frequency?.pct||'?'}% loss)${t2Summary ? ' — ' + t2Summary : ''}`,
+      plain: `Minaccia #2: ${t2.name} (${t2.frequency?.pct||'?'}% loss)${t2Summary ? ' — ' + t2Summary : ''}`
     });
   } else if (tl.type_summary) {
     points.push({
@@ -11485,6 +12165,7 @@ function pfBuildCurveTimeline(cards) {
 }
 
 function renderProfileTab(main) {
+  const scope = getScopeContext();
   // Preload cards DB for tech card images
   if (!rvCardsDB) {
     fetch('/api/replay/cards_db').then(r => r.json()).then(db => { rvCardsDB = db; if (currentTab === 'profile') render(); }).catch(() => {});
@@ -11508,7 +12189,7 @@ function renderProfileTab(main) {
   const initials = nick[0].toUpperCase();
 
   // Determine perim for profile data
-  const pfPerim = currentFormat === 'infinity' ? 'infinity' : 'set11';
+  const pfPerim = scope.primaryPerimeter;
   const pd = DATA.perimeters[pfPerim] || {};
 
   // ── HEADER ──
@@ -11550,14 +12231,14 @@ function renderProfileTab(main) {
   // Standard / Custom deck toggle
   const hasDeck = !!myDeckCards;
   const deckModeHtml = `<div class="lab-base-seg" style="margin:0">
-    <button class="lab-base-btn${myDeckMode==='standard' || !hasDeck ?' active':''}" style="padding:4px 10px;font-size:0.75em" onclick="myDeckMode='standard';pfInkSel=[];render()">Standard</button>
-    <button class="lab-base-btn${myDeckMode==='custom'?' active':''}" style="padding:4px 10px;font-size:0.75em"
+    <button class="lab-base-btn${!scope.isCustomDeck || !hasDeck ?' active':''}" style="padding:4px 10px;font-size:0.75em" onclick="myDeckMode='standard';pfInkSel=[];render()">Meta Deck</button>
+    <button class="lab-base-btn${scope.isCustomDeck?' active':''}" style="padding:4px 10px;font-size:0.75em"
       onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
   </div>`;
 
   // ── DECK SELECTOR INNER (used inside hero card) ──
   let deckSelectorInner = '';
-  if (myDeckMode === 'standard' || !hasDeck) {
+  if (!scope.isCustomDeck || !hasDeck) {
     // STANDARD MODE: ink picker — step-based layout
     const step = pfInkSel.length;
     const stepLabel = step === 0 ? '<span style="font-size:0.78em;color:var(--gold)">Tap 2 ink colors to select your deck</span>'
@@ -11641,9 +12322,9 @@ function renderProfileTab(main) {
     const wr = (pd.wr || {})[activeDk];
     const ms = (pd.meta_share || {})[activeDk];
     const matrix = (pd.matrix || {})[activeDk];
-    const searchPerims = currentFormat === 'infinity'
+    const searchPerims = scope.isInfinity
       ? ['infinity','infinity_top','infinity_pro']
-      : ['set11','top','pro','friends_core'];
+      : [getCoreDefaultPerimeter(),'top','pro','friends_core'];
     const playerSet = new Set();
     searchPerims.forEach(perim => {
       const tp = (DATA.perimeters[perim] || {}).top_players || [];
@@ -11719,9 +12400,9 @@ function renderProfileTab(main) {
   let techHtml = '';
   if (activeDk) {
     // Merge IN cards from all perimeters, label each with its highest-priority source
-    const techLevels = currentFormat === 'infinity'
+    const techLevels = scope.isInfinity
       ? [{ key: 'infinity_pro', label: 'PRO', rank: 0 }, { key: 'infinity_top', label: 'TOP', rank: 1 }, { key: 'infinity', label: 'Community', rank: 2 }]
-      : [{ key: 'pro', label: 'PRO', rank: 0 }, { key: 'top', label: 'TOP', rank: 1 }, { key: 'set11', label: 'Community', rank: 2 }];
+      : [{ key: 'pro', label: 'PRO', rank: 0 }, { key: 'top', label: 'TOP', rank: 1 }, { key: getCoreDefaultPerimeter(), label: 'Community', rank: 2 }];
     const merged = {}; // card → {card, adoption, avg_wr, confidence, label, rank}
     for (const lvl of techLevels) {
       const t = ((DATA.tech_tornado || {})[lvl.key] || {})[activeDk];
@@ -11776,7 +12457,7 @@ function renderProfileTab(main) {
   // ── META RADAR (clean: ink dots + deck + WR + vs you) ──
   let radarHtml = '';
   if (activeDk) {
-    const pfPerim = currentFormat === 'infinity' ? 'infinity' : 'set11';
+    const pfPerim = scope.primaryPerimeter;
     const radarPd = DATA.perimeters[pfPerim] || {};
     const radarWr = radarPd.wr || {};
     const radarMs = radarPd.meta_share || {};
@@ -11855,18 +12536,15 @@ function renderProfileTab(main) {
   let stdListHtml = '';
   if (activeDk) {
     const consensusData = DATA.consensus || {};
-    const refDecklists = DATA.reference_decklists || {};
     const std = consensusData[activeDk];
-    const _refList = refDecklists[activeDk];
-    const refDeck = Array.isArray(_refList) ? _refList[0] : _refList;
 
     // Build the tech card name set for cross-highlighting
     const techCardNames = new Set();
     if (techHtml) {
       // techHtml was built with rendered cards — re-derive from merged object
-      const techLevelsRef = currentFormat === 'infinity'
+      const techLevelsRef = scope.isInfinity
         ? [{ key: 'infinity_pro' }, { key: 'infinity_top' }, { key: 'infinity' }]
-        : [{ key: 'pro' }, { key: 'top' }, { key: 'set11' }];
+        : [{ key: 'pro' }, { key: 'top' }, { key: getCoreDefaultPerimeter() }];
       for (const lvl of techLevelsRef) {
         const t = ((DATA.tech_tornado || {})[lvl.key] || {})[activeDk];
         if (!t || !t.items) continue;
@@ -11879,59 +12557,35 @@ function renderProfileTab(main) {
       let rows = '';
       let totalCards = 0;
 
-      if (refDeck && refDeck.cards && refDeck.cards.length) {
-        // Reference decklist from a real tournament player
-        sourceLabel = `${refDeck.player ? refDeck.player.split(' ')[0] : 'Ref'} @ ${(refDeck.event || '').substring(0, 30)}`;
-        refDeck.cards.forEach(c => {
-          totalCards += c.qty;
-          const isTech = techCardNames.has(c.name);
-          const meta = pfCardMeta(c.name);
-          const safeName = _bpEsc(c.name);
-          const safeShort = _bpEsc(meta.shortName);
-          const art = meta.imgUrl
-            ? `<img src="${meta.imgUrl}" alt="${safeName}" loading="lazy">`
-            : `<div class="pf-std-vph">${safeShort}</div>`;
-          const techBadge = isTech ? `<span class="pf-std-vtech">tech</span>` : '';
-          const zoom = meta.imgUrl ? ` data-zoom="${meta.imgUrl}"` : '';
-          rows += `<div class="pf-std-vcard">
-            <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
-              ${art}
-              <span class="pf-std-vqty">${c.qty}x</span>
-              ${techBadge}
-            </div>
-            <div class="pf-std-vname">${safeShort}</div>
-          </div>`;
-        });
-      } else {
-        // Consensus average
-        sourceLabel = 'consensus avg';
-        const sorted = Object.entries(std).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
-        sorted.forEach(([name, qty]) => {
-          const q = Math.round(qty);
-          totalCards += q;
-          const isTech = techCardNames.has(name);
-          const meta = pfCardMeta(name);
-          const safeName = _bpEsc(name);
-          const safeShort = _bpEsc(meta.shortName);
-          const art = meta.imgUrl
-            ? `<img src="${meta.imgUrl}" alt="${safeName}" loading="lazy">`
-            : `<div class="pf-std-vph">${safeShort}</div>`;
-          const techBadge = isTech ? `<span class="pf-std-vtech">tech</span>` : '';
-          const zoom = meta.imgUrl ? ` data-zoom="${meta.imgUrl}"` : '';
-          rows += `<div class="pf-std-vcard">
-            <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
-              ${art}
-              <span class="pf-std-vqty">${q}x</span>
-              ${techBadge}
-            </div>
-            <div class="pf-std-vname">${safeShort}</div>
-          </div>`;
-        });
-      }
+      // Always render the actual consensus here. A separate reference player list
+      // can be exposed elsewhere, but this panel must stay aligned with tech picks.
+      sourceLabel = 'consensus avg';
+      const sorted = Object.entries(std).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
+      sorted.forEach(([name, qty]) => {
+        const q = Math.round(qty);
+        totalCards += q;
+        const isTech = techCardNames.has(name);
+        const meta = pfCardMeta(name);
+        const safeName = _bpEsc(name);
+        const safeShort = _bpEsc(meta.shortName);
+        const art = meta.imgUrl
+          ? `<img src="${meta.imgUrl}" alt="${safeName}" loading="lazy">`
+          : `<div class="pf-std-vph">${safeShort}</div>`;
+        const techBadge = isTech ? `<span class="pf-std-vtech">tech</span>` : '';
+        const zoom = meta.imgUrl ? ` data-zoom="${meta.imgUrl}"` : '';
+        rows += `<div class="pf-std-vcard">
+          <div class="pf-std-vart"${zoom} onclick="if(this.dataset.zoom)pfZoomCard(this)" title="${safeName}">
+            ${art}
+            <span class="pf-std-vqty">${q}x</span>
+            ${techBadge}
+          </div>
+          <div class="pf-std-vname">${safeShort}</div>
+        </div>`;
+      });
 
       stdListHtml = `<div class="pf-std-card">
         <div class="pf-std-title">
-          <span>Standard List</span>
+          <span>Consensus List</span>
           <span class="pf-std-source">${sourceLabel}</span>
         </div>
         <div class="pf-std-list"><div class="pf-std-gallery">${rows}</div></div>
@@ -11939,7 +12593,7 @@ function renderProfileTab(main) {
       </div>`;
     } else {
       stdListHtml = `<div class="pf-std-card">
-        <div class="pf-std-title"><span>Standard List</span></div>
+        <div class="pf-std-title"><span>Consensus List</span></div>
         <div style="color:var(--text2);font-size:0.82em;padding:12px 0">No consensus data available for ${activeDk}.</div>
       </div>`;
     }
@@ -11949,7 +12603,7 @@ function renderProfileTab(main) {
   const BP_CAT_COLORS = { wipe: '#e85d75', lore: '#3FB950', combo: '#7B3FA0', early: '#D4A03A', tempo: '#2471A3' };
   let tipsHtml = '';
   if (activeDk) {
-    const bpSource = currentFormat === 'infinity' ? (DATA.best_plays_infinity || DATA.best_plays || {}) : (DATA.best_plays || {});
+    const bpSource = scope.isInfinity ? (DATA.best_plays_infinity || DATA.best_plays || {}) : (DATA.best_plays || {});
     const bp = bpSource[activeDk] || [];
     if (bp.length) {
       const perfPeriod = DATA.meta && DATA.meta.period ? DATA.meta.period : '';
@@ -12148,10 +12802,10 @@ function renderProfileTab(main) {
   // Row 4: Best Plays
   // Row 5: Coach Corner
 
-  // Build the mode toggle strip (Standard / My Deck)
+  // Build the mode toggle strip (Meta Deck / My Deck)
   const deckModeToggle = `<div class="lab-base-seg" style="margin:0">
-    <button class="lab-base-btn${myDeckMode==='standard' || !hasDeck ?' active':''}" style="padding:3px 9px;font-size:0.7em" onclick="myDeckMode='standard';pfInkSel=[];render()">Standard</button>
-    <button class="lab-base-btn${myDeckMode==='custom'?' active':''}" style="padding:3px 9px;font-size:0.7em"
+    <button class="lab-base-btn${!scope.isCustomDeck || !hasDeck ?' active':''}" style="padding:3px 9px;font-size:0.7em" onclick="myDeckMode='standard';pfInkSel=[];render()">Meta Deck</button>
+    <button class="lab-base-btn${scope.isCustomDeck?' active':''}" style="padding:3px 9px;font-size:0.7em"
       onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
   </div>`;
 
@@ -12159,7 +12813,7 @@ function renderProfileTab(main) {
   let myStatsHtml = '';
   if (myNick) {
     const nickLow = myNick.toLowerCase();
-    const fmtKey = currentFormat === 'infinity' ? 'infinity' : 'core';
+    const fmtKey = scope.format;
     const lookup = ((DATA.player_lookup || {})[fmtKey] || {})[nickLow] || {};
     const allDecks = Object.entries(lookup).sort((a, b) => (b[1].w + b[1].l) - (a[1].w + a[1].l));
     const totalW = allDecks.reduce((s, [_, v]) => s + v.w, 0);
@@ -12272,7 +12926,7 @@ function renderProfileTab(main) {
       <span>Non-Standard Picks</span>
       <button class="pf-info-btn" onclick="event.stopPropagation();var t=this.nextElementSibling;if(t)t.classList.toggle('open')" title="What is this?">i</button>
     </div>
-    <div class="pf-info-tip" style="margin-top:6px;margin-bottom:8px">Non-standard cards used by winning players (WR ≥ 52%, 15+ games). <strong>Adoption %</strong> = how many winners run it. Source: <span style="color:var(--gold)">PRO</span> &gt; <span style="color:var(--sapphire)">TOP</span> &gt; Community. Green badge on Standard List marks these cards.</div>
+    <div class="pf-info-tip" style="margin-top:6px;margin-bottom:8px">Non-standard cards used by winning players (WR ≥ 52%, 15+ games). <strong>Adoption %</strong> = how many winners run it. Source: <span style="color:var(--gold)">PRO</span> &gt; <span style="color:var(--sapphire)">TOP</span> &gt; Community. Green badge on Consensus List marks these cards.</div>
     ${techHtml || '<div style="color:var(--text2);font-size:0.82em;padding:8px 0">Select a deck first.</div>'}
   </div>`;
 
@@ -13131,23 +13785,23 @@ const TOUR_COMMON = [
   {
     target: '.format-bar',
     title: 'Formato e Ink',
-    body: 'Scegli Core o Infinity e i colori del deck. La selezione si propaga a tutti i tab in automatico.',
+    body: 'Scegli Core o Infinity e i colori del deck. Formato e deck si propagano ai tab operativi; il perimetro resta rilevante soprattutto nel Monitor.',
   },
   {
     target: '.perimeter-bar',
     title: 'Perimetro Dati',
-    body: 'Filtra per livello competitivo: SET11 (high ELO), TOP 100, PRO 50 o Community. Piu\' ristretto = dati piu\' forti.',
+    body: 'Filtra il Monitor per livello competitivo: SET11 (high ELO), TOP 100, PRO 50, Friends o Community. Piu\' ristretto = dati piu\' forti ma meno campione.',
   },
 ];
 
 const TOUR_TAB_STEPS = {
   profile: [
-    { target: '.pf-hero-deck', title: 'Select Your Deck', body: 'Il centro di comando. Scegli il tuo deck tappando 2 colori ink — la selezione si propaga a tutti i tab (Monitor, Coach, Lab). Puoi salvare fino a 3 deck per accesso rapido.' },
+    { target: '.pf-hero-deck', title: 'Select Your Deck', body: 'Il centro di comando. Scegli il tuo deck tappando 2 colori ink — deck e formato si propagano ai tab principali (Monitor, Coach, Lab). Puoi salvare fino a 3 deck per accesso rapido.' },
     { target: '.pf-ink-grid,.pf-hero-ink-row', title: 'Ink Picker', body: 'Tap 2 colori per selezionare un deck. Puoi anche importare una decklist custom con il toggle "My Deck".' },
     { target: '.pf-saved-decks-section', title: 'Saved Decks', body: 'I tuoi deck salvati. Click per switchare velocemente. Puoi pinnare un deck dopo averlo selezionato con gli ink.' },
     { target: '.pf-my-stats-section', title: 'My Stats', body: 'Le tue statistiche personali degli ultimi 3 giorni: tutti i deck giocati con WR e peggior matchup. Richiede il nickname duels.ink (Settings).' },
     { target: '.pf-hero-radar', title: 'Meta Radar', body: 'Stats generali del deck nel meta: WR, share, partite. In basso i best/worst matchup e le minacce da tenere d\'occhio.' },
-    { target: '.pf-tech-flow', title: 'Non-Standard Picks', body: 'Carte fuori dalla lista standard usate dai player vincenti (WR 52%+). Merge da PRO, TOP e Community con adoption % e confidence.' },
+    { target: '.pf-tech-flow', title: 'Non-Standard Picks', body: 'Carte fuori dalla consensus list usate dai player vincenti (WR 52%+). Merge da PRO, TOP e Community con adoption % e confidence.' },
   ],
   monitor: [
     { target: '#fit-strip', title: 'Deck Fitness', body: '0-100 score per deck, weighted by the current meta (50 = break-even). Scroll to see the full ranking.' },

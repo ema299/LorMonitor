@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 FRIENDS = {'macs', 'sbot', 'harry_pelat', 'tol_vibes', 'tol_barox', 'tol_papavale', 'tol_giorgio'}
 FRIENDS_PREFIXES = ('tol_',)
 
+# Default "core" perimeter advertised to the frontend. Flip via env at set
+# rotation (Set 12 launch → APPTOOL_DEFAULT_CORE_PERIMETER=set12) so no code
+# change is needed on release day. The frontend reads DATA.default_core_perimeter
+# with a literal 'set11' fallback.
+DEFAULT_CORE_PERIMETER = os.environ.get("APPTOOL_DEFAULT_CORE_PERIMETER", "set11").strip() or "set11"
+
 # Perimeter config: blob_key → (db_perimeters, db_game_format, label, min_elo, player_filter)
 # db_perimeters can be a list (match must be in ANY of the listed perimeters)
 # player_filter: None, "friends", "top", "pro" — virtual filter on player names
@@ -28,12 +34,23 @@ PERIMETER_CONFIG = {
     "set11":            (["set11"],           "core",     "SET11 High ELO (≥1300)", 1300, None),
     "top":              (["top", "pro"],      "core",     "TOP", None, None),
     "pro":              (["pro"],             "core",     "PRO", None, None),
-    "friends_core":     (["set11", "top", "pro"], "core", "Friends (Core)", None, "friends"),
+    "friends_core":     ([DEFAULT_CORE_PERIMETER, "top", "pro"], "core", "Friends (Core)", None, "friends"),
     "infinity":         (["inf"],             "infinity", "Infinity", None, None),
     "infinity_top":     (["inf", "top", "pro"], "infinity", "Infinity TOP", None, "top"),
     "infinity_pro":     (["inf", "top", "pro"], "infinity", "Infinity PRO", None, "pro"),
     "infinity_friends": (["inf", "top", "pro"], "infinity", "Friends (Infinity)", None, "friends"),
 }
+# Ensure the active default-core blob key exists in PERIMETER_CONFIG so that
+# downstream consumers (and the frontend fallback) always have an entry to
+# resolve. When env flips to a new set (e.g. 'set12'), the config is cloned
+# from the legacy 'set11' entry with the new db_perimeter.
+if DEFAULT_CORE_PERIMETER not in PERIMETER_CONFIG:
+    _legacy = PERIMETER_CONFIG["set11"]
+    PERIMETER_CONFIG[DEFAULT_CORE_PERIMETER] = (
+        [DEFAULT_CORE_PERIMETER], _legacy[1],
+        f"{DEFAULT_CORE_PERIMETER.upper()} High ELO (≥1300)",
+        _legacy[3], _legacy[4],
+    )
 
 DAYS = 3  # default analysis window
 
@@ -43,13 +60,15 @@ def assemble(db: Session, days: int = DAYS) -> dict:
     logger.info("Assembling dashboard snapshot (days=%d)...", days)
 
     blob = {}
+    blob["default_core_perimeter"] = DEFAULT_CORE_PERIMETER
     blob["meta"] = _build_meta(db, days)
     blob["perimeters"] = _build_perimeters(db, days)
     blob["leaderboards"] = _build_leaderboards()
     blob["pro_players"] = _build_pro_players(db, days)
     blob["consensus"] = static_data_service.get_consensus(db)
     blob["reference_decklists"] = static_data_service.get_reference_decklists(db)
-    blob["player_cards"] = _build_player_cards(db, days)
+    blob["player_cards"] = _build_player_cards(db, "core", days)
+    blob["player_cards_infinity"] = _build_player_cards(db, "infinity", days)
     blob["tech_tornado"] = _build_tech_tornado(db, days)
     blob["matchup_trend"] = _build_matchup_trend(db, days=7)
     blob["matchup_analyzer"] = _build_matchup_analyzer(db, "core")
@@ -64,7 +83,6 @@ def assemble(db: Session, days: int = DAYS) -> dict:
     blob["team"] = _build_team(db, days)
     blob["player_lookup"] = _build_player_lookup(db, days)
     blob["kc_spy"] = _load_kc_spy(db)
-    blob["analysis"] = ""
     blob["emerging_decks"] = _build_emerging_decks(db)
 
     logger.info("Snapshot assembled: %d top-level keys", len(blob))
@@ -116,6 +134,67 @@ def _build_meta(db: Session, days: int) -> dict:
         "period_range": f"{start.strftime('%d/%m')} – {today.strftime('%d/%m')}",
         "games": games,
     }
+
+
+def build_slice(db: Session, blob_key: str, days: int, queue_filter: str | None) -> dict:
+    """Compute {matrix, otp_otd} for a blob perimeter key, optionally restricted
+    to a queue format (bo1/bo3). Reuses PERIMETER_CONFIG + _build_player_filter_sql
+    so filter semantics stay identical to the full blob (otherwise "top" would
+    accidentally drop the pro-folder matches, etc.).
+    """
+    cfg = PERIMETER_CONFIG.get(blob_key)
+    if not cfg:
+        return {"matrix": {}, "otp_otd": {}}
+    db_perims, db_fmt, _label, min_elo, player_filter = cfg
+    lb_names = _get_leaderboard_names(db)
+    pf_sql, pf_names = _build_player_filter_sql(player_filter, lb_names)
+
+    params: dict = {"perims": db_perims, "fmt": db_fmt, "days": days}
+    elo_filter = ""
+    if min_elo:
+        elo_filter = "AND player_a_mmr >= :min_elo"
+        params["min_elo"] = min_elo
+    if pf_names:
+        params["pf_names"] = pf_names
+
+    queue_clause = ""
+    if queue_filter == "bo3":
+        queue_clause = "AND queue_name LIKE '%-BO3'"
+    elif queue_filter == "bo1":
+        queue_clause = "AND queue_name LIKE '%-BO1'"
+
+    base_where = f"""
+        perimeter = ANY(:perims) AND game_format = :fmt
+        AND played_at >= now() - make_interval(days => :days)
+        {elo_filter}
+        {pf_sql}
+        {queue_clause}
+    """
+
+    mx_rows = db.execute(text(f"""
+        SELECT deck_a, deck_b, count(*) AS games,
+               count(*) FILTER (WHERE winner = 'deck_a') AS wins
+        FROM matches WHERE {base_where}
+        GROUP BY deck_a, deck_b
+    """), params).fetchall()
+    matrix: dict = {}
+    for r in mx_rows:
+        matrix.setdefault(r.deck_a, {})[r.deck_b] = {"w": r.wins, "t": r.games}
+
+    otp_rows = db.execute(text(f"""
+        SELECT deck_a, deck_b, count(*) AS games,
+               count(*) FILTER (WHERE winner = 'deck_a') AS otp_w,
+               count(*) FILTER (WHERE winner = 'deck_b') AS otd_w
+        FROM matches WHERE {base_where}
+        GROUP BY deck_a, deck_b
+    """), params).fetchall()
+    otp_otd: dict = {}
+    for r in otp_rows:
+        otp_otd.setdefault(r.deck_a, {})[r.deck_b] = {
+            "otp_w": r.otp_w, "otp_t": r.games,
+            "otd_w": r.otd_w, "otd_t": r.games,
+        }
+    return {"matrix": matrix, "otp_otd": otp_otd}
 
 
 def _db_to_blob_perimeter(db_perim: str, db_format: str) -> str | None:
@@ -178,9 +257,11 @@ def _build_perimeters(db: Session, days: int) -> dict:
         # For top/pro perimeters, restrict top_players list to leaderboard names only
         tp_filter = None
         if blob_key in ("top", "infinity_top"):
-            tp_filter = lb_names.get("top", set())
+            names = lb_names.get("top", set())
+            tp_filter = names or None
         elif blob_key in ("pro", "infinity_pro"):
-            tp_filter = lb_names.get("pro", set())
+            names = lb_names.get("pro", set())
+            tp_filter = names or None
         perim_data = _build_single_perimeter(db, db_perims, db_fmt, label, min_elo, days,
                                               player_filter_sql=pf_sql, player_filter_names=pf_names,
                                               top_players_filter=tp_filter)
@@ -362,7 +443,6 @@ def _build_single_perimeter(db: Session, db_perims: list[str], db_fmt: str,
         "meta_share": meta_share,
         "top_players": top_players,
         "elo_dist": elo_dist,
-        "tech_choices": [],
         "fitness": fitness,
     }
 
@@ -622,13 +702,18 @@ def _build_pro_players(db: Session, days: int) -> list:
 # PLAYER CARDS & TECH TORNADO
 # ---------------------------------------------------------------------------
 
-def _build_player_cards(db: Session, days: int) -> dict:
+def _build_player_cards(db: Session, game_format: str, days: int) -> dict:
     """Per-player card usage. Uses tech_service logic but returns raw dict."""
     from backend.services.tech_service import get_player_cards
     try:
-        return get_player_cards(db, "core", ["set11", "top", "pro"], days)
+        perimeters = (
+            [DEFAULT_CORE_PERIMETER, "top", "pro"]
+            if game_format == "core"
+            else ["inf", "top", "pro"]
+        )
+        return get_player_cards(db, game_format, perimeters, days)
     except Exception as e:
-        logger.warning("player_cards failed: %s", e)
+        logger.warning("player_cards failed for %s: %s", game_format, e)
         return {}
 
 
@@ -636,7 +721,7 @@ def _build_tech_tornado(db: Session, days: int) -> dict:
     """Tech tornado per perimeter group."""
     from backend.services.tech_service import get_tech_tornado
     result = {}
-    for perim_key in ["set11", "top", "pro", "infinity", "infinity_top", "infinity_pro"]:
+    for perim_key in [DEFAULT_CORE_PERIMETER, "top", "pro", "infinity", "infinity_top", "infinity_pro"]:
         cfg = PERIMETER_CONFIG.get(perim_key)
         if not cfg:
             continue
@@ -665,7 +750,7 @@ def _build_matchup_trend(db: Session, days: int = 7) -> dict:
     recent_days = 3
     result = {}
     for group_key, perimeters, fmt in [
-        ("set11", ["set11"], "core"),
+        (DEFAULT_CORE_PERIMETER, [DEFAULT_CORE_PERIMETER], "core"),
         ("top", ["top", "pro"], "core"),
         ("pro", ["pro"], "core"),
         ("infinity", ["inf"], "infinity"),

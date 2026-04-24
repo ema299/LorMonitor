@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from backend.deps import get_db
 from backend.models import SessionLocal
-from backend.services.snapshot_assembler import assemble
+from backend.services.snapshot_assembler import assemble, build_slice
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -112,3 +112,17 @@ def get_dashboard_data(
         )
 
     return JSONResponse(content=_cache["blob"])
+
+
+@router.get("/dashboard-data/queue-slice")
+def queue_slice(
+    perimeter: str = Query(..., description="Blob perimeter key (set11, top, pro, infinity, ...)"),
+    days: int = Query(7, ge=1, le=60),
+    queue_filter: str = Query(..., pattern="^(bo1|bo3)$"),
+    db: Session = Depends(get_db),
+):
+    """Public Bo1/Bo3 slice of matchup-matrix + otp-otd for a blob perimeter key.
+    Uses the same PERIMETER_CONFIG as /dashboard-data so semantics stay aligned
+    (e.g. blob key "top" = DB perimeter IN ('top','pro'), not just 'top').
+    """
+    return build_slice(db, perimeter, days, queue_filter)

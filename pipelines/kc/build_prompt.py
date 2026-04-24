@@ -35,6 +35,7 @@ _DECK_ALIAS = {"AS": "AmSa", "ES": "EmSa"}
 _card_ink_lower: dict[str, str] = {}
 _card_ink_original: dict[str, str] = {}
 _ink_loaded = False
+_core_legal_sets: set[int] | None = None
 
 
 def _ensure_ink_maps():
@@ -57,6 +58,77 @@ def _ensure_ink_maps():
                 if i and i not in ("dual ink", "inkless"):
                     _card_ink_lower[n.lower()] = i
                     _card_ink_original[n] = i
+
+
+def _get_core_legal_sets() -> set[int]:
+    global _core_legal_sets
+    if _core_legal_sets is not None:
+        return _core_legal_sets
+    try:
+        from backend.models import SessionLocal
+        from backend.services.meta_epoch_service import get_current_epoch
+        db = SessionLocal()
+        try:
+            epoch = get_current_epoch(db)
+        finally:
+            db.close()
+        _core_legal_sets = set(epoch.legal_sets or []) if epoch else set()
+    except Exception:
+        _core_legal_sets = set()
+    return _core_legal_sets
+
+
+def _parse_card_set(card_info: dict | None) -> int | None:
+    if not isinstance(card_info, dict):
+        return None
+    raw = card_info.get("set")
+    try:
+        return int(raw) if raw is not None and raw != "" else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_core_legality_guard(digest_data: dict | None = None) -> str:
+    legal_sets = _get_core_legal_sets()
+    if not digest_data or not legal_sets:
+        return ""
+
+    cards_db = digest_data.get("cards_db", {}) or {}
+    candidates = set(digest_data.get("card_examples", {}).keys())
+    for p in digest_data.get("profiles", {}).values():
+        candidates.update((p.get("top_cards") or {}).keys())
+    pb = digest_data.get("our_playbook", {}) or {}
+    for combo in pb.get("our_key_combos", []) or []:
+        candidates.update(combo.get("cards", []) or [])
+    for neutralized in (pb.get("our_neutralizations") or {}).values():
+        candidates.update((neutralized.get("neutralized_by") or {}).keys())
+    candidates.update(((pb.get("our_disruption") or {}).get("cards_stripped") or {}).keys())
+
+    illegal = []
+    for card_name in sorted(c for c in candidates if c):
+        set_num = _parse_card_set(cards_db.get(card_name))
+        if set_num is not None and set_num not in legal_sets:
+            illegal.append(f"  - {card_name} (set {set_num})")
+
+    if not illegal:
+        return ""
+
+    return f"""
+=== CORE LEGALITY — HARD CONSTRAINT ===
+
+This matchup is CORE. Any card from a set outside the current legal Core rotation is ILLEGAL.
+Current legal sets for Core: {", ".join(str(s) for s in sorted(legal_sets))}
+
+KNOWN ILLEGAL CARDS DETECTED IN DIGEST CONTEXT:
+{chr(10).join(illegal)}
+
+BEFORE writing each curve:
+1. sequence.plays[].card must be Core-legal.
+2. response.cards must be Core-legal.
+3. If a tempting card is illegal for Core, do NOT use it even if colors fit.
+
+=== END CORE LEGALITY ===
+"""
 
 
 def _build_remember(digest_data: dict) -> str:
@@ -304,7 +376,7 @@ def build_prompt(our: str, opp: str, game_format: str = 'core',
 
 These curves were generated previously. Use them as a base:
 - Keep the sequences (opponent cards turn by turn) if confirmed by digest
-- ALWAYS REWRITE the response.strategy using our_playbook data (REMEMBER): real timing, our combos, singer tips, disruption. The old responses are generic — improve them with specific data
+- ALWAYS REWRITE the response block using our_playbook data (REMEMBER): real timing, our combos, singer tips, disruption. The old responses are generic — improve them with specific data
 - Update metadata.date to "{today}" and the frequencies
 - If different patterns emerge → modify/add/remove curves
 
@@ -316,6 +388,7 @@ These curves were generated previously. Use them as a base:
     _digest_for_guard = {**digest_data, 'cards_db': cards_db_section}
     color_guard = _build_color_guard(our, opp, digest_data=_digest_for_guard)
     sequence_guard = _build_sequence_guard(our, opp, digest_data=_digest_for_guard)
+    legality_guard = _build_core_legality_guard(_digest_for_guard) if game_format == 'core' else ""
 
     prompt = f"""You are a tactical analyst for Disney Lorcana. Generate killer curves for {our} vs {opp}.
 
@@ -325,6 +398,7 @@ DECK COLORS — memorize BEFORE reading any data:
 - If a card is NOT {our_colors}, it CANNOT appear in response.cards
 {color_guard}
 {sequence_guard}
+{legality_guard}
 Today's date: {today}
 
 === LORCANA RULES ===
@@ -353,12 +427,16 @@ Today's date: {today}
 4. Do NOT read other files — everything you need is already in this prompt
 5. The [AMBER], [STEEL], [RUBY] etc. tags in the digest are ONLY for your reference — do NOT include them in card names in the JSON output. Write only the pure card name (e.g. "Grandmother Willow - Ancient Advisor", NOT "Grandmother Willow - Ancient Advisor [AMBER]")
 6. The digest contains `our_playbook` — use it for responses (see REMEMBER below)
+7. Write all response-facing text in ENGLISH
 {_build_remember(digest_data)}
 === STRUCTURAL FINAL CHECK ===
 Before writing each curve, verify:
 - sequence.plays[].card → ONLY {opp_colors} ink (opponent's moves)
 - response.cards → ONLY {our_colors} ink (our answers)
-- our_playbook data is FOR enriching response.strategy text, NOT for populating sequence
+- if format is Core: every card in sequence and response must be legal in the current Core rotation
+- our_playbook data is FOR enriching the response block, NOT for populating sequence
+- response.strategy = one-line summary only
+- detailed response fields must stay tied to this exact curve, not generic matchup coaching
 Swapping sides is the most common LLM failure — double-check before output.
 """
     return prompt

@@ -77,9 +77,19 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
       },
       "impact": {"avg_draw": N, "avg_kill": N, "avg_bounce": N, "avg_lore_burst": N},
       "response": {
-        "strategy": "piano tattico",
+        "format_version": "v2",
+        "strategy": "one-line tactical summary in English",
         "cards": ["nostra carta1", "nostra carta2"],
-        "ink_required": N, "turn_needed": N
+        "ink_required": N,
+        "turn_needed": N,
+        "headline": "short English headline tied to this exact curve",
+        "core_rule": "plain-English rule for this curve only",
+        "priority_actions": ["short action 1", "short action 2"],
+        "what_to_avoid": ["mistake 1", "mistake 2"],
+        "stock_build_note": "how to read this if we play the stock build",
+        "off_meta_note": "how to read this if our list is different",
+        "play_draw_note": "More dangerous on the Draw.|More dangerous on the Play.|Similar on the Play and on the Draw.",
+        "failure_state": "what happens if we fail to answer this curve"
       },
       "example_game_ids": [N, N],
       "recursion_sources": [
@@ -107,6 +117,8 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
 - [ ] SHIFT+SING SAME TURN: se shifti su base dry, il pezzo shiftato è ready e può cantare SUBITO. Metti shift + song nello STESSO turno (es. T5: shift Clarabelle + sing You're Welcome). NON splittarli su due turni.
 - [ ] Max 4 copie per carta — ECCEZIONE recursion: se stai per usare una carta ≥5 volte, PRIMA cerca nel `cards_db` del digest una carta presente nella sequence o nei key_cards la cui `ability` contenga un trigger di recursion applicabile al tipo della carta ripetuta (es. "return ... from your discard to your hand", "play ... from your discard", "shuffle ... into your deck", "return ... to their player's hand"). Se TROVI l'enabler → dichiara `recursion_sources: [{card, enables, ability_excerpt}]` con `ability_excerpt` che è una frase ESATTA (substring) del testo ability reale. Se NON trovi enabler → riduci il count a 4. Cap assoluto 8 copie anche con recursion.
 - [ ] response.cards SOLO nei colori del NOSTRO deck
+- [ ] response text in ENGLISH only
+- [ ] response must stay curve-specific, not generic matchup advice
 
 ## Regole ferree
 - NON cercare pattern — Python li ha già trovati. Leggi aggregates.
@@ -115,3 +127,6 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
 - Verifica ink e prerequisiti per ogni turno.
 - Ragiona meccanicamente, non usare WR%.
 - DB > log per ability scope.
+- `response.strategy` = one-line summary only, in English
+- Put the detailed readable guidance in: `headline`, `core_rule`, `priority_actions`, `what_to_avoid`, `stock_build_note`, `off_meta_note`, `play_draw_note`, `failure_state`
+- `How to Respond` must explain how to answer THIS curve, not the matchup in general
