@@ -195,7 +195,7 @@ Stato progressivo (aggiornato a ogni step):
 **Step deploy — stato:**
 
 1. [x] `alembic upgrade 9a1e47b3f0c2` applicato su prod 2026-04-24 13:30 UTC. Head ora = `9a1e47b3f0c2`. Schema `team_replays` esteso (+5 colonne, +2 indici). 1 record pre-M1 resta orphan (`user_id NULL`). **Fix ownership pre-migration**: `team_replays` + `team_roster` erano owned by `postgres` (outlier storico — le altre 26 tabelle `public.*` sono owned by `lorcana_app`). Trasferite con `ALTER TABLE … OWNER TO lorcana_app` eseguito come postgres prima del `alembic upgrade`. Fix raccomandato anche per future migration sulle team tables.
-2. [ ] Restart `lorcana-api.service` per caricare il nuovo codice backend — **non ancora fatto**. Finché non parte il restart, anonymizer/access-control/consent non sono attivi lato API (il servizio gira col codice pre-privacy). T4 smoke test fallisce per questo motivo.
+2. [x] Restart `lorcana-api.service` eseguito 2026-04-24 13:28 UTC. Pre-condizione risolta: c'era un `uvicorn` orphan PID `3661913` avviato manualmente 2 giorni prima (etime 2d 3h) detached da systemd che teneva la porta 8100 occupata → systemd in crash-loop. Killato orphan + `daemon-reload` (era pendente per il drop-in `admin-token.conf`) + `systemctl start`. Service live da PID `810410`, workers `810419` + `810420`. Smoke T4 (anonymization) ora PASS.
 3. [ ] Hard-refresh browser per caricare il nuovo frontend (consent modal, disclaimer)
 4. [ ] Smoke test A10 completo: richiede 2 user non-admin + 1 admin con JWT token
 5. [ ] Configurare alias mail `legal@metamonitor.app` (azione ops, fuori codebase)
