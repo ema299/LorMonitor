@@ -849,6 +849,26 @@ function renderCommunity(main) {
 // REPLAY VIEWER (inline in Lab tab)
 // ═══════════════════════════════════════════════════════════════════
 // Replay viewer extracted to coach_v2.js
+
+// Privacy layer §24.8 — fire-and-forget paywall intent recorder. Reads the
+// JWT from the same localStorage keys used by tcGetAuthToken (team_coaching.js).
+// If no token is present the call is skipped entirely — the user can still
+// click Unlock PRO with the same client-side fake unlock behavior as before.
+// Silent on any error (no console noise, no user-visible failure).
+function recordPaywallIntent(tier) {
+  try {
+    const keys = ['lm_access_token', 'access_token', 'auth_access_token'];
+    let token = null;
+    for (const k of keys) { const v = localStorage.getItem(k); if (v) { token = v; break; } }
+    if (!token) return;
+    fetch('/api/v1/user/interest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ tier: tier })
+    }).catch(() => {});
+  } catch (_) { /* never throw from onclick */ }
+}
+
 function wrapPremium(innerHtml, context) {
   if (PRO_UNLOCKED) return innerHtml;
   // Contextual paywall messaging
@@ -888,7 +908,7 @@ function wrapPremium(innerHtml, context) {
       <div class="lock-big">🔒</div>
       <h3>${title}</h3>
       <p>${desc}</p>
-      <button class="unlock-btn" onclick="PRO_UNLOCKED=true;document.querySelectorAll('.tab .lock-icon').forEach(l=>l.style.display='none');render()">Unlock PRO — ${price}&euro;/month</button>
+      <button class="unlock-btn" onclick="recordPaywallIntent('pro');PRO_UNLOCKED=true;document.querySelectorAll('.tab .lock-icon').forEach(l=>l.style.display='none');render()">Unlock PRO — ${price}&euro;/month</button>
     </div>
   </div>`;
 }
