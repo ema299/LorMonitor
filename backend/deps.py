@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from backend.config import TEAM_API_REQUIRE_JWT
 from backend.models import SessionLocal
+from backend.models.team import TeamReplay
 from backend.models.user import User
 from backend.services.auth_service import decode_access_token
 
@@ -138,3 +139,58 @@ def require_team_access(user: User | None = Depends(get_optional_current_user)) 
         status_code=403,
         detail={"error": "upgrade_required", "required_tier": "team"},
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Privacy layer V3 — replay access control (ARCHITECTURE.md §24.5)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def require_replay_access(
+    game_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TeamReplay:
+    """Return replay if user can access it (owner, shared, or admin).
+
+    Raises:
+        404 — replay not found
+        403 — replay access denied (not owner, not in shared_with, not admin,
+              or orphan legacy record with user_id IS NULL)
+
+    Orphan replays (pre-M1 data without user_id) are accessible only by admin.
+    Used by GET endpoints that read a specific replay.
+    """
+    replay = db.query(TeamReplay).filter(TeamReplay.game_id == game_id).first()
+    if replay is None:
+        raise HTTPException(status_code=404, detail="replay not found")
+    if user.is_admin:
+        return replay
+    if replay.user_id is None:
+        raise HTTPException(status_code=403, detail="replay access denied")
+    if replay.user_id == user.id:
+        return replay
+    shared = replay.shared_with or []
+    if str(user.id) in shared:
+        return replay
+    raise HTTPException(status_code=403, detail="replay access denied")
+
+
+def require_replay_owner(
+    game_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TeamReplay:
+    """Return replay only if user is owner (or admin).
+
+    Stricter than require_replay_access — rejects shared users.
+    Used by destructive actions (DELETE) and sharing configuration (POST share).
+    """
+    replay = db.query(TeamReplay).filter(TeamReplay.game_id == game_id).first()
+    if replay is None:
+        raise HTTPException(status_code=404, detail="replay not found")
+    if user.is_admin:
+        return replay
+    if replay.user_id != user.id:
+        raise HTTPException(status_code=403, detail="replay access denied — not owner")
+    return replay
