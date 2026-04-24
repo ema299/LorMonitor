@@ -261,11 +261,22 @@
           const pp = r.entry.delta * 100;
           const fmt = (pp >= 0 ? '+' : '') + pp.toFixed(1) + 'pp';
           const cls = pp >= 2 ? 'mw-pos' : pp <= -2 ? 'mw-neg' : '';
+          const apps = r.entry.apps != null ? r.entry.apps : (r.entry.games || 0);
+          const dw = r.entry.decks_with;
+          const dt = r.entry.decks_total;
+          const sampleLabel = (dt && dt > 0)
+            ? 'in ' + dw + '/' + dt + ' decks (' + Math.round(dw / dt * 100) + '%)'
+            : 'on ' + apps + ' appearances';
+          const onclick = 'window.V3.HonestyBadge.openAppearancesExplainer(' +
+            apps + ',' + (dw || 0) + ',' + (dt || 0) + ')';
           return '<tr><td>' + _esc(_short(r.name)) + '</td>' +
             '<td class="' + cls + '">' + fmt + '</td>' +
-            '<td>on ' + (r.entry.games || 0) + ' obs.</td></tr>';
+            '<td><span class="im-card-sample" role="button" tabindex="0" onclick="' + onclick + '">' +
+            sampleLabel + '</span></td></tr>';
         }).join('');
-      scoresHtml = '<h4 class="mw-h4">Card scores <span class="mw-hint">(top absolute delta)</span></h4>' +
+      scoresHtml = '<h4 class="mw-h4">Card scores <span class="mw-hint">(top absolute delta · ' +
+        '<span class="im-conf-hint-link" role="button" tabindex="0" ' +
+        'onclick="window.V3.HonestyBadge.openAppearancesExplainer(0)">what do appearances mean?</span>)</span></h4>' +
         '<table class="mw-sc-table"><tbody>' + rows + '</tbody></table>';
     }
 

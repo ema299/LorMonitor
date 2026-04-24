@@ -6,7 +6,7 @@ Turns JSONB structure: flat list of events, each with:
 
 Report types generated:
   overview, loss_analysis, winning_hands, board_state,
-  playbook, decklist, ability_cards
+  playbook, decklist, card_scores, ability_cards
   (killer_responses requires LLM — returns None, frontend fail-closed)
 """
 from __future__ import annotations
@@ -382,6 +382,102 @@ def generate_decklist(db: Session, our: str, opp: str, game_format: str) -> dict
 
 
 # ---------------------------------------------------------------------------
+# 6b. CARD SCORES — per-card WR delta + honest in_deck_rate denominator
+# ---------------------------------------------------------------------------
+
+def generate_card_scores(db: Session, our: str, opp: str, game_format: str) -> dict | None:
+    """Per-card signal blob consumed by Cards trending + Matchup Workspace.
+
+    Output shape (legacy-compatible, adds 3 new fields):
+      {card_name: {
+          apps, delta, win_apps, loss_apps,      # legacy (match-level)
+          decks_total, decks_with, in_deck_rate  # NEW (player-deck level)
+      }}
+
+    decks_total = distinct (player_name_lower, our_deck) pairs observed in
+    the 30d matchup window. Matches with NULL player_name collapse to a
+    per-match pseudo-deck __anon_{id}__ (conservative upper bound on decks).
+
+    in_deck_rate is biased: a card that's in a 60-card list but never drawn/
+    played will not count — so values < 1.0 are a LOWER bound. Honest but
+    duration-and-survival biased. UI must label accordingly.
+    """
+    rows = db.execute(text("""
+        SELECT id, turns, deck_a, deck_b, winner,
+               player_a_name, player_b_name
+        FROM matches
+        WHERE ((deck_a = :our AND deck_b = :opp) OR (deck_a = :opp AND deck_b = :our))
+          AND game_format = :fmt
+          AND turns IS NOT NULL AND turns != 'null'::jsonb
+          AND played_at >= NOW() - INTERVAL '30 days'
+        LIMIT 500
+    """), {"our": our, "opp": opp, "fmt": game_format}).fetchall()
+
+    if len(rows) < 10:
+        return None
+
+    card_apps = Counter()
+    card_wins = Counter()
+    card_losses = Counter()
+    card_decks = defaultdict(set)
+    all_decks = set()
+    total_wins = 0
+
+    for row in rows:
+        our_is_a = (row.deck_a == our)
+        our_player = 1 if our_is_a else 2
+        raw_name = row.player_a_name if our_is_a else row.player_b_name
+        name = (raw_name or "").strip().lower()
+        deck_key = (name, our) if name else (f"__anon_{row.id}__", our)
+        all_decks.add(deck_key)
+
+        is_win = _our_won(row, our)
+        if is_win:
+            total_wins += 1
+
+        events = row.turns if isinstance(row.turns, list) else json.loads(row.turns)
+        our_cards = set()
+        for ev in events:
+            if ev.get("type") == "CARD_PLAYED" and ev.get("player") == our_player:
+                for ref in ev.get("cardRefs", []):
+                    c = _card_name(ref)
+                    if c:
+                        our_cards.add(c)
+
+        for c in our_cards:
+            card_apps[c] += 1
+            card_decks[c].add(deck_key)
+            if is_win:
+                card_wins[c] += 1
+            else:
+                card_losses[c] += 1
+
+    total_games = len(rows)
+    overall_wr = total_wins / total_games
+    decks_total = len(all_decks)
+
+    result = {}
+    for card, apps in card_apps.items():
+        if apps < 2:
+            continue
+        wr = card_wins[card] / apps
+        delta = wr - overall_wr
+        decks_with = len(card_decks[card])
+        in_deck_rate = decks_with / decks_total if decks_total else 0
+        result[card] = {
+            "apps": apps,
+            "delta": round(delta, 4),
+            "win_apps": card_wins[card],
+            "loss_apps": card_losses[card],
+            "decks_total": decks_total,
+            "decks_with": decks_with,
+            "in_deck_rate": round(in_deck_rate, 4),
+        }
+
+    return result if result else None
+
+
+# ---------------------------------------------------------------------------
 # 7. KILLER RESPONSES — requires LLM (placeholder)
 # ---------------------------------------------------------------------------
 
@@ -469,6 +565,10 @@ def generate_all_reports(db: Session, our: str, opp: str, game_format: str) -> d
     dl = generate_decklist(db, our, opp, game_format)
     if dl:
         reports["decklist"] = dl
+
+    cs = generate_card_scores(db, our, opp, game_format)
+    if cs:
+        reports["card_scores"] = cs
 
     if digest:
         ac = generate_ability_cards(digest)

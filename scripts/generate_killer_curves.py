@@ -137,6 +137,49 @@ def _strip_core_illegal_cards(db, data: dict) -> int:
     return removed
 
 
+def _strip_non_meta_cards(db, data: dict, game_format: str) -> int:
+    """Strip cards from response.cards / sequence.plays that are not in the
+    current meta. A card is "in meta" if CARD_PLAYED ≥20 times in the last
+    30d of matches for this format. Guards against GPT suggesting legal-
+    but-dead cards (e.g. set 1/2 pre-rotation staples) in Core KCs.
+    """
+    from pipelines.kc.meta_relevance import get_meta_relevant_cards
+    meta = get_meta_relevant_cards(db, game_format=game_format, days=30, min_plays=20)
+    if not meta:
+        return 0
+
+    removed = 0
+    for curve in data.get("curves", []) or []:
+        response = curve.get("response") or {}
+        cards = response.get("cards")
+        if isinstance(cards, list):
+            kept = []
+            for card_name in cards:
+                if card_name and card_name not in meta:
+                    removed += 1
+                    continue
+                kept.append(card_name)
+            response["cards"] = kept
+
+        sequence = curve.get("sequence") or {}
+        for turn_data in sequence.values():
+            plays = (turn_data or {}).get("plays")
+            if not isinstance(plays, list):
+                continue
+            kept_plays = []
+            for play in plays:
+                if not isinstance(play, dict):
+                    kept_plays.append(play)
+                    continue
+                card_name = play.get("card")
+                if card_name and card_name not in meta:
+                    removed += 1
+                    continue
+                kept_plays.append(play)
+            turn_data["plays"] = kept_plays
+    return removed
+
+
 def _load_existing_kc_from_pg(db, our, opp, game_format):
     """Load existing KC from PG for stability check and prompt context."""
     from sqlalchemy import text
@@ -268,6 +311,11 @@ def generate_one(client, db, our, opp, game_format='core'):
     n_dropped = n_bad
     if game_format == "core":
         n_dropped += _strip_core_illegal_cards(db, data)
+    # Meta-relevance post-filter: strip cards not in the current played
+    # meta (last 30d, ≥20 plays). Catches legal-but-dead pre-rotation cards
+    # that GPT sometimes suggests (e.g. Fishbone Quill, Hiram Flaversham —
+    # Toymaker). Runs for both core and infinity.
+    n_dropped += _strip_non_meta_cards(db, data, game_format)
 
     curves = data.get("curves", [])
     n_curves = len(curves)

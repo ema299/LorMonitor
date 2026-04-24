@@ -36,6 +36,7 @@ _card_ink_lower: dict[str, str] = {}
 _card_ink_original: dict[str, str] = {}
 _ink_loaded = False
 _core_legal_sets: set[int] | None = None
+_meta_relevant_by_fmt: dict[str, set[str]] = {}
 
 
 def _ensure_ink_maps():
@@ -86,6 +87,69 @@ def _parse_card_set(card_info: dict | None) -> int | None:
         return int(raw) if raw is not None and raw != "" else None
     except (TypeError, ValueError):
         return None
+
+
+def _get_meta_relevant(game_format: str) -> set[str]:
+    if game_format in _meta_relevant_by_fmt:
+        return _meta_relevant_by_fmt[game_format]
+    try:
+        from backend.models import SessionLocal
+        from pipelines.kc.meta_relevance import get_meta_relevant_cards
+        db = SessionLocal()
+        try:
+            result = get_meta_relevant_cards(db, game_format=game_format, days=30, min_plays=20)
+        finally:
+            db.close()
+    except Exception:
+        result = set()
+    _meta_relevant_by_fmt[game_format] = result
+    return result
+
+
+def _build_meta_relevance_guard(digest_data: dict | None, game_format: str) -> str:
+    """Hard constraint for GPT: list cards appearing in the digest context
+    that are NOT played ≥20 times in the last 30d of this format. Paired
+    with the post-filter in scripts.generate_killer_curves so the output
+    cannot slip legal-but-dead cards into response.cards."""
+    meta = _get_meta_relevant(game_format)
+    if not digest_data or not meta:
+        return ""
+
+    candidates = set(digest_data.get("card_examples", {}).keys())
+    for p in digest_data.get("profiles", {}).values():
+        candidates.update((p.get("top_cards") or {}).keys())
+    pb = digest_data.get("our_playbook", {}) or {}
+    for combo in pb.get("our_key_combos", []) or []:
+        candidates.update(combo.get("cards", []) or [])
+    for neutralized in (pb.get("our_neutralizations") or {}).values():
+        candidates.update((neutralized.get("neutralized_by") or {}).keys())
+    candidates.update(((pb.get("our_disruption") or {}).get("cards_stripped") or {}).keys())
+
+    out_of_meta = sorted(c for c in candidates if c and c not in meta)
+    if not out_of_meta:
+        return ""
+
+    listed = "\n".join(f"  - {c}" for c in out_of_meta)
+    return f"""
+=== META RELEVANCE — HARD CONSTRAINT ===
+
+A card is "in current meta" for {game_format} if it has been CARD_PLAYED
+at least 20 times in the last 30 days of observed matches.
+
+KNOWN OUT-OF-META CARDS DETECTED IN DIGEST CONTEXT:
+{listed}
+
+These cards may appear in the digest because they show up in old stats or
+in the cards_db lookup, but no player is running them today. Do NOT use
+them anywhere:
+
+1. sequence.plays[].card → must be currently-played.
+2. response.cards → must be currently-played.
+3. Even if the color fits and the card is rotation-legal, if it is listed
+   above as "out of meta", it is NOT a valid suggestion for this matchup.
+
+=== END META RELEVANCE ===
+"""
 
 
 def _build_core_legality_guard(digest_data: dict | None = None) -> str:
@@ -389,6 +453,7 @@ These curves were generated previously. Use them as a base:
     color_guard = _build_color_guard(our, opp, digest_data=_digest_for_guard)
     sequence_guard = _build_sequence_guard(our, opp, digest_data=_digest_for_guard)
     legality_guard = _build_core_legality_guard(_digest_for_guard) if game_format == 'core' else ""
+    meta_guard = _build_meta_relevance_guard(_digest_for_guard, game_format)
 
     prompt = f"""You are a tactical analyst for Disney Lorcana. Generate killer curves for {our} vs {opp}.
 
@@ -399,6 +464,7 @@ DECK COLORS — memorize BEFORE reading any data:
 {color_guard}
 {sequence_guard}
 {legality_guard}
+{meta_guard}
 Today's date: {today}
 
 === LORCANA RULES ===

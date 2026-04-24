@@ -251,6 +251,25 @@
 .im-under .im-card-stat { color: #F85149; }
 .im-card-sample { color: var(--text2); font-weight: 400; font-size: 0.9em; margin-left: 4px; }
 
+.im-conf-hint {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+  color: var(--text2);
+  font-size: 0.74em;
+  text-align: center;
+}
+.im-conf-hint .hb-conf { margin: 0 2px; font-size: 0.92em; }
+.im-conf-hint-link {
+  color: var(--gold);
+  text-decoration: underline dotted;
+  cursor: pointer;
+  font-weight: 600;
+}
+.im-conf-hint-link:hover { color: var(--text); }
+.im-card-sample[role="button"] { cursor: help; }
+.im-card-sample[role="button"]:hover { color: var(--gold); }
+
 .im-leak-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
 .im-leak {
   background: var(--bg3);
@@ -291,7 +310,7 @@
 .mh-list { display: flex; flex-direction: column; gap: 4px; }
 .mh-row {
   display: grid;
-  grid-template-columns: 8px 1fr auto auto auto auto;
+  grid-template-columns: 8px 16px 1fr auto auto auto auto;
   align-items: center;
   gap: 8px;
   padding: 8px 10px 8px 0;
@@ -306,6 +325,8 @@
   position: relative;
   overflow: hidden;
 }
+.mh-chev { color: var(--gold); font-weight: 700; font-size: 0.9em; padding-left: 4px; }
+.mh-row--open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-color: var(--gold); }
 .mh-row:hover { border-color: var(--gold); background: rgba(255,255,255,0.03); }
 .mh-row--sel { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
 
@@ -343,6 +364,71 @@
 .mh-good  .mh-rate-tag { background: rgba(88,166,255,0.18); color: #58A6FF; }
 .mh-great .mh-rate-tag { background: rgba(63,185,80,0.18);  color: #3FB950; }
 .mh-unk   .mh-rate-tag { background: rgba(255,255,255,0.05); color: var(--text2); }
+
+/* Expand panel under a Matchups row */
+.mh-expand {
+  background: var(--bg2);
+  border: 1px solid var(--gold);
+  border-top: 0;
+  border-radius: 0 0 6px 6px;
+  padding: 10px 14px 12px;
+  margin-top: -4px;           /* merge with row above */
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mh-exp-head {
+  font-size: 0.78em;
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.mh-exp-empty {
+  color: var(--text2);
+  font-size: 0.85em;
+  font-style: italic;
+  padding: 6px 0;
+}
+.mh-exp-curve {
+  background: var(--bg3);
+  border-radius: 5px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--border);
+}
+.mh-exp-curve.mh-cov-good { border-left-color: #3FB950; }
+.mh-exp-curve.mh-cov-mid  { border-left-color: var(--gold); }
+.mh-exp-curve.mh-cov-bad  { border-left-color: #F85149; }
+.mh-exp-curve.mh-cov-unk  { border-left-color: var(--text2); }
+
+.mh-exp-curve-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mh-exp-icon { font-size: 1em; }
+.mh-exp-curve-name { font-weight: 700; color: var(--text); font-size: 0.88em; flex: 1 1 auto; min-width: 0; }
+.mh-exp-turn { background: rgba(212,160,58,0.2); color: var(--gold); padding: 1px 6px; border-radius: 3px; font-size: 0.75em; font-weight: 700; }
+.mh-exp-freq { color: var(--text2); font-size: 0.78em; }
+
+.mh-exp-cov-line { color: var(--text); font-size: 0.82em; margin-top: 4px; }
+.mh-exp-chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px; font-size: 0.75em; }
+.mh-exp-chip-lbl { color: var(--text2); margin-right: 2px; text-transform: uppercase; font-size: 0.85em; letter-spacing: 0.3px; }
+.mh-chip--have { background: rgba(63,185,80,0.15); color: #3FB950; border: 1px solid rgba(63,185,80,0.3); padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+.mh-chip--miss { background: rgba(248,81,73,0.12); color: #F85149; border: 1px solid rgba(248,81,73,0.25); padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+
+.mh-exp-cta { display: flex; justify-content: flex-end; margin-top: 6px; }
+.mh-exp-btn {
+  background: var(--gold); color: var(--bg);
+  border: 0; border-radius: 5px;
+  padding: 6px 12px; font-weight: 700; font-size: 0.82em;
+  cursor: pointer;
+}
+.mh-exp-btn:hover { opacity: 0.9; }
 
 /* ============================================================ */
 /* Area D — Your list (collapsed by default)                      */
@@ -690,6 +776,99 @@ body.mw-open { overflow: hidden; }
   .mw-sec-body { padding: 10px 12px; }
 }
 
+/* ============================================================
+   Deck tab — Matchups/Improve consolidation (pill-tab expand)
+   ============================================================ */
+
+/* Coverage signal badge on collapsed row */
+.mh-cov-sig {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 0.72em; font-weight: 700;
+  white-space: nowrap;
+}
+.mh-cov-red { background: rgba(248,81,73,0.18); color: #f85149; }
+.mh-cov-yel { background: rgba(240,190,78,0.18); color: #f0be4e; }
+
+/* Cross-matchup OTP/OTD structural strip (all 3 variants) */
+.mh-struct-strip {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 10px 14px 2px;
+  padding: 10px 12px;
+  border: 1px solid rgba(240,190,78,0.3);
+  background: rgba(240,190,78,0.06);
+  border-radius: 6px;
+  font-size: 0.82em;
+}
+.mh-struct-icon {
+  flex: 0 0 auto; width: 22px; height: 22px;
+  border-radius: 50%; background: #f0be4e; color: var(--bg);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.mh-struct-body { color: var(--text); line-height: 1.4; }
+.mh-struct-body strong { color: var(--gold); }
+
+/* Pill-tab segmented control inside expand */
+.mh-tab-ctrl {
+  display: flex; gap: 4px;
+  margin-bottom: 10px; padding: 3px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.mh-tab {
+  flex: 1 1 0; background: transparent; border: 0;
+  padding: 8px 12px; border-radius: 4px;
+  color: var(--text2); font-weight: 600; font-size: 0.88em;
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.mh-tab:hover { color: var(--text); }
+.mh-tab--on { background: var(--gold); color: var(--bg); }
+
+.mh-exp-sub { color: var(--text2); font-weight: 500; letter-spacing: 0.02em; text-transform: none; font-size: 0.92em; }
+
+/* Inline leak inset on Curves tab (P1/P3/P4 leaks scoped to this opp) */
+.mh-inline-leak {
+  display: flex; gap: 10px; align-items: flex-start;
+  margin: 0 0 10px; padding: 8px 10px;
+  background: rgba(248,81,73,0.08);
+  border-left: 3px solid #f85149;
+  border-radius: 4px;
+  font-size: 0.84em;
+}
+.mh-inline-leak--p3 { background: rgba(88,166,255,0.08); border-left-color: #58a6ff; }
+.mh-inline-leak--p4 { background: rgba(160,160,160,0.06); border-left-color: var(--text2); }
+.mh-inline-leak-icon { flex: 0 0 auto; color: #f85149; font-weight: 700; }
+.mh-inline-leak-body { flex: 1 1 auto; color: var(--text); line-height: 1.4; }
+.mh-inline-leak-body strong { color: var(--gold); }
+
+/* Cards bucket grid (Cards tab) */
+.mh-cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mh-cards-bucket {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+  padding: 8px 10px;
+}
+.mh-cards-bucket-head { font-size: 0.82em; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.mh-cards-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.mh-cards-row { display: flex; align-items: center; gap: 6px; font-size: 0.82em; padding: 3px 0; }
+.mh-cards-dot { font-size: 0.9em; }
+.mh-cards-name { flex: 1 1 auto; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mh-cards-stat { color: var(--text2); font-weight: 600; display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.mh-cards-sample { color: var(--gold); text-decoration: underline dotted; cursor: help; font-weight: 500; }
+.mh-cards-sample:hover { color: var(--text); }
+.mh-cards-inline-empty, .mh-cards-empty {
+  color: var(--text2); font-size: 0.82em; font-style: italic;
+  padding: 6px 0;
+}
+
+/* Mobile adjustments for new elements */
+@media (max-width: 640px) {
+  .mh-cards-grid { grid-template-columns: 1fr; }
+  .mh-struct-strip { margin: 8px 10px 2px; padding: 8px 10px; font-size: 0.78em; }
+  .mh-tab { font-size: 0.82em; padding: 10px 8px; }
+}
+
 /* Mobile: tighten grid, stack main KPI */
 @media (max-width: 640px) {
   .sm-card { padding: 12px 14px; }
@@ -702,10 +881,11 @@ body.mw-open { overflow: hidden; }
   .sm-rc-cta { width: 100%; text-align: right; }
   .im-bucket-grid { grid-template-columns: 1fr; }
   .mh-row {
-    grid-template-columns: 8px 1fr auto auto;
+    grid-template-columns: 8px 14px 1fr auto auto;
     font-size: 0.82em;
   }
   .mh-games, .mh-conf { display: none; }
+  .mh-expand { padding: 8px 10px 10px; }
   .dlv-head { gap: 6px; }
   .dlv-actions { width: 100%; }
   .dlv-btn { flex: 1 1 auto; }

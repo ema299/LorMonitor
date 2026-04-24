@@ -109,6 +109,51 @@
     else alert(body.replace(/<[^>]+>/g, ''));
   }
 
+  // Explainer for the card_scores "appearances" metric. Clarifies that
+  // it measures in-play visibility of the card, NOT how many decks ran it.
+  // Exposed because the distinction is non-obvious and biases signal reading
+  // (zero appearances ≠ card not in deck, just card not drawn / not played).
+  // When decksWith/decksTotal are provided, renders the richer in_deck_rate
+  // explainer (native card_scores from App_tool generator, post-D3).
+  function openAppearancesExplainer(sample, decksWith, decksTotal) {
+    const s = Number(sample) || 0;
+    const dw = Number(decksWith) || 0;
+    const dt = Number(decksTotal) || 0;
+    const label = confidenceLabel(s);
+    const hasDeckRate = dt > 0;
+    const pct = hasDeckRate ? Math.round(dw / dt * 100) : 0;
+
+    const appsPara = hasDeckRate
+      ? '<p><strong>' + s.toLocaleString() + ' appearances</strong> = times the card was ' +
+        'played, revealed, or inkwelled across observed matches in this matchup window.</p>'
+      : '<p><strong>' + s.toLocaleString() + ' appearances</strong> means this card was ' +
+        'seen played, revealed, or inkwelled in that many observed matches.</p>';
+
+    const deckRatePara = hasDeckRate
+      ? '<p><strong>In ' + dw + ' of ' + dt + ' observed decks (' + pct + '%)</strong>. ' +
+        'A "deck" here is a distinct (player, archetype) pair in the last 30 days. ' +
+        'This is a <strong>lower bound</strong>: a card that is in the 60-card list but ' +
+        'never drawn/played in any match by that player will not be counted.</p>'
+      : '<p><strong>It does NOT mean ' + s.toLocaleString() + ' decks ran this card.</strong> ' +
+        'Cards that stay in hand, sit in the deck, or arrive late in a short game never ' +
+        'appear — so 0 appearances is compatible with the card being in the decklist.</p>';
+
+    const body =
+      appsPara +
+      deckRatePara +
+      '<p>Both numbers carry two biases:</p>' +
+      '<ul>' +
+      '<li><strong>Duration bias</strong>: long games reveal more cards, so late-game ' +
+      'cards are over-represented in wins.</li>' +
+      '<li><strong>Survival bias</strong>: fast decks that end by turn 5 under-reveal ' +
+      'their tech slots.</li>' +
+      '</ul>' +
+      '<p>Confidence: <strong>' + label + '</strong>. At N below 30, the WR delta has a ' +
+      '~±10pp margin — read as directional, not proof.</p>';
+    if (typeof showInfoSheet === 'function') showInfoSheet('Card appearances', body);
+    else alert(body.replace(/<[^>]+>/g, ''));
+  }
+
   window.V3.HonestyBadge = {
     LOW_MAX: LOW_MAX,
     MED_MAX: MED_MAX,
@@ -121,5 +166,6 @@
     renderHeuristic: renderHeuristic,
     openExplainer: openExplainer,
     openHeuristicExplainer: openHeuristicExplainer,
+    openAppearancesExplainer: openAppearancesExplainer,
   };
 })();

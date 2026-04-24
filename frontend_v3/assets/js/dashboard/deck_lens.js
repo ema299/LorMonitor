@@ -97,7 +97,8 @@ window.V3.DeckLens = {
       const mu = (typeof getMatchupData === 'function') ? getMatchupData(opp) : null;
       if (mu && mu.card_scores && mu.card_scores[item.name]) {
         const delta = Number(mu.card_scores[item.name].delta || 0);
-        const sample = Number(mu.card_scores[item.name].games || 0);
+        const _csEntry = mu.card_scores[item.name] || {};
+        const sample = Number(_csEntry.apps != null ? _csEntry.apps : (_csEntry.games || 0));
         if (sample >= 30) {
           const pp = (delta * 100).toFixed(1);
           const sign = delta >= 0 ? '+' : '';

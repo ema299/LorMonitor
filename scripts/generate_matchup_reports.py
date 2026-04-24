@@ -60,6 +60,15 @@ def run(args):
                 matchups = [pair]
             else:
                 matchups = [(our, opp) for our, opp in product(DECKS, repeat=2) if our != opp]
+                if not args.dry_run:
+                    # Demote prior is_current rows for this format so stale
+                    # pre-D3 imports (e.g. card_scores frozen at 2026-04-16)
+                    # don't shadow the refreshed batch.
+                    db.execute(text("""
+                        UPDATE matchup_reports SET is_current = false
+                        WHERE game_format = :fmt AND is_current = true
+                    """), {"fmt": fmt})
+                    db.commit()
 
             for our, opp in matchups:
                 try:

@@ -132,7 +132,10 @@
 
       const sc = scores[name];
       const deltaPp = (sc && typeof sc.delta === 'number') ? sc.delta * 100 : null;
-      const sample = (sc && sc.games != null) ? Number(sc.games) : null;
+      // card_scores entries use `apps` for sample size (legacy fallback to `games`)
+      const sample = sc
+        ? Number(sc.apps != null ? sc.apps : (sc.games != null ? sc.games : 0))
+        : null;
       const strong = deltaPp != null && sample != null && sample >= MIN_SAMPLE
         && Math.abs(deltaPp) >= STRONG_DELTA_PP;
       if (!strong) return;

@@ -47,12 +47,16 @@ window.V3.DeckGrid = {
   },
 
   _cardStat(name, mu) {
+    // card_scores entries shape: {apps, delta, win_apps, loss_apps}.
+    // `apps` = observed appearances of the card in this matchup (used as sample).
     const cs = (mu && mu.card_scores) || {};
     const entry = cs[name];
     if (!entry) return { delta: null, sample: null };
+    const sample = entry.apps != null ? Number(entry.apps)
+                 : entry.games != null ? Number(entry.games) : null;
     return {
       delta: typeof entry.delta === 'number' ? entry.delta : null,
-      sample: entry.games != null ? Number(entry.games) : null,
+      sample: sample,
     };
   },
 

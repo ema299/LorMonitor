@@ -84,7 +84,16 @@ def reset_legality_cache(admin: User | None = Depends(require_admin_or_server_to
     try:
         from pipelines.kc import build_prompt
         build_prompt._core_legal_sets = None
+        build_prompt._meta_relevant_by_fmt = {}
         reset.append("kc_legal_sets")
+        reset.append("kc_meta_relevant")
+    except Exception:
+        pass
+    # Also flush the meta_relevance module-level cache.
+    try:
+        from pipelines.kc import meta_relevance
+        meta_relevance.reset_cache()
+        reset.append("meta_relevance_cache")
     except Exception:
         pass
 

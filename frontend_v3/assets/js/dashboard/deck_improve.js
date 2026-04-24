@@ -19,7 +19,10 @@
   'use strict';
   window.V3 = window.V3 || {};
 
-  const MIN_SAMPLE = 30;
+  // Admission floor for Cards trending. Below 15 apps a signal is noise.
+  // Honesty badge then labels 15-29 as Low, 30-99 Medium, 100+ High.
+  const MIN_SAMPLE = 15;
+  const MED_SAMPLE = 30;      // crossover Low → Medium confidence
   const STRONG_DELTA_PP = 2;
   const MATRIX_MIN_GAMES = 15;
   const OTP_OTD_GAP_PP = 10;
@@ -45,12 +48,18 @@
     Object.keys(scores).forEach(function (name) {
       const entry = scores[name];
       if (!entry) return;
-      const games = Number(entry.games || 0);
+      // card_scores entries use `apps` for sample size (legacy fallback to `games`)
+      const games = Number(entry.apps != null ? entry.apps : (entry.games || 0));
       if (games < MIN_SAMPLE) return;
       const delta = Number(entry.delta || 0);
       const pp = delta * 100;
-      if (pp >= STRONG_DELTA_PP) over.push({ name: name, pp: pp, games: games });
-      else if (pp <= -STRONG_DELTA_PP) under.push({ name: name, pp: pp, games: games });
+      // decks_with/decks_total/in_deck_rate land on entries emitted by
+      // the native generator (post-D3). Legacy entries lack them.
+      const decksWith = entry.decks_with != null ? Number(entry.decks_with) : null;
+      const decksTotal = entry.decks_total != null ? Number(entry.decks_total) : null;
+      const row = { name: name, pp: pp, games: games, decksWith: decksWith, decksTotal: decksTotal };
+      if (pp >= STRONG_DELTA_PP) over.push(row);
+      else if (pp <= -STRONG_DELTA_PP) under.push(row);
     });
     over.sort(function (a, b) { return b.pp - a.pp; });
     under.sort(function (a, b) { return a.pp - b.pp; });
@@ -61,11 +70,28 @@
     const hb = _hb();
     const dot = isOver ? '🟢' : '🔴';
     const deltaFmt = hb ? hb.formatDelta(r.pp, r.games) : (r.pp >= 0 ? '+' : '') + r.pp.toFixed(1) + 'pp';
+    const confLabel = hb ? hb.confidenceLabel(r.games) : (r.games >= 100 ? 'High' : r.games >= 30 ? 'Medium' : 'Low');
+    const confCls = hb ? hb.confidenceClass(r.games) : (r.games >= 100 ? 'hb-high' : r.games >= 30 ? 'hb-med' : 'hb-low');
+    // Prefer the native in_deck_rate denominator (decks_with/decks_total)
+    // when present — it answers "how many observed decks run this card",
+    // which is what users actually want. Fall back to raw appearances for
+    // legacy blob entries that predate the D3 native generator.
+    const hasDeckRate = r.decksTotal && r.decksTotal > 0;
+    const sampleLabel = hasDeckRate
+      ? 'in ' + r.decksWith + '/' + r.decksTotal + ' decks (' +
+        Math.round(r.decksWith / r.decksTotal * 100) + '%)'
+      : 'on ' + r.games + ' appearances';
+    const onclick = 'event.stopPropagation();window.V3.HonestyBadge.openAppearancesExplainer(' +
+      (r.games || 0) + ',' + (r.decksWith || 0) + ',' + (r.decksTotal || 0) + ')';
     return '<li class="im-card-row ' + (isOver ? 'im-over' : 'im-under') + '">' +
       '<span class="im-dot">' + dot + '</span>' +
       '<span class="im-card-name">' + _esc(_short(r.name)) + '</span>' +
       '<span class="im-card-stat">' + deltaFmt +
-      ' <span class="im-card-sample">on ' + r.games + ' observed games</span>' +
+      ' <span class="im-card-sample" role="button" tabindex="0" ' +
+      'onclick="' + onclick + '" title="What does this mean?">' +
+      sampleLabel + '</span>' +
+      ' <span class="hb-conf ' + confCls + '" role="button" tabindex="0" ' +
+      'onclick="' + onclick + '">' + confLabel + '</span>' +
       '</span></li>';
   }
 
@@ -80,7 +106,10 @@
     if (!t || (!t.over.length && !t.under.length)) {
       return '<div class="im-section">' +
         '<div class="im-sec-title">Cards trending in this archetype <span class="im-sec-sub">vs ' + _esc(oppCode) + '</span></div>' +
-        '<div class="im-empty">No card shows a ±' + STRONG_DELTA_PP + 'pp signal on ≥' + MIN_SAMPLE + ' observed games vs ' + _esc(oppCode) + '.</div>' +
+        '<div class="im-empty">No card shows a ±' + STRONG_DELTA_PP + 'pp signal on ≥' + MIN_SAMPLE + ' appearances vs ' + _esc(oppCode) + '. ' +
+        'Zero appearances does not mean zero decks ran the card — see ' +
+        '<span class="im-conf-hint-link" role="button" tabindex="0" ' +
+        'onclick="window.V3.HonestyBadge.openAppearancesExplainer(0)">what is this</span>.</div>' +
         '</div>';
     }
     const overHtml = t.over.length
@@ -96,6 +125,13 @@
       '<div class="im-bucket-grid">' +
       '<div class="im-bucket"><div class="im-bucket-head">🟢 Overperforming</div>' + overHtml + '</div>' +
       '<div class="im-bucket"><div class="im-bucket-head">🔴 Underperforming</div>' + underHtml + '</div>' +
+      '</div>' +
+      '<div class="im-conf-hint">' +
+      'Appearances: <span class="hb-conf hb-low">Low</span> 15–29 · ' +
+      '<span class="hb-conf hb-med">Medium</span> 30–99 · ' +
+      '<span class="hb-conf hb-high">High</span> 100+ · ' +
+      '<span class="im-conf-hint-link" role="button" tabindex="0" ' +
+      'onclick="window.V3.HonestyBadge.openAppearancesExplainer(0)">what is this?</span>' +
       '</div></div>';
   }
 
@@ -284,17 +320,12 @@
   }
 
   function build(deckCode, opponentCode) {
-    if (!deckCode) return '';
-    const header =
-      '<div class="im-header">' +
-      '<div class="im-header-title">Improve</div>' +
-      '<div class="im-header-sub">What the observed sample says about this list</div>' +
-      '</div>';
-    return '<div class="im-card">' +
-      header +
-      _trendingSection(deckCode, opponentCode) +
-      _leakDetectorSection(deckCode) +
-      '</div>';
+    // Cards trending + Archetype Leak Detector live inside the Matchups row
+    // expand (pill-tab Cards). This module still exports `_trendRows` and
+    // `_buildLeaks` — DeckMatchups consumes those helpers directly, so the
+    // module stays loaded but renders nothing of its own.
+    void deckCode; void opponentCode;
+    return '';
   }
 
   window.V3.DeckImprove = {
