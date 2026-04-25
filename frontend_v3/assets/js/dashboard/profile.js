@@ -4,6 +4,7 @@ let pfDrawerOpen = false;
 let pfActiveDeck = 'EmSa';
 let pfInkPickerOpen = false;
 let pfInkSel = [];
+let pfImproveDeckFocus = null;
 let pfStateBootstrapped = false;
 const DEMO_PLAYER = { nick: 'CLOUD', country: 'IT', decks: ['ESt','AmySt','AbSt'] };
 
@@ -1024,8 +1025,8 @@ function pfImprovementPath(saved, scope) {
       verb: 'Rotate',
       title: `Underperforming &mdash; ${underperformer.deck}`,
       desc: `${underperformer.wr.toFixed(0)}% WR over ${underperformer.games} games. Compare with meta builds or try an alternative.`,
-      onclick: `pfSelectDeck('${underperformer.deck}');switchToTab('deck')`,
-      cta: 'Inspect in Deck',
+      onclick: `pfOpenImproveDeckWorkspace('${underperformer.deck}')`,
+      cta: 'Inspect in Improve',
     });
   }
 
@@ -1057,6 +1058,16 @@ function pfImprovementPath(saved, scope) {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">${stepRows}</div>
   </div>`;
+}
+
+function pfOpenImproveDeckWorkspace(deck) {
+  pfImproveDeckFocus = deck;
+  pfSelectDeck(deck);
+}
+
+function pfCloseImproveDeckWorkspace() {
+  pfImproveDeckFocus = null;
+  render();
 }
 
 function renderImproveTab(main) {
@@ -1166,6 +1177,14 @@ function renderImproveTab(main) {
 
   const nickHeroHtml = pfImproveNickHero(saved, isDemo, scope);
   const improvementPathHtml = pfImprovementPath(saved, scope);
+  const improveDeckWorkspaceHtml = pfImproveDeckFocus ? `
+    <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
+      <span class="tab-section-hdr__eyebrow">Deck Focus</span>
+      <span class="tab-section-hdr__title">${pfImproveDeckFocus} improvement workspace</span>
+      <button class="pf-info-btn" onclick="pfCloseImproveDeckWorkspace()" title="Close deck focus" style="margin-left:auto">&times;</button>
+    </div>
+    ${pfBuildDeckWorkspace()}
+  ` : '';
   main.innerHTML = `<div class="pf-dash">
 
     <div class="tab-section-hdr">
@@ -1178,6 +1197,7 @@ function renderImproveTab(main) {
     ${hasNudge && !nickHeroHtml ? `<div class="pf-info-tip" id="pf-improve-tip" style="margin:0 0 8px">${nudgeHtml || 'Improve collects your personal and study signals.'}</div>` : ''}
 
     ${improvementPathHtml}
+    ${improveDeckWorkspaceHtml}
 
     <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
       <span class="tab-section-hdr__eyebrow">My Stats</span>
