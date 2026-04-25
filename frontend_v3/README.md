@@ -31,11 +31,13 @@ Stato attuale della base:
 - `v3.html` punta alla baseline `dashboard.html` come entrypoint comodo
 - la shell sperimentale modulare resta disponibile dentro `assets/js/` come materiale di supporto, ma non e' il flusso principale di questa fase
 
-Documenti guida V3:
+Documenti guida V3 (live, in `docs/` + `frontend_v3/point/`):
 
-- `frontend_v3/docs/ARCHITECTURE.md`
-- `frontend_v3/docs/MILESTONES.md`
-- `frontend_v3/docs/PREVIEW_SERVER.md`
+- [`docs/V3_ARCHITECT_POINT.md`](../docs/V3_ARCHITECT_POINT.md) — architettura V3 canonica
+- [`docs/TODO.md`](../docs/TODO.md) — TODO operativo App_tool / V3
+- [`docs/BP.md`](../docs/BP.md) — business plan reality-aligned 7 tab
+- [`frontend_v3/point/V3_ARCHITECT_POINT.md`](point/V3_ARCHITECT_POINT.md) — archivio strategist GPT 24/04
+- [`frontend_v3/point/V3_CURRENT_STATE.md`](point/V3_CURRENT_STATE.md) — snapshot as-is V3
 
 Nota:
 

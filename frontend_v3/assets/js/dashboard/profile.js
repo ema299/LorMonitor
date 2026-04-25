@@ -910,6 +910,155 @@ function pfBuildDeckWorkspace() {
   </div>`;
 }
 
+// Improve onboarding hero — aggressive nickname capture (B.5).
+// Shows a prominent CTA when no duels.ink nickname is linked.
+// Hidden once linked; shrinks to a thin demo strip when in demo mode.
+function pfImproveNickHero(saved, isDemo, scope) {
+  if (saved.duelsNick && !isDemo) return '';
+  if (isDemo) {
+    return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:14px;border:1px solid rgba(255,215,0,0.18);background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(124,63,160,0.05))">
+      <span style="font-size:0.82em;color:var(--text2);flex:1">Demo mode &mdash; viewing <strong style="color:var(--gold)">${saved.duelsNick}</strong>. Stats below are not yours.</span>
+      <button onclick="pfOpenDrawer()" style="background:var(--gold);color:#1a1408;border:0;padding:6px 12px;border-radius:5px;font-size:0.78em;font-weight:700;cursor:pointer">Use my nickname</button>
+    </div>`;
+  }
+  // Cold state — no nickname, no demo. Headline + 3 unlocks + dual CTA.
+  const fmtKey = scope.format;
+  const playerCount = Object.keys((DATA.player_lookup || {})[fmtKey] || {}).length;
+  const playersLine = playerCount > 50
+    ? `Tracking <strong>${playerCount.toLocaleString()}</strong> players in ${fmtKey.toUpperCase()} right now.`
+    : '';
+  return `<div class="card" style="padding:18px 20px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.32);background:linear-gradient(135deg,rgba(255,215,0,0.06),rgba(124,63,160,0.05))">
+    <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Step 1 &mdash; unlock your data</div>
+    <div style="font-size:1.05rem;font-weight:700;margin-bottom:6px">Link your duels.ink nickname</div>
+    <div style="font-size:0.85em;color:var(--text2);margin-bottom:12px">${playersLine ? playersLine + ' ' : ''}Improve runs on your real matches &mdash; without a nickname every panel below is empty.</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:14px;font-size:0.82em">
+      <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>Personal WR per deck</strong> &middot; what actually wins for you</span></div>
+      <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>Worst matchup</strong> &middot; where to focus practice</span></div>
+      <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>MMR &amp; history</strong> &middot; trend across last sessions</span></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <button onclick="pfOpenDrawer()" style="background:var(--gold);color:#1a1408;border:0;padding:9px 18px;border-radius:6px;font-size:0.88em;font-weight:700;cursor:pointer">Link nickname &rarr;</button>
+      <button onclick="pfLoadDemo()" style="background:transparent;border:1px solid rgba(255,255,255,0.18);color:var(--text);padding:8px 14px;border-radius:6px;font-size:0.85em;font-weight:600;cursor:pointer">Try demo player</button>
+      <span style="font-size:0.74em;color:var(--text2)">No account needed &middot; stored locally only</span>
+    </div>
+  </div>`;
+}
+
+// Improvement path — prioritized steps from the user's own match data (B.1).
+// Returns '' when no nickname or insufficient data; otherwise a step list
+// keyed off worst matchup / best matchup / underperforming deck.
+function pfImprovementPath(saved, scope) {
+  const nick = saved.duelsNick;
+  if (!nick) return '';
+  const fmtKey = scope.format;
+  const lookup = ((DATA.player_lookup || {})[fmtKey] || {})[nick.toLowerCase()] || {};
+  const pd = DATA.perimeters[scope.primaryPerimeter] || {};
+  const matrix = pd.matrix || {};
+
+  const userDecks = Object.entries(lookup);
+  if (!userDecks.length) return '';
+  const totalGames = userDecks.reduce((s, [_, v]) => s + v.w + v.l, 0);
+  if (totalGames < 20) {
+    return `<div class="card" style="padding:14px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.18);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.04))">
+      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Your improvement path</div>
+      <div style="font-size:0.86em;color:var(--text2)">Only ${totalGames} match${totalGames === 1 ? '' : 'es'} tracked so far for <strong>${nick}</strong> in ${fmtKey.toUpperCase()}. Keep playing &mdash; personalized steps unlock at 20 matches.</div>
+    </div>`;
+  }
+
+  // Step 1 — worst matchup (study). Min 3 games for the matchup pair.
+  let worst = null;
+  userDecks.forEach(([dk, _v]) => {
+    const m = matrix[dk] || {};
+    Object.entries(m).forEach(([opp, s]) => {
+      const g = (s.t != null ? s.t : (s.w || 0) + (s.l || 0));
+      if (g < 3) return;
+      const wr = s.w / g * 100;
+      if (!worst || wr < worst.wr) worst = { deck: dk, opp, wr, games: g };
+    });
+  });
+
+  // Step 2 — best matchup (lean into). Min 5 games.
+  let best = null;
+  userDecks.forEach(([dk, _v]) => {
+    const m = matrix[dk] || {};
+    Object.entries(m).forEach(([opp, s]) => {
+      const g = (s.t != null ? s.t : (s.w || 0) + (s.l || 0));
+      if (g < 5) return;
+      const wr = s.w / g * 100;
+      if (!best || wr > best.wr) best = { deck: dk, opp, wr, games: g };
+    });
+  });
+
+  // Step 3 — underperforming deck. Min 10 games, WR < 50%.
+  let underperformer = null;
+  userDecks.forEach(([dk, v]) => {
+    const g = v.w + v.l;
+    if (g < 10) return;
+    const wr = v.w / g * 100;
+    if (wr < 50 && (!underperformer || wr < underperformer.wr)) {
+      underperformer = { deck: dk, wr, games: g };
+    }
+  });
+
+  const steps = [];
+  if (worst) {
+    steps.push({
+      verb: 'Study',
+      title: `Worst matchup &mdash; ${worst.deck} vs ${worst.opp}`,
+      desc: `${worst.wr.toFixed(0)}% WR over ${worst.games} games. Open the killer curves and "How to Respond".`,
+      onclick: `coachDeck='${worst.deck}';coachOpp='${worst.opp}';switchToTab('play')`,
+      cta: 'Open in Play',
+    });
+  }
+  if (best && (!worst || (best.deck !== worst.deck || best.opp !== worst.opp))) {
+    steps.push({
+      verb: 'Lean into',
+      title: `Best matchup &mdash; ${best.deck} vs ${best.opp}`,
+      desc: `${best.wr.toFixed(0)}% WR over ${best.games} games. Tighten the lines you already win.`,
+      onclick: `coachDeck='${best.deck}';coachOpp='${best.opp}';switchToTab('play')`,
+      cta: 'Review in Play',
+    });
+  }
+  if (underperformer) {
+    steps.push({
+      verb: 'Rotate',
+      title: `Underperforming &mdash; ${underperformer.deck}`,
+      desc: `${underperformer.wr.toFixed(0)}% WR over ${underperformer.games} games. Compare with meta builds or try an alternative.`,
+      onclick: `pfSelectDeck('${underperformer.deck}');switchToTab('deck')`,
+      cta: 'Inspect in Deck',
+    });
+  }
+
+  if (!steps.length) {
+    return `<div class="card" style="padding:14px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.18);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.04))">
+      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Your improvement path</div>
+      <div style="font-size:0.86em;color:var(--text2)">${totalGames} matches tracked for <strong>${nick}</strong>. Nothing flagged yet &mdash; you're playing balanced. Keep going.</div>
+    </div>`;
+  }
+
+  const stepRows = steps.map((s, i) => `
+    <div class="pf-impr-step" style="display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.15s" onclick="${s.onclick}" onmouseover="this.style.background='rgba(255,215,0,0.04)'" onmouseout="this.style.background='rgba(255,255,255,0.02)'">
+      <div style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:rgba(255,215,0,0.12);color:var(--gold);font-weight:700;font-size:0.85em;flex-shrink:0">${i + 1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:0.72em;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;font-weight:700;margin-bottom:2px">${s.verb}</div>
+        <div style="font-size:0.92em;font-weight:600;margin-bottom:3px">${s.title}</div>
+        <div style="font-size:0.8em;color:var(--text2);line-height:1.35">${s.desc}</div>
+      </div>
+      <div style="font-size:0.78em;color:var(--gold);font-weight:600;flex-shrink:0;margin-top:2px">${s.cta} &rarr;</div>
+    </div>
+  `).join('');
+
+  return `<div class="card" style="padding:16px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.22);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.03))">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+      <div>
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700">Your improvement path</div>
+        <div style="font-size:0.78em;color:var(--text2);margin-top:2px">Ranked by gap-to-close from your <strong>${totalGames}</strong> matches in ${fmtKey.toUpperCase()}.</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${stepRows}</div>
+  </div>`;
+}
+
 function renderImproveTab(main) {
   pfEnsureState();
   const scope = getScopeContext();
@@ -1015,6 +1164,8 @@ function renderImproveTab(main) {
     </div>`;
   }
 
+  const nickHeroHtml = pfImproveNickHero(saved, isDemo, scope);
+  const improvementPathHtml = pfImprovementPath(saved, scope);
   main.innerHTML = `<div class="pf-dash">
 
     <div class="tab-section-hdr">
@@ -1022,8 +1173,11 @@ function renderImproveTab(main) {
       <span class="tab-section-hdr__title">Your account &middot; deck &middot; performance</span>
     </div>
 
+    ${nickHeroHtml}
     ${headerHtml}
-    ${hasNudge ? `<div class="pf-info-tip" id="pf-improve-tip" style="margin:0 0 8px">${nudgeHtml || 'Improve collects your personal and study signals.'}</div>` : ''}
+    ${hasNudge && !nickHeroHtml ? `<div class="pf-info-tip" id="pf-improve-tip" style="margin:0 0 8px">${nudgeHtml || 'Improve collects your personal and study signals.'}</div>` : ''}
+
+    ${improvementPathHtml}
 
     <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
       <span class="tab-section-hdr__eyebrow">My Stats</span>

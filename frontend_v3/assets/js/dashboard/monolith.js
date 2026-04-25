@@ -874,7 +874,7 @@ function wrapPremium(innerHtml, context) {
   // Contextual paywall messaging
   let title = 'PRO Content';
   let desc = 'Unlock game plans, killer curves, card ratings, and deck optimizer to level up your game.';
-  let price = '12';
+  let price = '9';
   if (context === 'coach' && coachDeck && coachOpp) {
     const az = getAnalyzerData();
     const mu = getMatchupData(coachOpp);

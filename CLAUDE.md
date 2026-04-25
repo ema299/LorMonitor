@@ -30,7 +30,7 @@ PostgreSQL (200K+ matches, 2822 cards, 1047 matchup reports)
 - **Backend**: FastAPI + SQLAlchemy + PostgreSQL + Redis (rate limit + dashboard cache 2h stale-while-revalidate)
 - **Frontend**: vanilla JS SPA monolitica in `frontend/dashboard.html` (~10.6K LOC), Chart.js, PWA (manifest + service worker). Il runtime live resta confinato a `frontend/`; il redesign in corso vive in `frontend_v3/` (workspace separato, non esposto in serving).
 - **Deploy**: VPS 2 vCPU 4GB RAM, systemd unit `lorcana-api.service` (workers=2). Drop-in `lorcana-api.service.d/admin-token.conf` carica `/etc/apptool.env` (0600, contiene `APPTOOL_ADMIN_TOKEN`). Restart = `systemctl restart lorcana-api`.
-- **Cron**: import matches ogni 2h, backup 03:00 daily, static importer domenica 04:45, import KC martedì 05:30, import_matchup_reports 05:30 daily, import_kc_spy 04:05 daily, monitor_kc_freshness 07:00 daily, generate_playbooks martedì 01:00
+- **Cron**: import matches ogni 2h, backup 03:00 daily, static importer domenica 04:45, KC batch/import martedì, import_matchup_reports 05:30 daily, import_kc_spy 04:05 daily, monitor_kc_freshness 07:00 daily, generate_playbooks martedì 01:00
 - **Config runtime**: CORS da env (`CORS_ALLOW_ORIGINS`), leaderboard disabilitato se `DUELS_SESSION` manca, rate limit tier-aware via JWT nel middleware
 
 ---
@@ -139,7 +139,7 @@ Vedi `ARCHITECTURE.md` §7.1 per la lista completa.
 |-------|------|
 | Prodotto utente (dashboard, API, auth, billing) | **App_tool** (questo) |
 | R&D dashboard sperimentale (porta 8060) | analisidef/daily/ |
-| Pipeline killer curves batch (OpenAI) | analisidef/run_kc_production.py → import in App_tool PG martedì 05:30 |
+| Pipeline killer curves batch (OpenAI) | App_tool `scripts/generate_killer_curves.py` → PG `killer_curves`; legacy `import_killer_curves.py` solo bridge da output analisidef |
 | Replay viewer v1/v2 + Board Lab development | analisidef/build_replay*.py + App_tool/backend/services/replay_service.py |
 | Business strategy, email duels.ink | analisidef/business/ + `BUSINESS_PLAN.md` root |
 
@@ -192,6 +192,27 @@ One-shot `scripts/reclean_kc_meta.py` già girato sui dati esistenti: 209 card r
 
 Sync `scripts/refresh_kc_matchup_reports.py` — copia rapida `killer_curves` → `matchup_reports` senza full regen matchup_reports (12 min → 5 sec).
 
+### KC LLM request optimization (applicato 2026-04-25)
+
+Pipeline operativa: `scripts/generate_killer_curves.py` legge digest nativi da `output/digests`, costruisce prompt con `pipelines/kc/build_prompt.py`, chiama OpenAI, post-filtra e upserta in PG `killer_curves`.
+
+Cambi a basso impatto entrati:
+
+- **JSON mode in produzione**: la call OpenAI usa `response_format={"type": "json_object"}`.
+- **Cache key LLM**: nuove righe KC salvano in `meta` `digest_hash`, `prompt_contract_hash`, `schema_version`, `prompt_hash`, costo/tokens e `run_id`.
+- **Skip non-forzato**: nei run senza `--force`, se `digest_hash + prompt_contract_hash + schema_version` coincidono con la current row, la matchup viene saltata prima della call LLM. `--force` rigenera sempre.
+- **Payload V3 nella stessa call**: prompt e schema supportano `killer_curves[].v3_payload` e `killer_curves[].self_check`.
+- **Metriche di completezza**: `meta` include `response_v2_complete`, `v3_payload_complete`, `self_check_complete` e percentuali.
+- **No token leak**: `run_meta` viene usato per cache/stability ma non viene passato nel prompt come contesto storico.
+
+Operativo post-batch:
+
+1. `scripts/generate_killer_curves.py --format all` o `--force` se si vuole rebuild completo.
+2. `scripts/refresh_kc_matchup_reports.py --format all` per portare KC in `matchup_reports`.
+3. Refresh `/api/v1/dashboard-data?refresh=true` per V3.
+
+Doc critico: `docs/KILLER_CURVES_BLINDATURA_V3.md`.
+
 ### Privacy Layer V3 (live in produzione dal 2026-04-24)
 
 Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Documentato in `ARCHITECTURE.md §24 "Sensitive Data & Privacy Architecture — V3 Launch Layer"` con subsection `§24.11 Applied State`. Piano di porting Legacy → V3 in `docs/MIGRATION_PLAN.md` (Appendice Z).
@@ -243,4 +264,4 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 
 ---
 
-*Ultimo aggiornamento: 24 Apr 2026 — Privacy Layer V3 **live in produzione**: migration M1 applicata + service restart + anonymizer + access-control + consent flow legacy + disclaimer + /about.html + copy sanitization (no duels in privacy surfaces, fair-use card images, MMR/ELO scrubbed, `monitorteamfe@gmail.com`) + SW network-first per HTML. Smoke T1/T4 PASS. Resta: alias mail `legal@` + porting V3 (vedere `docs/MIGRATION_PLAN.md` Appendice Z). Pre-22 Apr: Set12 readiness Fase S0 applicata, legacy frontend sealed, team coaching replay core decoupled, killer-curves response schema v2*
+*Ultimo aggiornamento: 25 Apr 2026 — KC LLM request optimization applicata: JSON mode in produzione, cache key `digest_hash + prompt_contract_hash + schema_version`, payload `v3_payload/self_check`, metriche completezza in `killer_curves.meta`. Privacy Layer V3 live dal 24 Apr 2026; resta alias mail `legal@` + porting V3 (vedere `docs/MIGRATION_PLAN.md` Appendice Z).*

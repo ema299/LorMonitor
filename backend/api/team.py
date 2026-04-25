@@ -7,11 +7,11 @@ Privacy layer V3 (ARCHITECTURE.md §24.5):
 - list/get filter by ownership when user is authenticated non-admin
 - transitional nginx-only mode (user=None) preserves legacy behavior
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from backend.deps import get_current_user, get_db, require_team_access
+from backend.deps import get_current_user, get_db, require_replay_owner, require_team_access
 from backend.models.team import TeamReplay, TeamRoster
 from backend.models.user import User
 from backend.services import replay_service
@@ -138,6 +138,8 @@ def list_replays(
         )
 
     replays = q.limit(100).all()
+    user_id = user.id if user is not None else None
+    is_admin = bool(user and user.is_admin)
     return [
         {
             "id": str(r.id),
@@ -148,6 +150,9 @@ def list_replays(
             "victory_reason": r.victory_reason,
             "turns": r.turn_count,
             "created_at": r.created_at.isoformat() if r.created_at else None,
+            # is_owner drives client-side DELETE button visibility (B.3 UI trigger).
+            # In transitional mode (user=None) it stays false — DELETE requires JWT.
+            "is_owner": bool(user_id is not None and (is_admin or r.user_id == user_id)),
         }
         for r in replays
     ]
@@ -179,6 +184,21 @@ def get_replay(
             raise HTTPException(403, "replay access denied")
 
     return replay.replay_data
+
+
+@router.delete("/replay/{game_id}", status_code=204)
+def delete_replay(
+    replay: TeamReplay = Depends(require_replay_owner),
+    db: Session = Depends(get_db),
+):
+    """Delete an uploaded replay. Owner-only (admin bypasses).
+
+    Privacy layer §24.5/24.6 — GDPR right to delete. Rejects shared users:
+    only the owner (or admin) can permanently remove a replay.
+    """
+    db.delete(replay)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/roster")

@@ -47,7 +47,7 @@ Il piano che segue mantiene tutte le feature core, semplifica la storia di monet
 | Data | 50K-300K match log (turn-by-turn, plays/abilities/challenges/quests) scrapati da `duels.ink` | Live, raccolta daily |
 | Analytics | Loss classification (9 dimensioni + 3 livelli detection: keywords × abilities × patterns) | 100% data-driven, zero hardcode |
 | LLM pipeline | 268 killer curves (worst-case opponent sequences), validate (9 check strutturali + 1 semantico) | Batch martedì, ~$4/run |
-| Frontend | PWA, 7 tab live legacy, V3 redesign in corso (5+2 tab) | Dev-hosted, no public domain |
+| Frontend | PWA, 7 tab live legacy, V3 redesign 7 tab pronto allo swap | Dev-hosted, swap V3 = ultima azione settimana 1 (§12.1) |
 | Coaching tool | Board Lab: upload `.replay.gz`, viewer animato con mano completa, annotazioni coach | Live, label enrichment pending |
 | Replay viewer | Viewer step-by-step match reali (read-only) | Live |
 | Deck tools | Mulligan trainer su mani PRO reali, Meta Deck Optimizer, consensus/comparator | Live |
@@ -498,7 +498,7 @@ V3 è già a **7 tab**, rename già fatto (Monitor→Meta, Coach→Play, Lab→D
 |--------|------|-----|
 | 1 | Dominio (già `metamonitor.app`). Verifica Resend/email pipeline. Discord server live. **V3 swap-ready:** verifica `backend/main.py:_serve_dashboard()` per flip legacy→V3 (una riga). **NO tab rename (già fatto). NO drawer (decisione preservata).** | 3 |
 | 2 | Home: Set 12 Hub già live, verifica `FORM_ACTION` + `DISCORD_INVITE` (`set12_hub.js:27-34`). Sostituisci placeholder con URL reali. Aggiungi **headline insight teaser** sopra chip ("Your worst matchup is X (Y%) · Open Play →"). | 4 |
-| 3 | **Play conversion clarity:** titolo insight sopra killer curves + "How to Respond" come accordion visibile (gated se manca dato o Pro). Mulligan reveal gating già cablato via `wrapPremium('coach')`. Aggiungi paywall trigger **4° matchup/giorno** (counter localStorage + reset 00:00 UTC). | 6 |
+| 3 | **Play conversion clarity:** titolo insight sopra killer curves + "How to Respond" come accordion visibile (gated se manca dato o Pro). Paywall trigger **4° matchup/giorno** (counter localStorage + reset 00:00 UTC) **DONE** via `play_gate.js`. Mulligan reveal gating **DEFERRED** (TODO §A.3) — `improve_play_tools.js:17` monta Mulligan senza `wrapPremium()`, rinviato per isolamento Play-only. | 6 |
 | 4 | **Privacy minima pre-launch:** consent modal V3 (port da legacy commit `1abbdd0`). 412 handling su upload Board Lab. About link già live in footer. Verifica `POST /api/v1/user/consent` + export GDPR (fix `05845e3`). | 4 |
 | 5 | **Board Lab wiring minimo:** verifica access-control `/api/v1/team/replay/*`, ownership attiva (M1 `9a1e47b3f0c2`), `require_replay_owner` su delete/edit. **NO label enrichment.** | 3 |
 | 6 | Hosting pubblico: nginx + Let's Encrypt già live su `metamonitor.app`. Verifica disclaimer footer + alias `legal@` (o `monitorteamfe@gmail.com` finché alias Cloudflare non up). | 2 |

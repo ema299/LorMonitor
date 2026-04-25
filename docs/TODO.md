@@ -60,7 +60,7 @@ Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred p
 | Task | Status | Nota |
 |------|--------|------|
 | **Header conversion** sopra killer curves | **DONE** | `cv2-conv-hdr` dinamico da top killer curve + critical turn |
-| **How to Respond** inline in killer curve expansion (refactor A2, 24/04 sera) | **DONE** | gate per-curve: prime 3 curve free, 4ª+ con overlay paywall quando matchup >3/giorno |
+| **How to Respond** inline in killer curve expansion (refactor A2, 24/04 sera) | **DONE** | gate dentro `.cv2-threat`: prime 3 curve free, 4ª+ con overlay paywall quando matchup >3/giorno; rimossa sezione separata |
 | **Mulligan reveal gated** | **DEFERRED** | richiede toccare Deck/Improve, rinviato per isolamento Play-only |
 | **Paywall 4° matchup/giorno** | **DONE** | nuovo `play_gate.js` (55 LOC), counter localStorage `play_matchups_viewed_YYYY-MM-DD`, overlay su "How to Respond" dal 4° matchup distinto |
 | **Home headline insight teaser** | **DONE** | worst matchup (min 20 games) sopra hero-row, click → Play con deck+opp preselezionati |
@@ -69,11 +69,12 @@ Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred p
 
 **Obiettivo pre-launch:** upload owner-only funziona + access-control attivo. Flusso completo resta nel legacy `team_coaching.js` (NO refactor).
 
-| Task | Dove | Effort | Priorità |
-|------|------|--------|----------|
-| Verifica `require_replay_access` / `require_replay_owner` wired su `/api/v1/team/replay/*` | `backend/api/team.py` dependency injection | 1 h | P0 |
-| Verifica ownership `team_replays.user_id` attiva (migration M1 `9a1e47b3f0c2`) | PG check | 15 min | P0 |
-| Stub `team.js:300` "coming soon" — lasciare così, decidere se nascondere o mostrare placeholder | `frontend_v3/assets/js/dashboard/team.js:300` | 15 min | P1 |
+| Task | Status | Nota |
+|------|--------|------|
+| Verifica `require_replay_access` / `require_replay_owner` wired su `/api/v1/team/replay/*` | **DONE (verifica)** | Helpers esistono in `backend/deps.py:149,179` ma **non wirati** su `team.py` (25/04). Wiring richiede JWT-mandatory: rompe transitional nginx-only mode (`TEAM_API_REQUIRE_JWT=false`). Decisione: wiring effettivo gated su flip flag → fa parte di A.5 swap. Oggi `/replay/list` + `/replay/{game_id}` reimplementano filter ownership inline (`team.py:132-138, 174-179`); upload usa `get_current_user` mandatory (consent + ownership scritti). Nginx basic auth resta gate primario fino allo swap. |
+| Verifica ownership `team_replays.user_id` attiva (migration M1 `9a1e47b3f0c2`) | **DONE** | Migration applicata 24/04 (CLAUDE.md §Privacy Layer V3). Upload assigna `user_id`, `is_private=true`, `consent_version`, `uploaded_via='board_lab'` (`team.py:85-99`). |
+| Board Lab visibile in Team anche senza roster | **DONE** | `team.js:107` helper `buildBoardLabSection()`, early-return ora renderizza Board Lab + chiama `tcInit('tc-container')` (25/04). BP §2.2: Team primary perché ospita Board Lab. |
+| Stub `team.js:308` "coming soon" — lasciare così, decidere se nascondere o mostrare placeholder | **DONE 25/04** | Sostituito con hint "Upload .replay.gz in Board Lab below" coerente col fix Board Lab no-roster |
 
 ## A.5. Go-live ops
 
@@ -87,7 +88,24 @@ Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred p
 
 Se qualcuno propone uno di questi, rispondere "post-launch" e non discutere. Vale anche per Claude.
 
-- ❌ Ristrutturazione nav 5+2 / drawer "..." / creazione tab Community contenitore / Pro Tools
+### V3 nav sacred — vincolo non-negoziabile (pre- e post-launch)
+
+Nav resta fissa a **7 tab primary**: Home · Play · Meta · Deck · Team · Improve · Events.
+
+- ❌ NO rename / reorder / new tab / drawer "..." / Pro Tools tab / Community tab / Coach tab / fusione Team-Improve-Events
+- ❌ NO spostamento Board Lab fuori da Team
+- ❌ NO spostamento Play content fuori da Play
+- ❌ NO modifiche Meta / Deck / Events salvo bug esplicitamente richiesto
+- ✅ Feature post-launch (B/C) **innestate dentro tab esistenti**:
+  - Best Plays → in Play
+  - Blind Playbook personalized → in Improve (o punto già previsto)
+  - Session notes / Coach flow / Export PDF → in Team / Board Lab
+  - Coach tier = superficie dentro Team, non un tab nuovo
+
+Qualsiasi proposta che richiede cambio nav → tech debt deferred, NON implementare.
+
+### Altre cose pre-launch escluse
+
 - ❌ School of Lorcana placeholder
 - ❌ Replay Viewer inline in Play ("See it happen")
 - ❌ Sideboard LLM batch (Feature B) — richiede $3-5/m OpenAI + 1 settimana dev
@@ -114,9 +132,9 @@ Oggi Improve è un menu (My Stats + Blind Playbook + Card Analysis + Mulligan + 
 
 | Task | Effort | Impatto business |
 |------|--------|------------------|
-| Header "Your improvement path" con 3-4 step ordinati basati sul dato utente ("1. Your worst matchup → study. 2. Your mulligan WR → practice. 3. Your curve drop → fix") | 1 dev day | Alto (retention Pro) |
+| Header "Your improvement path" con 3-4 step ordinati basati sul dato utente | **DONE 25/04** — `profile.js:912 pfImprovementPath()` 3 step (Worst matchup→Play / Best matchup→Play / Underperforming deck→Deck), gating: < 20 game = teaser cresci, 0 step = "balanced". Ogni step actionable con click → tab+preselect. | Alto (retention Pro) |
 | Nickname bridge più utile: quando bridge attivo, mostrare "X match associati, Y% WR personale" in Home + Improve | 1 dev day | Alto (feature hook, sblocca country segmentation futura) |
-| Confidence / sample size surface su Mulligan ("Based on N hands, confidence: low/med/high") | 0.5 dev day | Medio (honesty) |
+| Confidence / sample size surface su Mulligan ("Based on N hands, confidence: low/med/high") | **DONE 25/04** — `lab.js:116 _mullSetConfidence()` badge inline accanto al counter, aggiornato per filtro attivo (Blind/OTP/OTD). Threshold: <10=Low rosso, 10-29=Medium giallo, 30+=High verde, 0=No data. Tooltip esplicativo per ogni soglia. | Medio (honesty) |
 | Blind Playbook personalizzato per-matchup (non solo per-deck) | 2 dev day | Medio |
 
 ## B.2. Board Lab — da stub a flusso coach
@@ -125,7 +143,7 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 
 | Task | Effort | Impatto business |
 |------|--------|------------------|
-| Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | 0.5 dev day | Alto (Coach tier justification) |
+| Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | **DONE 25/04** — endpoint + UI + smoke test `scripts/replay_ownership_smoke.py` (6 check: T1 endpoint, T2 is_owner shape, T3 anon→401, T4 cross-user→403, T5 owner→204+gone, T6 rate limit). Run con `USER_A_TOKEN`/`USER_B_TOKEN`/`USER_A_GAME_ID` env. | Alto (Coach tier justification) |
 | Session notes persistenti per replay | 2 dev day | Alto (Coach tier) |
 | Coach flow più chiaro: landing Team → upload → viewer → notes → export | 2 dev day | Alto (Coach tier) |
 | Export PDF sessione (base: snapshot + note) | 2 dev day | Medio |
@@ -135,8 +153,8 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 | Task | Effort | Impatto business |
 |------|--------|------------------|
 | Tabella `user_consents` dedicata (se serve versioning append-only) invece di JSONB `preferences.consents` | 1 dev day | Basso (compliance seria) |
-| Rate limit upload replay (DoS prevention + abuse) | 0.5 dev day | Medio |
-| `DELETE /api/v1/team/replay/:id` endpoint + UI trigger | 0.5 dev day | Alto (GDPR right to delete) |
+| Rate limit upload replay (DoS prevention + abuse) | **DONE 25/04** (`backend/middleware/rate_limit.py:25-33` bucket dedicato per-tier: free 5/min, pro 30, team 60, admin 300) | Medio |
+| `DELETE /api/v1/team/replay/:id` endpoint + UI trigger | **DONE 25/04** — endpoint `team.py:184` con `require_replay_owner`; `is_owner` esposto in `/replay/list`; UI button (`team_coaching.js:228+225`) owner-only con confirm | Alto (GDPR right to delete) |
 
 ## B.4. Play — evoluzione post-lancio
 
@@ -144,15 +162,13 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 |------|--------|------------------|
 | Replay Viewer inline "See it happen" sulla killer curve (se dati engagement post-launch lo giustificano) | 2-3 dev day | Medio |
 | How to Respond **personalized** (non più archetype-based) — Feature B LLM batch | 1 settimana + $3-5/m OpenAI | Alto (sblocca anche Key Threats + Sideboard in un solo cantiere) |
-| Best Plays top-3 sequenze NOSTRO deck vs opp | 1 dev day | Basso-medio |
 
 ## B.5. Home + acquisition
 
 | Task | Status | Nota |
 |------|--------|------|
 | Set 12 Hub `FORM_ACTION` + `FORM_EMAIL_FIELD` + `DISCORD_INVITE` → URL reali | **BLOCKED** | attesa Google Form + Discord server. Marcatore `BLOCKED_URL_PENDING` in `set12_hub.js`. Non bloccante lancio. |
-| Set 12 Hub → decommissionare post drop Maggio, rimpiazzare con evergreen hero | PENDING | 0.5 dev day, impatto medio |
-| Improve onboarding più aggressivo sul nickname bridge | PENDING | 0.5 dev day, alto (sblocca Improve + country segmentation) |
+| Improve onboarding più aggressivo sul nickname bridge | **DONE 25/04** | Hero CTA card sopra Improve quando `!duelsNick` (3 unlock bullets + Link/Demo dual CTA + counter player tracked) — `profile.js:913-940 pfImproveNickHero()`. Demo mode = strip slim. Linked = nascosto. |
 
 ## B.6. NON in B — resta fuori scope 30 gg
 
@@ -306,6 +322,29 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 | SW `CACHE_NAME=lorcana-privacy-v4` + network-first HTML | Live legacy (V3 ha self-destruct, vedi §C.4) |
 
 **Head alembic:** 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiede revision esplicita (NON `upgrade head`).
+
+## C.10. V3 — naming cleanup post-launch
+
+| Task | Stato | Nota |
+|------|-------|------|
+| Rinominare `frontend_v3/assets/js/dashboard/coach_v2.js` in `play.js` | PENDING | Solo dopo freeze pre-launch/Claude: oggi il file serve il tab Play ma contiene anche codice storico `rv*`; rename o split rischia conflitti mentre il TODO V3 è in corso. |
+
+## C.11. Best Plays — backend pipeline dedicato (DEFERRED da B.4)
+
+**Stato (verificato 25/04):** frontend renderer `buildBestPlaysCard()` (`profile.js:101`) **già pronto** e atteso al fondo del Play tab (`coach_v2.js:1897`). Backend data source **vuoto**: `snapshot_assembler.py:81-82` espone `best_plays = {}` placeholder; DB ha **0 reports** in `matchup_reports` con `best_plays` non-vuoto.
+
+**Perché DEFERRED da B.4:** implementazione reale richiede mining da `matches.turns`, scoring euristico, categorizzazione, snapshot wiring e smoke test. Non è blocker pre-launch e non va fatto prima dello swap V3.
+
+**Scope minimo futuro (sprint dedicato):**
+
+- `backend/services/best_plays_service.py` — nuovo modulo
+- No LLM (vincolo `project_api_constraint`)
+- Heuristic scoring da winning matches: punteggio = `kills*3 + bounced*2 + lore + cards_played`
+- Top-3 per deck/opponent (struttura già supportata dal renderer via campo `vs`)
+- Categorize via regole semplici: `wipe` se kills≥2, `lore` se lore≥3, `combo` se abilities≥2, `early` se turn≤3, `tempo` altrimenti
+- Headline auto-generato template `T${turn} ${cards.join('+')} → N kills, +X lore`
+- Wiring in `snapshot_assembler.py` (popola `blob["best_plays"]` e `blob["best_plays_infinity"]`)
+- Smoke test: count reports populated, sample shape match con frontend renderer schema
 
 ---
 

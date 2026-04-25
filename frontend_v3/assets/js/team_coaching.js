@@ -216,14 +216,43 @@ async function tcLoadReplayList(playerFilter) {
     const list = await (await tcFetch(url)).json();
     if (!list.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85em;padding:8px">No replays uploaded yet</div>'; return; }
     el.innerHTML = '<div style="font-weight:600;margin-bottom:8px;font-size:0.9em">Uploaded Replays</div>' +
-      list.map(r => `<div class="tc-replay-row" onclick="tcLoadReplay('${r.game_id}')">
+      list.map(r => {
+        const delBtn = r.is_owner
+          ? `<button class="tc-replay-del" title="Delete replay" onclick="event.stopPropagation();tcDeleteReplay('${r.game_id}')" style="margin-left:8px;background:transparent;border:1px solid rgba(248,81,73,0.35);color:var(--red);padding:2px 8px;border-radius:4px;font-size:0.78em;cursor:pointer">\u2715</button>`
+          : '';
+        return `<div class="tc-replay-row" onclick="tcLoadReplay('${r.game_id}')">
         <span style="color:${r.winner===1?'var(--green)':'var(--red)'};font-weight:700">${r.winner===1?'W':'L'}</span>
         <strong>${r.player||'?'}</strong> vs ${r.opponent} \u2014 T${r.turns}
         <span style="color:var(--text2);font-size:0.8em;margin-left:auto">${(r.created_at||'').split('T')[0]}</span>
-      </div>`).join('');
+        ${delBtn}
+      </div>`;
+      }).join('');
     // Auto-load first replay
     if (list.length && list[0].game_id) tcLoadReplay(list[0].game_id);
   } catch (err) { el.innerHTML = `<div style="color:var(--red);font-size:0.85em">Error: ${err.message}</div>`; }
+}
+
+// \u2550\u2550\u2550 DELETE REPLAY (B.3 owner-only) \u2550\u2550\u2550
+async function tcDeleteReplay(gameId) {
+  if (!confirm('Delete this replay? This cannot be undone.')) return;
+  try {
+    const resp = await tcFetch(`/api/v1/team/replay/${gameId}`, { method: 'DELETE' });
+    if (resp.status === 204) {
+      // Refresh list; clear viewer if the deleted replay was loaded
+      const area = document.getElementById('tc-viewer-area');
+      if (area && tcReplayData && (tcReplayData.game_id === gameId)) {
+        area.innerHTML = '<div style="color:var(--text2);padding:20px">Replay deleted.</div>';
+        tcReplayData = null;
+      }
+      tcLoadReplayList();
+    } else {
+      let msg = `Delete failed (HTTP ${resp.status})`;
+      try { const j = await resp.json(); if (j && j.detail) msg = String(j.detail); } catch (_) {}
+      alert(msg);
+    }
+  } catch (err) {
+    alert(`Delete failed: ${err.message}`);
+  }
 }
 
 // ═══ LOAD REPLAY ═══

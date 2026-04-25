@@ -36,6 +36,22 @@ function rvIsItem(name) {
   return t.includes('item') || t.includes('location');
 }
 
+function rvLegacyStep(turn, who, phase, summary, boardStart, boardAfter, inkwell, lore, hand, eventObj) {
+  return {
+    turn,
+    who,
+    label: `T${turn} ${who === 'our' ? 'Us' : 'Opp'}${phase ? ` • ${phase}` : ''}${summary ? ` • ${summary}` : ''}`,
+    board_start: boardStart,
+    board_after: boardAfter,
+    inkwell: {our: {...inkwell.our}, opp: {...inkwell.opp}},
+    lore: {our: lore.our, opp: lore.opp},
+    hand: {our: Math.max(0, hand.our), opp: Math.max(0, hand.opp)},
+    events: eventObj ? [eventObj] : [],
+    phase,
+    summary,
+  };
+}
+
 // ── Mini step builder (port of Python build_game_steps) ──
 function rvBuildSteps(game) {
   const rawTurns = game.turns || [];
@@ -56,26 +72,68 @@ function rvBuildSteps(game) {
     const second = first === 'our' ? 'opp' : 'our';
 
     for (const activeSide of [first, second]) {
-      const passiveSide = activeSide === 'our' ? 'opp' : 'our';
-      // Ready phase
+      const spentThisHalf = {our:0, opp:0};
+      const readyBefore = rvSnap(board);
+      const hadReadyWork = board[activeSide].some(e => e.exerted || e.drying);
       board[activeSide].forEach(e => { e.exerted = false; e.drying = false; });
-      // Draw
-      if (tNum === 1) { if (activeSide === second) hand[activeSide]++; }
-      else hand[activeSide]++;
+      const readyAfter = rvSnap(board);
+      if (hadReadyWork) {
+        steps.push(rvLegacyStep(
+          tNum,
+          activeSide,
+          'Ready',
+          'untap / ready board',
+          readyBefore,
+          readyAfter,
+          {our:{total:inkwell.our, spent:spentThisHalf.our}, opp:{total:inkwell.opp, spent:spentThisHalf.opp}},
+          lore,
+          hand,
+          {type:'ready', side:activeSide}
+        ));
+      }
 
-      const boardStart = rvSnap(board);
+      const drawBefore = rvSnap(board);
+      let drewCard = false;
+      if (tNum === 1) {
+        if (activeSide === second) {
+          hand[activeSide]++;
+          drewCard = true;
+        }
+      } else {
+        hand[activeSide]++;
+        drewCard = true;
+      }
+      if (drewCard) {
+        steps.push(rvLegacyStep(
+          tNum,
+          activeSide,
+          'Draw',
+          'draw step',
+          drawBefore,
+          rvSnap(board),
+          {our:{total:inkwell.our, spent:spentThisHalf.our}, opp:{total:inkwell.opp, spent:spentThisHalf.opp}},
+          lore,
+          hand,
+          {type:'draw', side:activeSide, card:''}
+        ));
+      }
+
       const halfLabel = activeSide === first ? 'first' : 'second';
       const rawEvents = (td.event_log || []).filter(ev => ev.half === halfLabel);
-      const events = [];
-      const inkSpent = {our:0, opp:0};
 
       for (const ev of rawEvents) {
         const etype = ev.type;
         const evSide = ev.side || activeSide;
+        const boardBefore = rvSnap(board);
+        let phase = '';
+        let summary = '';
+        let renderEvent = null;
 
         if (etype === 'ink' || etype === 'ramp') {
           inkwell[evSide]++;
-          events.push({type: etype, side: evSide, card: ev.card||''});
+          phase = 'Ink';
+          summary = ev.card || 'ink';
+          renderEvent = {type: etype, side: evSide, card: ev.card||''};
         }
         else if (etype === 'play') {
           const cardName = ev.card;
@@ -85,7 +143,7 @@ function rvBuildSteps(game) {
             if (pd.name === cardName && pd.is_shift) { isShift = true; cost = pd.ink_paid || cost; break; }
             if (pd.name === cardName) { cost = pd.ink_paid || cost; break; }
           }
-          inkSpent[evSide] += cost;
+          spentThisHalf[evSide] += cost;
           // Singer exerts
           if (ev.is_sung && ev.singer) {
             const se = rvFindEntry(board[evSide], ev.singer, true);
@@ -103,28 +161,38 @@ function rvBuildSteps(game) {
             }
           }
           hand[evSide] = Math.max(0, hand[evSide] - 1);
-          events.push({type:'play', side:evSide, card:cardName, cost, spell:isSpell, shift:isShift, sung:!!ev.is_sung, singer:ev.singer||null});
+          phase = 'Play';
+          summary = cardName || 'card enters play';
+          renderEvent = {type:'play', side:evSide, card:cardName, cost, spell:isSpell, shift:isShift, sung:!!ev.is_sung, singer:ev.singer||null};
         }
         else if (etype === 'ability') {
-          events.push({type:'ability', side:evSide, card:ev.card||'', effect:ev.effect||'', ability_name:ev.ability||''});
+          phase = 'Effect';
+          summary = ev.card || ev.ability || 'ability';
+          renderEvent = {type:'ability', side:evSide, card:ev.card||'', effect:ev.effect||'', ability_name:ev.ability||''};
         }
         else if (etype === 'damage') {
           const entry = rvFindEntry(board[ev.side || evSide], ev.receiver);
           let total = ev.amount || 0;
           if (entry) { entry.damage += (ev.amount||0); total = entry.damage; }
-          events.push({type:'damage', side:ev.side||evSide, card:ev.receiver, dealer:ev.dealer||'', amount:ev.amount||0, total});
+          phase = 'Damage';
+          summary = ev.receiver || 'damage';
+          renderEvent = {type:'damage', side:ev.side||evSide, card:ev.receiver, dealer:ev.dealer||'', amount:ev.amount||0, total};
         }
         else if (etype === 'destroyed') {
           const dSide = ev.side || evSide;
           const idx = board[dSide].findIndex(e => e.name === ev.card);
           if (idx >= 0) { discard[dSide].push(ev.card); board[dSide].splice(idx, 1); }
-          events.push({type:'destroyed', side:dSide, card:ev.card});
+          phase = 'Banish';
+          summary = ev.card || 'card destroyed';
+          renderEvent = {type:'destroyed', side:dSide, card:ev.card};
         }
         else if (etype === 'quest') {
           const qe = rvFindEntry(board[evSide], ev.card, true);
           if (qe) qe.exerted = true;
           lore[evSide] += (ev.lore || 0);
-          events.push({type:'quest', side:evSide, card:ev.card, lore:ev.lore||0});
+          phase = 'Quest';
+          summary = ev.card || 'quest';
+          renderEvent = {type:'quest', side:evSide, card:ev.card, lore:ev.lore||0};
         }
         else if (etype === 'challenge') {
           const ae = rvFindEntry(board[evSide], ev.attacker, true);
@@ -135,35 +203,51 @@ function rvBuildSteps(game) {
               defKilled = ch.def_killed || false; atkKilled = ch.atk_killed || false; break;
             }
           }
-          events.push({type:'challenge', side:evSide, attacker:ev.attacker, defender:ev.defender, def_killed:defKilled, atk_killed:atkKilled});
+          phase = 'Attack';
+          summary = `${ev.attacker || '?'} -> ${ev.defender || '?'}`;
+          renderEvent = {type:'challenge', side:evSide, attacker:ev.attacker, defender:ev.defender, def_killed:defKilled, atk_killed:atkKilled};
         }
         else if (etype === 'bounce') {
           const bSide = ev.side || evSide;
           const idx = board[bSide].findIndex(e => e.name === ev.card);
           if (idx >= 0) { board[bSide].splice(idx, 1); hand[bSide]++; }
-          events.push({type:'bounce', side:bSide, card:ev.card});
+          phase = 'Bounce';
+          summary = ev.card || 'return to hand';
+          renderEvent = {type:'bounce', side:bSide, card:ev.card};
         }
         else if (etype === 'draw') {
           hand[evSide]++;
-          events.push({type:'draw', side:evSide, card:ev.card||''});
+          phase = 'Draw';
+          summary = ev.card || 'named draw';
+          renderEvent = {type:'draw', side:evSide, card:ev.card||''};
         }
         else if (etype === 'discard') {
           hand[evSide] = Math.max(0, hand[evSide] - 1);
-          events.push({type:'discard', side:evSide, card:ev.card||''});
+          phase = 'Discard';
+          summary = ev.card || 'discard';
+          renderEvent = {type:'discard', side:evSide, card:ev.card||''};
         }
         else if (etype === 'support') {
-          events.push({type:'support', side:evSide, supporter:ev.supporter||'', supported:ev.supported||''});
+          phase = 'Support';
+          summary = `${ev.supporter || '?'} -> ${ev.supported || '?'}`;
+          renderEvent = {type:'support', side:evSide, supporter:ev.supporter||'', supported:ev.supported||''};
+        }
+
+        if (renderEvent) {
+          steps.push(rvLegacyStep(
+            tNum,
+            activeSide,
+            phase,
+            summary,
+            boardBefore,
+            rvSnap(board),
+            {our:{total:inkwell.our, spent:spentThisHalf.our}, opp:{total:inkwell.opp, spent:spentThisHalf.opp}},
+            lore,
+            hand,
+            renderEvent
+          ));
         }
       }
-      steps.push({
-        turn: tNum, who: activeSide,
-        label: `T${tNum} ${activeSide === 'our' ? 'Us' : 'Opp'}`,
-        board_start: boardStart, board_after: rvSnap(board),
-        inkwell: {our:{total:inkwell.our, spent:inkSpent.our}, opp:{total:inkwell.opp, spent:inkSpent.opp}},
-        lore: {our:lore.our, opp:lore.opp},
-        hand: {our:Math.max(0,hand.our), opp:Math.max(0,hand.opp)},
-        events
-      });
     }
   }
   return steps;
@@ -173,6 +257,12 @@ function rvVirtualizeTimelineStep(baseStep) {
   const ev = baseStep.timeline_event || {};
   const fx = ev.fx || {};
   const steps = [];
+  const cloneBoard = (value) => JSON.parse(JSON.stringify(value || {our: [], opp: []}));
+  const applyCardDelta = (boardState, side, cardName, fn, preferReady) => {
+    const list = ((boardState || {})[side]) || [];
+    const entry = rvFindEntry(list, cardName, preferReady);
+    if (entry) fn(entry, list);
+  };
   const pushVirtual = (subkind, phase, summary, extra) => {
     steps.push({
       ...baseStep,
@@ -185,36 +275,62 @@ function rvVirtualizeTimelineStep(baseStep) {
   };
 
   if (ev.type === 'CARD_ATTACK') {
-    pushVirtual('attack_declare', 'Attack', baseStep.summary || 'declare attack');
+    const declareBoard = cloneBoard(baseStep.board_start);
+    const source = (ev.source || {}).card || '';
+    const sourceSide = (ev.source || {}).side || baseStep.who;
+    if (source) {
+      applyCardDelta(declareBoard, sourceSide, source, (entry) => { entry.exerted = true; }, true);
+    }
+    pushVirtual('attack_declare', 'Attack', baseStep.summary || 'declare attack', { board_after: declareBoard });
     const targetDamage = Number(fx.damage_to_target || 0);
     const sourceDamage = Number(fx.damage_to_source || 0);
     if (targetDamage > 0 || sourceDamage > 0) {
-      pushVirtual('attack_damage', 'Damage', `exchange ${targetDamage || 0}/${sourceDamage || 0}`);
+      const damageBoard = cloneBoard(declareBoard);
+      const target = ((ev.targets || [])[0] || {}).card || '';
+      const targetSide = ((ev.targets || [])[0] || {}).side || (baseStep.who === 'our' ? 'opp' : 'our');
+      if (target && targetDamage > 0) {
+        applyCardDelta(damageBoard, targetSide, target, (entry) => { entry.damage = Number(entry.damage || 0) + targetDamage; });
+      }
+      if (source && sourceDamage > 0) {
+        applyCardDelta(damageBoard, sourceSide, source, (entry) => { entry.damage = Number(entry.damage || 0) + sourceDamage; });
+      }
+      pushVirtual('attack_damage', 'Damage', `exchange ${targetDamage || 0}/${sourceDamage || 0}`, { board_after: damageBoard });
     }
     if (fx.target_destroyed || fx.source_destroyed) {
       const pieces = [];
       if (fx.target_destroyed) pieces.push('target banished');
       if (fx.source_destroyed) pieces.push('source banished');
-      pushVirtual('attack_banish', 'Banish', pieces.join(' • '));
+      pushVirtual('attack_banish', 'Banish', pieces.join(' • '), { board_after: cloneBoard(baseStep.board_after) });
     }
     return steps;
   }
 
   if (ev.type === 'CARD_QUEST' && Number(fx.lore_gained || 0) > 0) {
-    pushVirtual('quest_declare', 'Quest', baseStep.summary || 'declare quest');
-    pushVirtual('quest_lore', 'Lore', `+${fx.lore_gained} lore`);
+    const questBoard = cloneBoard(baseStep.board_start);
+    const source = (ev.source || {}).card || '';
+    const sourceSide = (ev.source || {}).side || baseStep.who;
+    if (source) {
+      applyCardDelta(questBoard, sourceSide, source, (entry) => { entry.exerted = true; }, true);
+    }
+    const loreBefore = {
+      our: Number((baseStep.lore || {}).our || 0),
+      opp: Number((baseStep.lore || {}).opp || 0),
+    };
+    loreBefore[sourceSide] = Math.max(0, loreBefore[sourceSide] - Number(fx.lore_gained || 0));
+    pushVirtual('quest_declare', 'Quest', baseStep.summary || 'declare quest', { board_after: questBoard, lore: loreBefore });
+    pushVirtual('quest_lore', 'Lore', `+${fx.lore_gained} lore`, { board_after: cloneBoard(baseStep.board_after) });
     return steps;
   }
 
   if (ev.type === 'CARD_PLAYED' && baseStep.events && baseStep.events[0] && baseStep.events[0].spell && (ev.effect_text || '').trim()) {
-    pushVirtual('spell_play', 'Play', baseStep.summary || 'cast spell');
-    pushVirtual('spell_effect', 'Effect', ev.effect_text);
+    pushVirtual('spell_play', 'Play', baseStep.summary || 'cast spell', { board_after: cloneBoard(baseStep.board_start) });
+    pushVirtual('spell_effect', 'Effect', ev.effect_text, { board_after: cloneBoard(baseStep.board_after) });
     return steps;
   }
 
   if ((ev.type === 'ABILITY_TRIGGERED' || ev.type === 'ABILITY_ACTIVATED') && (ev.effect_text || '').trim()) {
-    pushVirtual('ability_trigger', 'Effect', baseStep.summary || 'ability triggered');
-    pushVirtual('ability_resolve', 'Resolve', ev.effect_text);
+    pushVirtual('ability_trigger', 'Effect', baseStep.summary || 'ability triggered', { board_after: cloneBoard(baseStep.board_start) });
+    pushVirtual('ability_resolve', 'Resolve', ev.effect_text, { board_after: cloneBoard(baseStep.board_after) });
     return steps;
   }
 
@@ -407,7 +523,18 @@ function rvTimelineSummary(ev) {
 
 function rvStepButtonLabel(step) {
   if (!step) return 'T?';
-  return `T${rvEscapeHtml(step.turn)}`;
+  const displayTurn = Math.max(0, Number(step.turn || 1) - 1);
+  return `T${rvEscapeHtml(displayTurn)}`;
+}
+
+function rvActiveFormat() {
+  try {
+    if (typeof getScopeContext === 'function') {
+      const scope = getScopeContext();
+      if (scope && (scope.format === 'core' || scope.format === 'infinity')) return scope.format;
+    }
+  } catch (_) {}
+  return currentFormat === 'infinity' ? 'infinity' : 'core';
 }
 
 function rvBuildTurnGroups(steps) {
@@ -422,6 +549,8 @@ function rvBuildTurnGroups(steps) {
         who: step.who,
         start: idx,
         end: idx,
+        step,
+        displayTurn: Math.max(0, Number(step.turn || 1) - 1),
       };
       groups.push(current);
     } else {
@@ -814,11 +943,13 @@ let rvSpeed = 3200; // ms base step
 const RV_SPEEDS = [5200, 3200, 1800, 950];
 const RV_SPEED_LABELS = ['0.35x', '0.6x', '1x', '2x'];
 let rvSpeedIdx = 1; // default slow
+let rvGroupPlayback = false;
 
 function rvPlay() {
   if (rvPlaying) { rvStop(); return; }
   rvPlaying = true;
   rvPlayToIdx = null;
+  rvGroupPlayback = false;
   const btn = document.getElementById('rv-play');
   if (btn) { btn.textContent = '⏸'; btn.title = 'Pause'; }
   rvTick();
@@ -826,6 +957,7 @@ function rvPlay() {
 function rvStop() {
   rvPlaying = false;
   rvPlayToIdx = null;
+  rvGroupPlayback = false;
   if (rvPlayTimer) { clearTimeout(rvPlayTimer); rvPlayTimer = null; }
   const btn = document.getElementById('rv-play');
   if (btn) { btn.textContent = '▶'; btn.title = 'Play'; }
@@ -853,27 +985,28 @@ function rvCycleSpeed() {
 }
 
 function rvAutoplayDelay(step) {
-  if (!step || !step.timeline_event) return rvSpeed;
+  const modeFactor = rvGroupPlayback ? 1.45 : 1;
+  if (!step || !step.timeline_event) return Math.round(rvSpeed * modeFactor);
   const sub = step.substep_kind || '';
-  if (sub === 'attack_declare') return Math.round(rvSpeed * 1.45);
-  if (sub === 'attack_damage') return Math.round(rvSpeed * 1.55);
-  if (sub === 'attack_banish') return Math.round(rvSpeed * 1.3);
-  if (sub === 'quest_declare') return Math.round(rvSpeed * 1.15);
-  if (sub === 'quest_lore') return Math.round(rvSpeed * 1.2);
-  if (sub === 'spell_play') return Math.round(rvSpeed * 1.2);
-  if (sub === 'spell_effect') return Math.round(rvSpeed * 1.45);
-  if (sub === 'ability_trigger') return Math.round(rvSpeed * 1.2);
-  if (sub === 'ability_resolve') return Math.round(rvSpeed * 1.45);
+  if (sub === 'attack_declare') return Math.round(rvSpeed * 1.45 * modeFactor);
+  if (sub === 'attack_damage') return Math.round(rvSpeed * 1.55 * modeFactor);
+  if (sub === 'attack_banish') return Math.round(rvSpeed * 1.3 * modeFactor);
+  if (sub === 'quest_declare') return Math.round(rvSpeed * 1.15 * modeFactor);
+  if (sub === 'quest_lore') return Math.round(rvSpeed * 1.2 * modeFactor);
+  if (sub === 'spell_play') return Math.round(rvSpeed * 1.2 * modeFactor);
+  if (sub === 'spell_effect') return Math.round(rvSpeed * 1.45 * modeFactor);
+  if (sub === 'ability_trigger') return Math.round(rvSpeed * 1.2 * modeFactor);
+  if (sub === 'ability_resolve') return Math.round(rvSpeed * 1.45 * modeFactor);
   const type = step.timeline_event.type || '';
-  if (type === 'TURN_READY') return Math.round(rvSpeed * 0.95);
-  if (type === 'TURN_DRAW' || type === 'CARD_DRAWN') return Math.round(rvSpeed * 0.9);
-  if (type === 'CARD_INKED' || type === 'CARD_PUT_INTO_INKWELL') return Math.round(rvSpeed * 1.05);
-  if (type === 'CARD_PLAYED') return Math.round(rvSpeed * 1.35);
-  if (type === 'ABILITY_TRIGGERED' || type === 'ABILITY_ACTIVATED') return Math.round(rvSpeed * 1.55);
-  if (type === 'CARD_ATTACK') return Math.round(rvSpeed * 1.7);
-  if (type === 'CARD_DESTROYED') return Math.round(rvSpeed * 1.25);
-  if (type === 'CARD_QUEST' || type === 'LORE_GAINED') return Math.round(rvSpeed * 1.2);
-  return rvSpeed;
+  if (type === 'TURN_READY') return Math.round(rvSpeed * 0.95 * modeFactor);
+  if (type === 'TURN_DRAW' || type === 'CARD_DRAWN') return Math.round(rvSpeed * 0.9 * modeFactor);
+  if (type === 'CARD_INKED' || type === 'CARD_PUT_INTO_INKWELL') return Math.round(rvSpeed * 1.05 * modeFactor);
+  if (type === 'CARD_PLAYED') return Math.round(rvSpeed * 1.35 * modeFactor);
+  if (type === 'ABILITY_TRIGGERED' || type === 'ABILITY_ACTIVATED') return Math.round(rvSpeed * 1.55 * modeFactor);
+  if (type === 'CARD_ATTACK') return Math.round(rvSpeed * 1.7 * modeFactor);
+  if (type === 'CARD_DESTROYED') return Math.round(rvSpeed * 1.25 * modeFactor);
+  if (type === 'CARD_QUEST' || type === 'LORE_GAINED') return Math.round(rvSpeed * 1.2 * modeFactor);
+  return Math.round(rvSpeed * modeFactor);
 }
 
 function rvPlayTurnGroup(groupIdx) {
@@ -884,6 +1017,7 @@ function rvPlayTurnGroup(groupIdx) {
   if (group.start >= group.end) return;
   rvPlaying = true;
   rvPlayToIdx = group.end;
+  rvGroupPlayback = true;
   const btn = document.getElementById('rv-play');
   if (btn) { btn.textContent = '⏸'; btn.title = 'Pause'; }
   rvTick();
@@ -1234,7 +1368,9 @@ async function rvLoadGame(gameInfo) {
   const wrap = document.getElementById('rv-board');
   if (wrap) wrap.innerHTML = '<div class="rv-loading">Loading game...</div>';
   try {
-    const resp = await fetch(`/api/replay/game?deck=${rvDeck}&opp=${rvOpp}&idx=${gameInfo.i}`);
+    const fmt = rvActiveFormat();
+    const params = new URLSearchParams({ deck: rvDeck, opp: rvOpp, idx: String(gameInfo.i), format: fmt, game_format: fmt });
+    const resp = await fetch(`/api/replay/game?${params.toString()}`);
     const data = await resp.json();
     if (data.error) { if(wrap) wrap.innerHTML = `<div class="rv-empty">${data.error}</div>`; return; }
     rvGame = data;
@@ -1272,12 +1408,11 @@ async function rvLoadGame(gameInfo) {
     // Render step navigation
     const sbs = document.getElementById('rv-sbs');
     if (sbs) {
-      let lastT = -1;
       sbs.innerHTML = rvTurnGroups.map((g,i) => {
-        const sep = (g.turn !== lastT && lastT !== -1) ? '<span class="rv-ssep"></span>' : '';
-        lastT = g.turn;
-        const label = `T${g.turn} ${g.who === 'our' ? 'Us' : 'Opp'}`;
-        return `${sep}<button class="rv-sb${g.who==='opp'?' rv-opp':''}" onclick="rvPlayTurnGroup(${i})">${label}</button>`;
+        const sideLabel = g.who === 'our' ? 'Us' : 'Opp';
+        const label = `T${g.displayTurn} ${sideLabel}`;
+        const title = `${label}${g.step && g.step.phase ? ` • ${g.step.phase}` : ''}`;
+        return `<button class="rv-sb${g.who==='opp'?' rv-opp':''}" onclick="rvPlayTurnGroup(${i})" title="${rvEscapeHtml(title)}">${label}</button>`;
       }).join('');
     }
     rvGoToStep(0);
@@ -1330,7 +1465,9 @@ async function rvInit(deck, opp) {
       rvCardsDB = await dbResp.json();
     }
     // Load game list
-    const resp = await fetch(`/api/replay/list?deck=${deck}&opp=${opp}`);
+    const fmt = rvActiveFormat();
+    const params = new URLSearchParams({ deck, opp, format: fmt, game_format: fmt });
+    const resp = await fetch(`/api/replay/list?${params.toString()}`);
     const data = await resp.json();
     if (data.error) { if(wrap) wrap.innerHTML = `<div class="rv-empty">${data.error}</div>`; return; }
     rvGameList = data.games;
@@ -1452,11 +1589,14 @@ function renderCoachV2Tab(main) {
     <button onclick="openCheatsheet()" style="background:linear-gradient(135deg,var(--gold),#E8C97A);color:var(--bg);border:none;border-radius:8px;padding:8px 14px;font-weight:700;font-size:0.8em;cursor:pointer;white-space:nowrap;transition:transform 0.15s" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform=''">Pre-Match</button>
   </div>`;
 
-  // A.3 Conversion header — frames all curves, prompts expansion for responses.
-  const _hasAnyCurve = (kc[0]?.name || threats[0]?.name) ? true : false;
-  if (_hasAnyCurve) {
-    content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45;color:var(--text)">
-      Each curve shows how you lose. Expand to see how to respond.
+  // A.3 Conversion header — single-line insight above curves/responses.
+  const _topCurve = kc[0];
+  const _critTurn = _topCurve?.critical_turn?.turn || null;
+  const _topCurveName = _topCurve?.name || (threats[0]?.name) || '';
+  if (_topCurveName) {
+    content += `<div class="cv2-conv-hdr" style="margin:10px 0 16px;padding:12px 14px;background:linear-gradient(135deg,rgba(212,160,58,0.10),rgba(212,160,58,0.04));border-left:3px solid var(--gold);border-radius:6px;font-size:0.95em;line-height:1.45">
+      <div style="color:var(--gold);font-weight:700;font-size:0.78em;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px">The threat</div>
+      <div style="color:var(--text)"><strong>${_topCurveName}</strong>${_critTurn ? ` closes this matchup around turn <strong>${_critTurn}</strong>.` : '.'} Scroll for how to respond &rarr;</div>
     </div>`;
   }
 
@@ -1536,6 +1676,8 @@ function renderCoachV2Tab(main) {
 
   // Sort by pct descending
   threatBriefs.sort((a, b) => b.pct - a.pct);
+  const playResponsesGated = (typeof playShouldGateResponse === 'function') && playShouldGateResponse(coachDeck, coachOpp);
+  const playViewedCount = (typeof playMatchupsViewedCount === 'function') ? playMatchupsViewedCount() : 4;
 
   // 3. Render threat briefs — section header first
   content += `<div class="tab-section-hdr">
@@ -1547,6 +1689,7 @@ function renderCoachV2Tab(main) {
   }
 
   threatBriefs.forEach((tb, idx) => {
+    const responseLocked = playResponsesGated && idx >= 3;
     const sevColor = tb.pct >= 25 ? 'var(--red)' : tb.pct >= 15 ? 'var(--yellow)' : 'var(--text2)';
     const pctBg = tb.pct >= 25 ? 'rgba(248,81,73,0.2)' : tb.pct >= 15 ? 'rgba(210,153,34,0.15)' : 'rgba(255,255,255,0.06)';
     const pctColor = tb.pct >= 25 ? 'var(--red)' : tb.pct >= 15 ? 'var(--yellow)' : 'var(--text2)';
@@ -1588,6 +1731,7 @@ function renderCoachV2Tab(main) {
         <span class="cv2-name">${tb.name}</span>
         <span class="cv2-turn-badge">${tb.criticalTurn}${tb.criticalComponent ? ' · ' + tb.criticalComponent : ''}</span>
         <span class="cv2-pct" style="background:${pctBg};color:${pctColor}">${tb.pct}% (${tb.losses})</span>
+        ${responseLocked ? '<span class="cv2-turn-badge" style="border-color:rgba(212,160,58,0.45);color:var(--gold)">🔒 response</span>' : ''}
         <span class="cv2-arrow">▼</span>
       </div>
       ${previewHtml}
@@ -1658,16 +1802,17 @@ function renderCoachV2Tab(main) {
 
       // RIGHT: Our response
       content += `<div class="cv2-col"${!hasSeq && tb.playbook.length === 0 ? ' style="flex:1"' : ''}><h4 class="our-title">How to Respond</h4>`;
+      let responseHtml = '';
       if (hasSections) {
         tb.sections.forEach(s => {
           const typeIcon = s.type === 'Prevention' ? '🛡' : s.type === 'Response' ? '⚔' : '🔄';
-          content += `<div style="margin-bottom:8px">
+          responseHtml += `<div style="margin-bottom:8px">
             <div style="font-size:0.8em;font-weight:600;color:var(--green);margin-bottom:4px">${typeIcon} ${s.type}${s.label ? ' — ' + s.label : ''}</div>`;
           if (s.plans && s.plans.length) {
             s.plans.forEach(p => {
               const planText = p.plan_a && p.plan_a !== '—' ? p.plan_a : (p.plan_b && p.plan_b !== '—' ? p.plan_b : '—');
               if (planText !== '—') {
-                content += `<div class="cv2-turn-row">
+                responseHtml += `<div class="cv2-turn-row">
                   <span class="cv2-t">${p.turn}</span>
                   <span class="cv2-play">${planText}</span>
                   ${p.plan_b && p.plan_b !== '—' && p.plan_a !== '—' ? `<span style="color:var(--text2);font-size:0.8em">alt: ${p.plan_b}</span>` : ''}
@@ -1675,28 +1820,25 @@ function renderCoachV2Tab(main) {
               }
             });
           }
-          content += `</div>`;
+          responseHtml += `</div>`;
         });
       } else if (hasResponse) {
-        // A.3 Soft gate: on 4th+ daily matchup, curves at idx>=3 hide response
-        // behind paywall overlay. First 3 curves free + session unlock bypass.
-        const _curveGated = (typeof playShouldGateResponse === 'function')
-          && playShouldGateResponse(coachDeck, coachOpp)
-          && idx >= 3;
-        if (_curveGated) {
-          content += `<div class="cv2-curve-response-gated premium-wall" style="position:relative;min-height:140px">
-            <div class="premium-content" style="filter:blur(3px);pointer-events:none;padding:8px">${kcRenderResponse(tb.response, { compact: true })}</div>
-            <div class="paywall-overlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);border-radius:6px;padding:12px;text-align:center">
-              <div style="font-size:1.5em;margin-bottom:4px">🔒</div>
-              <div style="font-weight:700;font-size:0.9em;margin-bottom:8px">More responses available &mdash; unlock all counterplays</div>
-              <button class="unlock-btn" onclick="event.stopPropagation();playSoftUnlock()" style="background:var(--gold);color:#000;border:0;padding:6px 14px;border-radius:4px;font-weight:600;font-size:0.85em;cursor:pointer">Unlock Play — 9&euro;/month</button>
-            </div>
-          </div>`;
-        } else {
-          content += kcRenderResponse(tb.response, { compact: true });
-        }
+        responseHtml += kcRenderResponse(tb.response, { compact: true });
       } else {
-        content += `<div style="color:var(--text2);font-size:0.85em">Response not yet analyzed.</div>`;
+        responseHtml += `<div style="color:var(--text2);font-size:0.85em">Response not yet analyzed.</div>`;
+      }
+      if (responseLocked) {
+        content += `<div class="premium-wall" style="min-height:170px;border-radius:8px;overflow:hidden">
+          <div class="premium-content" style="filter:blur(4px);pointer-events:none">${responseHtml}</div>
+          <div class="paywall-overlay" style="padding:14px">
+            <div class="lock-big" style="font-size:2em;margin-bottom:6px">🔒</div>
+            <h3 style="font-size:1em">Response locked</h3>
+            <p style="font-size:0.82em;margin-bottom:10px">You've scouted ${playViewedCount} matchups today. Unlock curve responses &rarr; Pro &euro;9/m</p>
+            <button class="unlock-btn" onclick="event.stopPropagation();playSoftUnlock()">Unlock Play — 9&euro;/month</button>
+          </div>
+        </div>`;
+      } else {
+        content += responseHtml;
       }
       content += `</div>`;
 
@@ -1871,4 +2013,3 @@ function renderCV2Secondary() {
 
   }
 }
-

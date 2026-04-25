@@ -20,6 +20,16 @@ TIER_LIMITS = {
 LOGIN_LIMIT = 5       # per 15 minutes
 LOGIN_WINDOW = 900    # 15 min
 
+# Replay upload bucket — stricter than global API limit because each upload
+# can reach 500KB and triggers parsing. Free tier conservative; admin uncapped.
+UPLOAD_REPLAY_LIMITS = {
+    "free": 5,      # per minute
+    "pro": 30,
+    "team": 60,
+    "admin": 300,
+}
+UPLOAD_REPLAY_WINDOW = 60
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -33,6 +43,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             if self._is_rate_limited(f"rl:login:{ip}", LOGIN_LIMIT, LOGIN_WINDOW):
                 return JSONResponse(
                     {"detail": "Too many login attempts. Try again later."},
+                    status_code=429,
+                )
+
+        # Replay upload bucket — stricter, per-tier (B.3 hardening)
+        if path == "/api/v1/team/replay/upload" and request.method == "POST":
+            tier = getattr(request.state, "user_tier", "free")
+            up_limit = UPLOAD_REPLAY_LIMITS.get(tier, 5)
+            if self._is_rate_limited(f"rl:upload_replay:{ip}", up_limit, UPLOAD_REPLAY_WINDOW):
+                return JSONResponse(
+                    {"detail": f"Replay upload limit reached ({up_limit}/min). Slow down or upgrade tier."},
                     status_code=429,
                 )
 

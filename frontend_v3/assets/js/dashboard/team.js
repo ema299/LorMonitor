@@ -54,38 +54,29 @@ function ttHeatmapCellBg(wr) {
 }
 
 /**
- * Pro Tools header — Deep analytics hub (V3-5 22/04).
+ * Team tab quick-access strip — deep-link to Play / Meta (renamed 25/04 — was "Pro Tools" container).
  *
- * IWD Analysis e' embeddata inline qui (accordion #pt-iwd-wrap, lazy-load via iwdLoad).
+ * Eyebrow + title rimossi: questa E' la tab Team, non una sotto-categoria.
  * Killer Curves Deep e Full Matchup Matrix restano deep-link al rispettivo tab di origine
  * (Play / Meta) per evitare conflitti di chart instances e ID duplicati nel DOM.
  */
 function buildProToolsHeader() {
   return `
-    <div class="pt-header" style="background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.04));border:1px solid rgba(255,215,0,0.15);border-radius:10px;padding:16px 18px;margin-bottom:18px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-        <div>
-          <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:4px">Pro Tools</div>
-          <div style="font-size:1rem;font-weight:600">Advanced analytics for power users</div>
-          <div style="font-size:0.82em;color:var(--text2);margin-top:4px">Team tools, IWD analysis, plus deep-link to Killer Curves and full Matchup Matrix.</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button onclick="switchToTab('play')" style="background:transparent;border:1px solid rgba(255,215,0,0.35);color:var(--text);padding:7px 14px;border-radius:6px;font-size:0.82em;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-          <span style="color:var(--gold)">&#9728;</span> Killer Curves Deep <small style="opacity:0.6;font-weight:400">(in Play)</small>
-        </button>
-        <button onclick="switchToTab('meta')" style="background:transparent;border:1px solid rgba(255,215,0,0.35);color:var(--text);padding:7px 14px;border-radius:6px;font-size:0.82em;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
-          <span style="color:var(--gold)">&#9638;</span> Full Matchup Matrix <small style="opacity:0.6;font-weight:400">(in Meta)</small>
-        </button>
-      </div>
+    <div class="pt-header" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+      <button onclick="switchToTab('play')" style="background:transparent;border:1px solid rgba(255,215,0,0.35);color:var(--text);padding:7px 14px;border-radius:6px;font-size:0.82em;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+        <span style="color:var(--gold)">&#9728;</span> Killer Curves Deep <small style="opacity:0.6;font-weight:400">(in Play)</small>
+      </button>
+      <button onclick="switchToTab('meta')" style="background:transparent;border:1px solid rgba(255,215,0,0.35);color:var(--text);padding:7px 14px;border-radius:6px;font-size:0.82em;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+        <span style="color:var(--gold)">&#9638;</span> Full Matchup Matrix <small style="opacity:0.6;font-weight:400">(in Meta)</small>
+      </button>
     </div>
   `;
 }
 
 /**
- * IWD section embedded in Pro Tools (V3-5 22/04).
+ * IWD section embedded in Team tab (V3-5 22/04).
  * Riusa iwdLoad() / iwdRender() esposti da lab.js. ID #iwd-wrap e' unico nel DOM
- * (Pro Tools non coesiste con Deck nello stesso istante, no conflitto runtime).
+ * (Team non coesiste con Deck nello stesso istante, no conflitto runtime).
  */
 function buildProToolsIWDSection() {
   const our = (typeof coachDeck !== 'undefined' && coachDeck) || (typeof selectedDeck !== 'undefined' && selectedDeck) || null;
@@ -113,6 +104,21 @@ function buildProToolsIWDSection() {
   )}</div>`;
 }
 
+// Board Lab is the Coach SKU anchor — must render even without a roster.
+function buildBoardLabSection() {
+  return '<div class="tab-section-hdr" style="margin-top:var(--sp-5)">' +
+    '<span class="tab-section-hdr__eyebrow">Board Lab</span>' +
+    '<span class="tab-section-hdr__title">Replay viewer &middot; game-by-game analysis</span>' +
+    '</div>' +
+    '<div class="tt-collapsible open" id="tt-lab-coll">' +
+    '<button class="tt-coll-head" onclick="ttToggleSection(\'tt-lab-coll\')">' +
+    '<span class="tt-coll-title">🧪 Board Lab</span>' +
+    '<span class="tt-coll-chevron">▼</span>' +
+    '</button>' +
+    '<div class="tt-coll-body"><div id="tc-container"></div></div>' +
+    '</div>';
+}
+
 function renderTeamTab(main) {
   const team = DATA.team;
   if (!team || !team.players || team.players.length === 0) {
@@ -120,8 +126,10 @@ function renderTeamTab(main) {
       '<div class="card" style="text-align:center;padding:60px 20px">' +
       '<div style="font-size:2.5em;margin-bottom:12px">\uD83C\uDFAE</div>' +
       '<h2 style="margin-bottom:6px;font-size:1.1em">Team Training</h2>' +
-      '<p style="color:var(--text2);font-size:0.88em;max-width:360px;margin:0 auto">No team configured yet. Add players via API or DB to get started.</p></div>' +
-      ((typeof buildProToolsIWDSection === 'function') ? buildProToolsIWDSection() : '');
+      '<p style="color:var(--text2);font-size:0.85em;max-width:360px;margin:0 auto">No team configured yet. Roster analytics unlock once players are added &mdash; Board Lab below works without a roster.</p></div>' +
+      ((typeof buildProToolsIWDSection === 'function') ? buildProToolsIWDSection() : '') +
+      buildBoardLabSection();
+    if (typeof tcInit === 'function') tcInit('tc-container');
     return;
   }
 
@@ -297,7 +305,7 @@ function renderTeamTab(main) {
       html += `<div style="font-size:0.84em;color:var(--text2);padding:6px 0">Weakest matchup: <strong style="color:var(--red)">${p.worst_matchup}</strong> &mdash; prioritize practice here</div>`;
     }
 
-    html += `<div class="tt-replay-zone">\uD83D\uDCBC Replay files (.gz) &mdash; coming soon</div>`;
+    html += `<div class="tt-replay-zone">\uD83D\uDCBC Upload .replay.gz in Board Lab below</div>`;
     html += `</div></div>`;
   });
   html += '</div>'; // .tt-cards-grid
