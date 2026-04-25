@@ -5,13 +5,14 @@ Companion to privacy_smoke_test.py. Covers the upload/list/delete owner-only
 flow shipped 25/04 (B.2 Coach tier hardening + B.3 GDPR right-to-delete):
 
     T1  Endpoint registration — DELETE /api/v1/team/replay/:id wired
-    T2  List shape — every row exposes is_owner boolean
+    T2  List shape — every row exposes is_owner boolean (and has_note)
     T3  DELETE auth — anonymous request rejected (401) when JWT mandatory
     T4  DELETE cross-user — user B gets 403 deleting user A's replay
     T5  DELETE owner success — owner gets 204; replay disappears from list
     T6  Upload rate limit — bucket fires after free-tier threshold
+    T7  Session notes round-trip — owner-only PUT/GET/DELETE; cross-user 403
 
-T4-T6 require real JWT tokens + a game_id; missing env vars => SKIP, not FAIL.
+T4-T7 require real JWT tokens + a game_id; missing env vars => SKIP, not FAIL.
 T3 only fails when TEAM_API_REQUIRE_JWT=true (otherwise transitional mode
 returns 200 with no auth — that's expected today, hence skip-able).
 
@@ -222,6 +223,71 @@ def t5_delete_owner_success(base: str, token: str | None, game_id: str | None) -
     return r
 
 
+def t7_notes_round_trip(base: str, token_a: str | None, token_b: str | None, game_id: str | None) -> Result:
+    r = Result("T7 session notes — owner PUT/GET/DELETE; cross-user 403")
+    if not token_a or not game_id:
+        r.skip("USER_A_TOKEN and USER_A_GAME_ID required")
+        return r
+    notes_url = f"{base}/api/v1/team/replay/{game_id}/notes"
+    body_text = "smoke note from replay_ownership_smoke.py — safe to delete"
+
+    # Step 1 — owner PUT
+    put = _req("PUT", notes_url, token=token_a, json={"body": body_text})
+    if put.status_code != 200:
+        r.fail(f"PUT as owner returned {put.status_code}: {put.text[:120]}")
+        return r
+    j = put.json() or {}
+    if j.get("body") != body_text:
+        r.fail(f"PUT response body mismatch: {j}")
+        return r
+
+    # Step 2 — owner GET, body matches
+    g = _req("GET", notes_url, token=token_a)
+    if g.status_code != 200:
+        r.fail(f"GET as owner returned {g.status_code}")
+        return r
+    gj = g.json() or {}
+    if gj.get("body") != body_text:
+        r.fail(f"GET body mismatch after PUT: {gj}")
+        return r
+
+    # Step 3 — cross-user GET denied (403). Skip if token_b missing.
+    if token_b:
+        gb = _req("GET", notes_url, token=token_b)
+        if gb.status_code == 200:
+            r.fail("user B got 200 reading user A's note — NOTE LEAK")
+            return r
+        if gb.status_code != 403:
+            r.fail(f"user B got {gb.status_code} (expected 403)")
+            return r
+
+    # Step 4 — owner DELETE
+    d = _req("DELETE", notes_url, token=token_a)
+    if d.status_code != 204:
+        r.fail(f"DELETE as owner returned {d.status_code}: {d.text[:120]}")
+        return r
+
+    # Step 5 — owner GET after delete returns empty obj (200 {})
+    g2 = _req("GET", notes_url, token=token_a)
+    if g2.status_code != 200:
+        r.fail(f"GET after DELETE returned {g2.status_code} (expected 200 with empty body)")
+        return r
+    g2j = g2.json() or {}
+    if g2j.get("body"):
+        r.fail(f"GET after DELETE still has body: {g2j}")
+        return r
+
+    # Step 6 — DELETE idempotent
+    d2 = _req("DELETE", notes_url, token=token_a)
+    if d2.status_code != 204:
+        r.fail(f"second DELETE returned {d2.status_code} (expected idempotent 204)")
+        return r
+
+    cross = "+ cross-user 403" if token_b else "(USER_B_TOKEN absent, cross-user check skipped)"
+    r.pass_(f"PUT→GET→DELETE→GET→DELETE round-trip ok {cross}")
+    return r
+
+
 def t6_upload_rate_limit(base: str, token: str | None) -> Result:
     r = Result("T6 rate limit — upload bucket fires after free-tier threshold")
     if not token:
@@ -275,6 +341,9 @@ def main() -> int:
         t2_list_is_owner_field(base, user_a_token),
         t3_delete_anonymous_rejected(base),
         t4_delete_cross_user(base, user_a_token, user_b_token, user_a_game_id),
+        # T7 runs BEFORE T5 because T5 destroys the replay and would invalidate
+        # the game_id needed by the notes round-trip.
+        t7_notes_round_trip(base, user_a_token, user_b_token, user_a_game_id),
         t5_delete_owner_success(base, user_a_token, user_a_game_id),
         t6_upload_rate_limit(base, burst_token),
     ]

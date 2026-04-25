@@ -16,6 +16,15 @@ let tcAbort = false;
 let tcAnimating = false;
 let tcCardsDB = null;
 
+// B.2 — Session notes state. tcReplayList caches list rows so tcLoadReplay can
+// look up is_owner / has_note without re-querying.
+let tcReplayList = [];
+let tcCurrentReplayMeta = null;   // {game_id, is_owner, has_note, ...}
+let tcNotesSaveTimer = null;
+let tcNotesLastSavedAt = null;
+let tcNotesAutosaveMin = 5;       // body.trim().length threshold for first autosave
+let tcNotesDebounceMs = 1500;
+
 const TC_SET_MAP = {TFC:1,ROTF:2,ITI:3,URR:4,SHS:5,AZS:6,ARI:7,ROJ:8,FAB:9,WITW:10,WIS:11,WUN:12,'1':1,'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'10':10,'11':11,'12':12};
 const TC_INK_CLASS = {Amber:'amber',Amethyst:'amethyst',Emerald:'emerald',Ruby:'ruby',Sapphire:'sapphire',Steel:'steel'};
 
@@ -95,7 +104,8 @@ function tcInit(containerId) {
       <div id="tc-upload-status" style="margin-top:8px"></div>
     </div>
     <div id="tc-replay-list" style="margin-top:12px"></div>
-    <div id="tc-viewer-area" style="margin-top:16px"></div>`;
+    <div id="tc-viewer-area" style="margin-top:16px"></div>
+    <div id="tc-notes-panel" style="margin-top:14px"></div>`;
   tcLoadReplayList();
 }
 
@@ -214,21 +224,26 @@ async function tcLoadReplayList(playerFilter) {
   const url = playerFilter ? `/api/v1/team/replay/list?player=${encodeURIComponent(playerFilter)}` : '/api/v1/team/replay/list';
   try {
     const list = await (await tcFetch(url)).json();
-    if (!list.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85em;padding:8px">No replays uploaded yet</div>'; return; }
+    tcReplayList = Array.isArray(list) ? list : [];
+    if (!tcReplayList.length) { el.innerHTML = '<div style="color:var(--text2);font-size:0.85em;padding:8px">No replays uploaded yet</div>'; return; }
     el.innerHTML = '<div style="font-weight:600;margin-bottom:8px;font-size:0.9em">Uploaded Replays</div>' +
-      list.map(r => {
+      tcReplayList.map(r => {
         const delBtn = r.is_owner
           ? `<button class="tc-replay-del" title="Delete replay" onclick="event.stopPropagation();tcDeleteReplay('${r.game_id}')" style="margin-left:8px;background:transparent;border:1px solid rgba(248,81,73,0.35);color:var(--red);padding:2px 8px;border-radius:4px;font-size:0.78em;cursor:pointer">\u2715</button>`
           : '';
+        // has_note badge \u2014 server returns true ONLY for owner/admin (privacy-aware).
+        const noteBadge = r.has_note
+          ? '<span class="tc-replay-note-dot" title="You have notes for this replay" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gold);margin-left:6px;flex-shrink:0"></span>'
+          : '';
         return `<div class="tc-replay-row" onclick="tcLoadReplay('${r.game_id}')">
         <span style="color:${r.winner===1?'var(--green)':'var(--red)'};font-weight:700">${r.winner===1?'W':'L'}</span>
-        <strong>${r.player||'?'}</strong> vs ${r.opponent} \u2014 T${r.turns}
+        <strong>${r.player||'?'}</strong> vs ${r.opponent} \u2014 T${r.turns}${noteBadge}
         <span style="color:var(--text2);font-size:0.8em;margin-left:auto">${(r.created_at||'').split('T')[0]}</span>
         ${delBtn}
       </div>`;
       }).join('');
     // Auto-load first replay
-    if (list.length && list[0].game_id) tcLoadReplay(list[0].game_id);
+    if (tcReplayList.length && tcReplayList[0].game_id) tcLoadReplay(tcReplayList[0].game_id);
   } catch (err) { el.innerHTML = `<div style="color:var(--red);font-size:0.85em">Error: ${err.message}</div>`; }
 }
 
@@ -255,6 +270,152 @@ async function tcDeleteReplay(gameId) {
   }
 }
 
+// ═══ SESSION NOTES (B.2 MVP A — owner-only private) ═══
+function tcRelativeTime(iso) {
+  if (!iso) return '';
+  const t = new Date(iso).getTime();
+  const diffSec = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return diffSec + 's ago';
+  if (diffSec < 3600) return Math.round(diffSec / 60) + 'm ago';
+  if (diffSec < 86400) return Math.round(diffSec / 3600) + 'h ago';
+  return Math.round(diffSec / 86400) + 'd ago';
+}
+
+function tcRenderNotesPanel() {
+  const panel = document.getElementById('tc-notes-panel');
+  if (!panel) return;
+  const meta = tcCurrentReplayMeta;
+  if (!meta || !meta.is_owner) {
+    // Hide for non-owner / shared / anon — keeps panel out of the DOM entirely.
+    panel.innerHTML = '';
+    return;
+  }
+  panel.innerHTML = '<div class="card" style="padding:14px 16px">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+    +   '<span style="font-weight:600;font-size:0.92em">Session notes</span>'
+    +   '<span id="tc-notes-status" style="font-size:0.78em;color:var(--text2);margin-left:auto"></span>'
+    + '</div>'
+    + '<textarea id="tc-notes-body" maxlength="50000" rows="6" '
+    +   'style="width:100%;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-family:inherit;font-size:0.9em;resize:vertical;box-sizing:border-box" '
+    +   'placeholder="Add notes for this replay (visible only to you)" '
+    +   'oninput="tcNotesOnInput()"></textarea>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">'
+    +   '<button onclick="tcNotesSaveNow()" style="background:var(--gold);color:#1a1408;border:0;padding:6px 14px;border-radius:5px;font-size:0.82em;font-weight:700;cursor:pointer">Save</button>'
+    +   '<button onclick="tcNotesClear()" style="background:transparent;border:1px solid rgba(248,81,73,0.35);color:var(--red);padding:6px 12px;border-radius:5px;font-size:0.8em;font-weight:600;cursor:pointer">Clear notes</button>'
+    +   '<span id="tc-notes-counter" style="font-size:0.74em;color:var(--text2);margin-left:auto">0 / 50000</span>'
+    + '</div>'
+    + '</div>';
+  tcLoadNotes(meta.game_id);
+}
+
+async function tcLoadNotes(gameId) {
+  const ta = document.getElementById('tc-notes-body');
+  if (!ta) return;
+  try {
+    const resp = await tcFetch('/api/v1/team/replay/' + encodeURIComponent(gameId) + '/notes');
+    if (!resp.ok) {
+      tcNotesSetStatus(resp.status === 404 || resp.status === 403 ? '' : 'load failed');
+      return;
+    }
+    const note = await resp.json();
+    ta.value = note && typeof note.body === 'string' ? note.body : '';
+    tcNotesUpdateCounter();
+    tcNotesLastSavedAt = note && note.updated_at ? note.updated_at : null;
+    tcNotesRefreshSavedHint();
+  } catch (err) {
+    tcNotesSetStatus('load failed');
+  }
+}
+
+function tcNotesSetStatus(text) {
+  const el = document.getElementById('tc-notes-status');
+  if (el) el.textContent = text || '';
+}
+
+function tcNotesRefreshSavedHint() {
+  if (!tcNotesLastSavedAt) { tcNotesSetStatus(''); return; }
+  tcNotesSetStatus('Saved ' + tcRelativeTime(tcNotesLastSavedAt));
+}
+
+function tcNotesUpdateCounter() {
+  const ta = document.getElementById('tc-notes-body');
+  const c = document.getElementById('tc-notes-counter');
+  if (ta && c) c.textContent = (ta.value.length).toLocaleString() + ' / 50000';
+}
+
+function tcNotesOnInput() {
+  tcNotesUpdateCounter();
+  // Debounced autosave with minimum content threshold to avoid PUT on
+  // accidental near-empty drafts (constraint set with user).
+  if (tcNotesSaveTimer) clearTimeout(tcNotesSaveTimer);
+  const ta = document.getElementById('tc-notes-body');
+  if (!ta) return;
+  const trimmed = ta.value.trim();
+  if (trimmed.length < tcNotesAutosaveMin && !tcNotesLastSavedAt) {
+    tcNotesSetStatus(trimmed.length === 0 ? '' : 'min ' + tcNotesAutosaveMin + ' chars to autosave');
+    return;
+  }
+  tcNotesSetStatus('Saving…');
+  tcNotesSaveTimer = setTimeout(() => tcNotesSaveNow({ fromAutosave: true }), tcNotesDebounceMs);
+}
+
+async function tcNotesSaveNow(opts) {
+  const ta = document.getElementById('tc-notes-body');
+  const meta = tcCurrentReplayMeta;
+  if (!ta || !meta || !meta.is_owner) return;
+  if (tcNotesSaveTimer) { clearTimeout(tcNotesSaveTimer); tcNotesSaveTimer = null; }
+  const body = ta.value;
+  try {
+    const resp = await tcFetch('/api/v1/team/replay/' + encodeURIComponent(meta.game_id) + '/notes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: body }),
+    });
+    if (!resp.ok) {
+      let msg = 'save failed (HTTP ' + resp.status + ')';
+      try { const j = await resp.json(); if (j && j.detail) msg = String(j.detail); } catch (_) {}
+      tcNotesSetStatus(msg);
+      return;
+    }
+    const j = await resp.json();
+    tcNotesLastSavedAt = j && j.updated_at ? j.updated_at : new Date().toISOString();
+    tcNotesRefreshSavedHint();
+    // Reflect has_note=true in cached row so list re-renders show the dot.
+    const row = (tcReplayList || []).find(r => r.game_id === meta.game_id);
+    if (row) row.has_note = body.length > 0;
+    if (meta) meta.has_note = body.length > 0;
+  } catch (err) {
+    tcNotesSetStatus('save failed: ' + err.message);
+  }
+}
+
+async function tcNotesClear() {
+  const meta = tcCurrentReplayMeta;
+  if (!meta || !meta.is_owner) return;
+  if (!confirm('Clear notes for this replay?')) return;
+  if (tcNotesSaveTimer) { clearTimeout(tcNotesSaveTimer); tcNotesSaveTimer = null; }
+  try {
+    const resp = await tcFetch('/api/v1/team/replay/' + encodeURIComponent(meta.game_id) + '/notes', { method: 'DELETE' });
+    if (resp.status !== 204) {
+      let msg = 'clear failed (HTTP ' + resp.status + ')';
+      try { const j = await resp.json(); if (j && j.detail) msg = String(j.detail); } catch (_) {}
+      alert(msg);
+      return;
+    }
+    const ta = document.getElementById('tc-notes-body');
+    if (ta) ta.value = '';
+    tcNotesLastSavedAt = null;
+    tcNotesUpdateCounter();
+    tcNotesSetStatus('Cleared');
+    const row = (tcReplayList || []).find(r => r.game_id === meta.game_id);
+    if (row) row.has_note = false;
+    if (meta) meta.has_note = false;
+  } catch (err) {
+    alert('clear failed: ' + err.message);
+  }
+}
+
 // ═══ LOAD REPLAY ═══
 async function tcLoadReplay(gameId) {
   const area = document.getElementById('tc-viewer-area'); if (!area) return;
@@ -263,6 +424,12 @@ async function tcLoadReplay(gameId) {
   wbOpen = false;
   wbSelectedUid = null;
   wbArrowSvgs = [];
+
+  // B.2 — track loaded replay meta for notes panel; flush any pending autosave
+  // for the previous replay before switching.
+  if (tcNotesSaveTimer) { clearTimeout(tcNotesSaveTimer); tcNotesSaveTimer = null; }
+  tcCurrentReplayMeta = (tcReplayList || []).find(r => r.game_id === gameId) || { game_id: gameId, is_owner: false, has_note: false };
+  tcRenderNotesPanel();
 
   try { tcReplayData = await (await tcFetch(`/api/v1/team/replay/${gameId}`)).json(); }
   catch (err) { area.innerHTML = `<div style="color:var(--red);padding:20px">${err.message}</div>`; return; }

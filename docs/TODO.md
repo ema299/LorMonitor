@@ -143,8 +143,8 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 
 | Task | Effort | Impatto business |
 |------|--------|------------------|
-| Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | **DONE 25/04** — endpoint + UI + smoke test `scripts/replay_ownership_smoke.py` (6 check: T1 endpoint, T2 is_owner shape, T3 anon→401, T4 cross-user→403, T5 owner→204+gone, T6 rate limit). Run con `USER_A_TOKEN`/`USER_B_TOKEN`/`USER_A_GAME_ID` env. | Alto (Coach tier justification) |
-| Session notes persistenti per replay | 2 dev day | Alto (Coach tier) |
+| Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | **DONE 25/04** — endpoint + UI + smoke test `scripts/replay_ownership_smoke.py` (7 check: T1 endpoint, T2 is_owner+has_note shape, T3 anon→401, T4 cross-user→403, T5 owner→204+gone, T6 rate limit, T7 notes round-trip). Run con `USER_A_TOKEN`/`USER_B_TOKEN`/`USER_A_GAME_ID` env. | Alto (Coach tier justification) |
+| Session notes persistenti per replay | **DONE 25/04 (MVP A owner-only)** — migration `b8e72d4a9c3f` (`replay_session_notes` table, CASCADE FK), endpoint `GET/PUT/DELETE /api/v1/team/replay/{game_id}/notes` (`require_replay_owner`, 50k chars cap), `has_note` privacy-aware in `/replay/list` (owner/admin only), GDPR export esteso (`replay_session_notes` key), UI inline in legacy `team_coaching.js` (textarea autosave 1.5s + min 5 chars threshold + manual Save + Clear con confirm + relative timestamp + has_note dot badge nelle list rows). MVP A = no sharing; estensione futura B aggiunge `visibility` enum senza breaking. | Alto (Coach tier) |
 | Coach flow più chiaro: landing Team → upload → viewer → notes → export | 2 dev day | Alto (Coach tier) |
 | Export PDF sessione (base: snapshot + note) | 2 dev day | Medio |
 

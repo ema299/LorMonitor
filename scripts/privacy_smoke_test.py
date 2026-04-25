@@ -234,7 +234,7 @@ def t4_anonymization(base: str) -> Result:
 
 
 def t5_gdpr_export(base: str, token: str | None) -> Result:
-    r = Result("T5 GDPR export — includes team_replays + preferences")
+    r = Result("T5 GDPR export — includes team_replays + replay_session_notes + preferences")
     if not token:
         r.skip("USER_A_TOKEN required")
         return r
@@ -243,11 +243,15 @@ def t5_gdpr_export(base: str, token: str | None) -> Result:
         r.fail(f"status {resp.status_code}: {resp.text[:120]}")
         return r
     body = resp.json()
-    missing = [k for k in ("profile", "decks", "preferences", "team_replays") if k not in body]
+    required = ("profile", "decks", "preferences", "team_replays", "replay_session_notes")
+    missing = [k for k in required if k not in body]
     if missing:
         r.fail(f"missing keys: {missing}")
     else:
-        r.pass_(f"keys present: profile/decks/preferences/team_replays (team_replays: {len(body['team_replays'])} rows)")
+        r.pass_(
+            f"keys present (team_replays={len(body['team_replays'])}, "
+            f"replay_session_notes={len(body['replay_session_notes'])})"
+        )
     return r
 
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
-from backend.models.team import TeamReplay
+from backend.models.team import ReplaySessionNote, TeamReplay
 from backend.models.user import User
 from backend.models.user_deck import UserDeck
 
@@ -207,12 +207,34 @@ def export_user_data(db: Session, user: User) -> dict:
         for r in replays
     ]
 
+    # B.2 — Session notes are private to user_id, exported per GDPR right of
+    # access. Joined with team_replays.game_id for cross-reference.
+    note_rows = (
+        db.query(ReplaySessionNote, TeamReplay.game_id)
+        .join(TeamReplay, TeamReplay.id == ReplaySessionNote.replay_id)
+        .filter(ReplaySessionNote.user_id == user.id)
+        .all()
+    )
+    notes_out = [
+        {
+            "id": str(n.id),
+            "replay_id": str(n.replay_id),
+            "game_id": gid,
+            "body": n.body,
+            "body_length_chars": n.body_length_chars,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+            "updated_at": n.updated_at.isoformat() if n.updated_at else None,
+        }
+        for n, gid in note_rows
+    ]
+
     return {
         "profile": get_profile(user),
         "nicknames": get_nicknames(user),
         "preferences": get_preferences(user),
         "decks": decks,
         "team_replays": replays_out,
+        "replay_session_notes": notes_out,
         "exported_at": datetime.utcnow().isoformat(),
     }
 

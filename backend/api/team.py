@@ -7,14 +7,18 @@ Privacy layer V3 (ARCHITECTURE.md §24.5):
 - list/get filter by ownership when user is authenticated non-admin
 - transitional nginx-only mode (user=None) preserves legacy behavior
 """
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File, Query
-from sqlalchemy import or_
+from fastapi import APIRouter, Body, Depends, HTTPException, Response, UploadFile, File, Query
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import Session
 
 from backend.deps import get_current_user, get_db, require_replay_owner, require_team_access
-from backend.models.team import TeamReplay, TeamRoster
+from backend.models.team import ReplaySessionNote, TeamReplay, TeamRoster
 from backend.models.user import User
 from backend.services import replay_service
+
+# B.2 MVP A — owner-only private notes. 50k chars cap is conservative for a
+# coach-hobbyista (~10 A4 pages); raise if real usage hits the ceiling.
+NOTE_BODY_MAX_CHARS = 50_000
 
 router = APIRouter()
 
@@ -140,6 +144,37 @@ def list_replays(
     replays = q.limit(100).all()
     user_id = user.id if user is not None else None
     is_admin = bool(user and user.is_admin)
+
+    # has_note privacy-aware (B.2): true ONLY when the caller can author notes
+    # (owner OR admin viewing the owner's note). Shared users / anonymous get
+    # false even if a note exists — never leak existence of someone else's note.
+    notes_replay_ids: set = set()
+    if user_id is not None:
+        target_replay_ids = []
+        for r in replays:
+            if is_admin and r.user_id is not None:
+                target_replay_ids.append(r.id)
+            elif r.user_id == user_id:
+                target_replay_ids.append(r.id)
+        if target_replay_ids:
+            note_rows = (
+                db.query(ReplaySessionNote.replay_id)
+                .filter(
+                    ReplaySessionNote.replay_id.in_(target_replay_ids),
+                    # Match the user_id whose note will be returned by GET notes:
+                    # admin sees owner's note, owner sees own.
+                    or_(
+                        ReplaySessionNote.user_id == user_id,
+                        # Admin-viewing-owner branch: matches replay's user_id.
+                        ReplaySessionNote.user_id == TeamReplay.user_id,
+                    ) if is_admin else ReplaySessionNote.user_id == user_id,
+                )
+                .join(TeamReplay, TeamReplay.id == ReplaySessionNote.replay_id)
+                .distinct()
+                .all()
+            )
+            notes_replay_ids = {row[0] for row in note_rows}
+
     return [
         {
             "id": str(r.id),
@@ -153,6 +188,8 @@ def list_replays(
             # is_owner drives client-side DELETE button visibility (B.3 UI trigger).
             # In transitional mode (user=None) it stays false — DELETE requires JWT.
             "is_owner": bool(user_id is not None and (is_admin or r.user_id == user_id)),
+            # has_note hidden from shared / anonymous to avoid leaking existence.
+            "has_note": r.id in notes_replay_ids,
         }
         for r in replays
     ]
@@ -197,6 +234,117 @@ def delete_replay(
     only the owner (or admin) can permanently remove a replay.
     """
     db.delete(replay)
+    db.commit()
+    return Response(status_code=204)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Session notes (B.2 MVP A — owner-only private)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+@router.get("/replay/{game_id}/notes")
+def get_replay_notes(
+    replay: TeamReplay = Depends(require_replay_owner),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the owner's private note for this replay (or empty obj if none).
+
+    Owner-only (admin bypasses). Shared users get 403 — they cannot read
+    another user's private note.
+    """
+    # When admin acts on behalf of an owner, fetch the replay owner's note
+    # (admin doesn't author notes; admin reads owner's note for ops/support).
+    target_user_id = replay.user_id if (user.is_admin and replay.user_id) else user.id
+    note = (
+        db.query(ReplaySessionNote)
+        .filter(
+            ReplaySessionNote.replay_id == replay.id,
+            ReplaySessionNote.user_id == target_user_id,
+        )
+        .first()
+    )
+    if not note:
+        return {}
+    return {
+        "id": str(note.id),
+        "body": note.body,
+        "body_length_chars": note.body_length_chars,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+    }
+
+
+@router.put("/replay/{game_id}/notes")
+def upsert_replay_notes(
+    replay: TeamReplay = Depends(require_replay_owner),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    payload: dict = Body(...),
+):
+    """Upsert the owner's note for this replay. Body schema: {"body": str}.
+
+    Empty string is allowed (user explicitly cleared text but kept the row).
+    For full deletion use DELETE.
+    """
+    body = payload.get("body")
+    if not isinstance(body, str):
+        raise HTTPException(status_code=400, detail="body must be a string")
+    if len(body) > NOTE_BODY_MAX_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"body too long ({len(body)} chars; max {NOTE_BODY_MAX_CHARS})",
+        )
+
+    # Admin cannot author a note on behalf of an owner — admin can only READ.
+    # Owner_id used for upsert.
+    if user.is_admin and replay.user_id and replay.user_id != user.id:
+        raise HTTPException(status_code=403, detail="admin cannot author notes for other users")
+
+    note = (
+        db.query(ReplaySessionNote)
+        .filter(
+            ReplaySessionNote.replay_id == replay.id,
+            ReplaySessionNote.user_id == user.id,
+        )
+        .first()
+    )
+    if note is None:
+        note = ReplaySessionNote(
+            replay_id=replay.id,
+            user_id=user.id,
+            body=body,
+            body_length_chars=len(body),
+        )
+        db.add(note)
+    else:
+        note.body = body
+        note.body_length_chars = len(body)
+        from sqlalchemy import func as _func
+        note.updated_at = _func.now()
+    db.commit()
+    db.refresh(note)
+    return {
+        "id": str(note.id),
+        "body": note.body,
+        "body_length_chars": note.body_length_chars,
+        "updated_at": note.updated_at.isoformat() if note.updated_at else None,
+    }
+
+
+@router.delete("/replay/{game_id}/notes", status_code=204)
+def delete_replay_notes(
+    replay: TeamReplay = Depends(require_replay_owner),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete the owner's note. Idempotent — 204 even if no note exists."""
+    if user.is_admin and replay.user_id and replay.user_id != user.id:
+        raise HTTPException(status_code=403, detail="admin cannot delete notes for other users")
+    db.query(ReplaySessionNote).filter(
+        ReplaySessionNote.replay_id == replay.id,
+        ReplaySessionNote.user_id == user.id,
+    ).delete()
     db.commit()
     return Response(status_code=204)
 
