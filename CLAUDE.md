@@ -248,7 +248,57 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 - Tutti gli endpoint user sono sotto prefix `/api/v1/user/*` — `/profile`, `/preferences`, `/nicknames`, `/decks`, `/export`, `/interest`, `/consent`. Il primo draft di §24 usava `/api/user/*` per una diagnosi errata del prefix: in verifica post-deploy del 24/04 il consent modal legacy restituiva 405, e `ALLOWED_PREFS` whitelist droppava `consents` + `interest_to_pay` dall'export GDPR. Risolto in commit `05845e3` (fix path in `team_coaching.js` + whitelist `user_service.py` + smoke test script). Doc allineati dopo: ARCHITECTURE §24.8+§24.11, CLAUDE §Privacy Layer V3, MIGRATION_PLAN Appendice Z.
 - `POST /api/v1/user/consent` — endpoint aggiuntivo non previsto dal §24 first draft, aggiunto durante implementazione come dipendenza del consent modal Board Lab (legacy + V3). Schema: `{ kind: "tos"|"privacy"|"replay_upload"|"marketing", version: str }` → scrive `preferences.consents.<kind> = { version, accepted_at }`.
 
-**Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — current). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
+**Head alembic dopo M1**: 2 head parallele (`7894044b7dd3` Set12 cassetto dormant, `9a1e47b3f0c2` privacy — superato da `b8e72d4a9c3f` poi `c4f9e1d8a2b6`, current 26/04). Alembic upgrade richiederà revision esplicita (NON `upgrade head`) finché il cassetto Set12 resta dormant.
+
+### Coach tier hardening (25-26 Apr 2026 — B.2 + B.3 closures)
+
+Tre commit hanno chiuso ownership round-trip + audit privacy oltre il Privacy Layer V3 base:
+
+**Migrations applicate (2 nuove, additive):**
+- `b8e72d4a9c3f` — `replay_session_notes` (CASCADE FK su `team_replays` + `users`, unique idx `(replay_id, user_id)`). Owner-only private notes.
+- `c4f9e1d8a2b6` — `user_consents` (append-only audit trail, CASCADE FK su `users`, idx `(user_id, kind, accepted_at)`). Promuove consents da JSONB cache a tabella; JSONB resta come fast-read pointer.
+
+**Endpoint nuovi sotto `/api/v1/team/replay/*`:**
+- `DELETE /api/v1/team/replay/{game_id}` — `require_replay_owner`, idempotent. GDPR right-to-delete.
+- `GET /api/v1/team/replay/{game_id}/notes` — owner-only (admin sees owner's note for ops support).
+- `PUT /api/v1/team/replay/{game_id}/notes` — UPSERT, max 50k chars, captures body + body_length_chars.
+- `DELETE /api/v1/team/replay/{game_id}/notes` — idempotent 204.
+- `GET /api/v1/team/replay/list` ora espone `is_owner` (boolean) e `has_note` (privacy-aware: true solo per owner/admin).
+
+**Endpoint nuovi sotto `/api/v1/user/*`:**
+- `POST /api/v1/user/consent` ora **dual-write**: append row in `user_consents` (audit, con ip + user_agent catturati da `Request`) + mantiene `preferences.consents.<kind>` JSONB cache per backward-compat.
+- `GET /api/v1/user/consents` — restituisce latest-per-kind dal table (audit-grade, separato dal cache JSONB).
+
+**Rate limit upload bucket:**
+- `backend/middleware/rate_limit.py` — `UPLOAD_REPLAY_LIMITS` per-tier (free 5/min, pro 30, team 60, admin 300). Più stringente del bucket globale per evitare storage abuse.
+
+**GDPR export esteso** (`backend/services/user_service.py::export_user_data`):
+- `replay_session_notes` (full content + metadata)
+- `user_consents` (full history, oldest first, con ip/UA)
+
+**Frontend (legacy `frontend_v3/assets/js/team_coaching.js`, no refactor):**
+- DELETE button owner-only con confirm su replay rows.
+- Notes panel inline sotto viewer (owner-only): textarea autosave 1.5s + min 5 chars threshold + manual Save + Clear con confirm + relative timestamp + has_note dot badge nelle list rows.
+
+**Frontend V3 (`profile.js`, `shared_ui.js`):**
+- Nickname bridge stats card in Home + Improve (`pfPlayerBridgeStats` + `pfBridgeStatsCard`): "X matches, Y% WR, N decks, best deck Z".
+- Improvement path header in Improve (`pfImprovementPath`): 3 step (worst matchup → best matchup → underperforming deck).
+- Improve hero CTA (`pfImproveNickHero`) quando `!duelsNick`.
+- Privacy boundary copy: rimossa lingua "claiming" (My Stats → Player lookup, Your improvement path → Improvement path, ecc.). Audit + 11 fix in profile.js + shared_ui.js.
+
+**Smoke test live:**
+- `scripts/replay_ownership_smoke.py` — 7 check (T1 endpoint, T2 is_owner+has_note shape, T3 anon→401, T4 cross-user→403, T5 owner→204+gone, T6 rate limit, T7 notes round-trip). Run con `USER_A_TOKEN`/`USER_B_TOKEN`/`USER_A_GAME_ID` env.
+- `scripts/privacy_smoke_test.py` — T5 esteso a verificare `replay_session_notes` + `user_consents` keys; T8 nuovo (POST /consent → JSONB sync + table append + GET /consents latest match).
+
+**Backend live restart richiesto** post-deploy: senza `systemctl restart lorcana-api`, gli endpoint nuovi (DELETE replay, notes round-trip, GET /consents) rispondono 405 e POST /consent continua a scrivere solo su JSONB. Migration sono già applicate sul DB.
+
+### Improve deck-story drilldown (25/04)
+
+- Il drilldown “Deck focus” resta **dentro Improve**, non apre il tab Deck.
+- La story usa `GET /api/v1/coach/deck-history/{deck_code}` come trend read-only a 5 giorni.
+- Il pannello mostra un **sample mix** Standard / Top / Pro derivato da `DATA.perimeters`.
+- Le **Cards in crisis** sono derivate dal worst matchup del deck via `matchup_analyzer[deck].vs_<opp>.card_scores`, ordinate loss-heavy (`loss_apps - win_apps`) e poi per delta negativo.
+- Il refresh del pannello usa `render()` locale per evitare salti su Home/Deck; niente cambio nav.
 
 ---
 
@@ -258,10 +308,13 @@ Delta additivo per chiudere ownership/privacy gap prima che V3 vada live. Docume
 - `feedback_ux_principles.md` — 3 principi UX (semplicità / parità iPhone-web / a scomparsa)
 - `feedback_claude_subscription_not_api.md` — subscription OAuth Max per batch, mai crediti API
 - `feedback_openai_for_kc.md` — killer curves via OpenAI gpt-5.4-mini
+- `feedback_v3_nav_sacred.md` — V3 nav fissa a 7 tab, post-launch features nest INSIDE existing tabs
+- `feedback_v3_anti_monolith_rules.md` — V3 file LOC caps + monolith.js frozen
 - `project_apptool_status.md` — stato 136K+ → 200K+ match in PG
 - `project_independence_plan.md` — Fase A-H migrazione
 - `project_coaching_tool.md` — Board Lab replay upload
+- `project_b7_coach_workspace.md` — Coach tier €39/m workspace plan, off-limits pre-launch, 9 sub-sezioni + 7 attention points
 
 ---
 
-*Ultimo aggiornamento: 25 Apr 2026 — KC LLM request optimization applicata: JSON mode in produzione, cache key `digest_hash + prompt_contract_hash + schema_version`, payload `v3_payload/self_check`, metriche completezza in `killer_curves.meta`. Privacy Layer V3 live dal 24 Apr 2026; resta alias mail `legal@` + porting V3 (vedere `docs/MIGRATION_PLAN.md` Appendice Z).*
+*Ultimo aggiornamento: 25 Apr 2026 — KC LLM request optimization applicata: JSON mode in produzione, cache key `digest_hash + prompt_contract_hash + schema_version`, payload `v3_payload/self_check`, metriche completezza in `killer_curves.meta`. Privacy Layer V3 live dal 24 Apr 2026; resta alias mail `legal@` + porting V3 (vedere `docs/MIGRATION_PLAN.md` Appendice Z). Deck-story drilldown in Improve aggiunto con sample mix Standard/Top/Pro e crisis cards loss-heavy.*
