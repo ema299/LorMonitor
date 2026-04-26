@@ -137,6 +137,8 @@
         '</div>' +
         '<button type="submit" class="lm-form-submit">Sign in</button>' +
         '<div class="lm-form-footer">' +
+          '<button type="button" class="lm-form-link" onclick="lmShowForgotPassword()">Forgot password?</button>' +
+          ' &nbsp;·&nbsp; ' +
           'New here? <button type="button" class="lm-form-link" onclick="lmShowSignUp()">Create an account</button>' +
         '</div>' +
       '</form>'
@@ -271,6 +273,154 @@
       submit.textContent = 'Create account';
     }
   }
+
+  // ── Forgot password — request reset email ───────────────────────────────
+  function showForgotPassword() {
+    buildModalShell(
+      'Reset password',
+      "Enter your email and we'll send you a reset link. The link is valid for one hour.",
+      '<form id="lm-forgot-form" autocomplete="on">' +
+        '<div class="lm-form-error" role="alert"></div>' +
+        '<div class="lm-form-info" role="status"></div>' +
+        '<div class="lm-form-group">' +
+          '<label class="lm-form-label" for="lm-forgot-email">Email</label>' +
+          '<input class="lm-form-input" id="lm-forgot-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>' +
+        '</div>' +
+        '<button type="submit" class="lm-form-submit">Send reset link</button>' +
+        '<div class="lm-form-footer">' +
+          'Remembered it? <button type="button" class="lm-form-link" onclick="lmShowSignIn()">Back to sign in</button>' +
+        '</div>' +
+      '</form>'
+    );
+    const form = document.getElementById('lm-forgot-form');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitForgotPassword(form);
+    });
+  }
+  window.lmShowForgotPassword = showForgotPassword;
+
+  async function submitForgotPassword(form) {
+    const email = form.querySelector('#lm-forgot-email').value.trim();
+    const submit = form.querySelector('button[type="submit"]');
+    if (!email) {
+      showError(form, 'Email is required.');
+      return;
+    }
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+    try {
+      const resp = await fetch('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email }),
+      });
+      // Backend always returns 200 to prevent email enumeration.
+      if (!resp.ok) {
+        showError(form, 'Unexpected error. Please try again later.');
+        submit.disabled = false;
+        submit.textContent = 'Send reset link';
+        return;
+      }
+      showInfo(form,
+        "If the email is registered, a reset link has been sent. Check your inbox " +
+        "(and spam folder). The link expires in one hour."
+      );
+      submit.disabled = true;
+      submit.textContent = 'Sent';
+    } catch (err) {
+      showError(form, 'Network error. Check your connection and try again.');
+      submit.disabled = false;
+      submit.textContent = 'Send reset link';
+    }
+  }
+
+  // ── Reset password — apply new password from email link ─────────────────
+  // Triggered automatically when the URL carries ?reset_token=...
+  function showResetPassword(token) {
+    buildModalShell(
+      'Choose a new password',
+      'Set a new password for your account. After saving you will be signed in automatically.',
+      '<form id="lm-reset-form" autocomplete="on">' +
+        '<div class="lm-form-error" role="alert"></div>' +
+        '<div class="lm-form-info" role="status"></div>' +
+        '<div class="lm-form-group">' +
+          '<label class="lm-form-label" for="lm-reset-pw">New password</label>' +
+          '<input class="lm-form-input" id="lm-reset-pw" type="password" name="new_password" placeholder="At least 8 characters" autocomplete="new-password" minlength="8" required>' +
+        '</div>' +
+        '<div class="lm-form-group">' +
+          '<label class="lm-form-label" for="lm-reset-pw-confirm">Confirm password</label>' +
+          '<input class="lm-form-input" id="lm-reset-pw-confirm" type="password" placeholder="Repeat the new password" autocomplete="new-password" minlength="8" required>' +
+        '</div>' +
+        '<input type="hidden" id="lm-reset-token" value="' + escHtml(token) + '">' +
+        '<button type="submit" class="lm-form-submit">Save new password</button>' +
+      '</form>'
+    );
+    const form = document.getElementById('lm-reset-form');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      submitResetPassword(form);
+    });
+  }
+  window.lmShowResetPassword = showResetPassword;
+
+  async function submitResetPassword(form) {
+    const pw = form.querySelector('#lm-reset-pw').value;
+    const pw2 = form.querySelector('#lm-reset-pw-confirm').value;
+    const token = form.querySelector('#lm-reset-token').value;
+    const submit = form.querySelector('button[type="submit"]');
+    if (pw.length < 8) {
+      showError(form, 'Password must be at least 8 characters.');
+      return;
+    }
+    if (pw !== pw2) {
+      showError(form, "Passwords don't match.");
+      return;
+    }
+    submit.disabled = true;
+    submit.textContent = 'Saving…';
+    try {
+      const resp = await fetch('/api/v1/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, new_password: pw }),
+      });
+      if (!resp.ok) {
+        const detail = (await resp.json().catch(() => ({}))).detail || resp.statusText;
+        showError(form, 'Reset failed: ' + (detail || 'token may be expired or invalid.'));
+        submit.disabled = false;
+        submit.textContent = 'Save new password';
+        return;
+      }
+      showInfo(form, 'Password updated. Redirecting to sign in…');
+      // Strip ?reset_token from URL so a refresh doesn't re-trigger the modal.
+      try {
+        const u = new URL(window.location.href);
+        u.searchParams.delete('reset_token');
+        window.history.replaceState({}, '', u.toString());
+      } catch (_) { /* noop */ }
+      setTimeout(function () {
+        closeModal();
+        showSignIn();
+      }, 600);
+    } catch (err) {
+      showError(form, 'Network error. Check your connection and try again.');
+      submit.disabled = false;
+      submit.textContent = 'Save new password';
+    }
+  }
+
+  // Auto-open reset modal when URL carries ?reset_token=...
+  document.addEventListener('DOMContentLoaded', function () {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('reset_token');
+      if (token) {
+        // Defer slightly so other scripts and CSS have settled.
+        setTimeout(function () { showResetPassword(token); }, 200);
+      }
+    } catch (_) { /* noop */ }
+  });
 
   // ── Logout ──────────────────────────────────────────────────────────────
   async function doLogout() {
