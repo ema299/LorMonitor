@@ -13,7 +13,7 @@ Severity:
 Returns a structured dict — see ``validate()`` docstring.
 
 Aligned with ``docs/KILLER_CURVES_BLINDATURA_V3.md`` Backlog P0 (riga 740+) and
-``killer.md`` 3-tier rule (META | FALLBACK_CORE_LEGAL | DROP).
+``CLAUDE.md`` §KC validator wave 3-tier rule (META | FALLBACK_CORE_LEGAL | DROP).
 """
 from __future__ import annotations
 
@@ -253,7 +253,7 @@ def _check_curve_response(
             errors.append({"code": "card_off_color_response", "severity": "P0", "curve_id": cid,
                            "detail": f"response card off-color for {our_deck}: {card_name}"})
             continue
-        # 3-tier (killer.md): META first, FALLBACK second, DROP third
+        # 3-tier (CLAUDE.md §KC validator wave): META first, FALLBACK second, DROP third
         if card_name in meta_cards:
             drop["response_cards_kept_meta"] += 1
         elif game_format == "core" and card_name in fallback_cards:
@@ -263,7 +263,7 @@ def _check_curve_response(
             errors.append({"code": "card_non_meta", "severity": "P1", "curve_id": cid,
                            "detail": f"response card not in current meta nor fallback pool: {card_name}"})
 
-    # Mention rule (killer.md): if response.cards != [], at least one must be named
+    # Mention rule (CLAUDE.md §KC validator wave): if response.cards != [], at least one must be named
     valid_cards = [c for c in cards if isinstance(c, str) and c.strip()]
     if valid_cards:
         text = _combined_response_text(response)
