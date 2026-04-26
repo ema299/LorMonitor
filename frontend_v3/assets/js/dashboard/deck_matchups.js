@@ -181,21 +181,36 @@
       (r.games || 0) + ',' + (r.decksWith || 0) + ',' + (r.decksTotal || 0) + ')';
   }
 
-  function _cardsBucketGridHtml(opp) {
+  function _cardsBucketGridHtml(opp, deckCode) {
     const t = _cardsTrendingRows(opp);
     if (!t || (!t.over.length && !t.under.length)) {
       return '<div class="mh-cards-empty">No card shows a ±' + STRONG_DELTA_PP +
         'pp signal on ≥' + MIN_SAMPLE_CARDS + ' appearances vs ' + _esc(opp) + '.</div>';
     }
     const hb = _hb();
+    const deckMap = _deckMap(deckCode);
+    const _keyOf = function (name) {
+      const raw = String(name || '').trim();
+      const base = raw.includes(' - ') ? raw.split(' - ')[0] : raw;
+      return base.toLowerCase();
+    };
+    const inDeck = []; // accumulate {name, qty, isOver} across buckets
+
     const renderRow = function (r, isOver) {
       const dot = isOver ? '🟢' : '🔴';
       const deltaFmt = hb ? hb.formatDelta(r.pp, r.games) : (r.pp >= 0 ? '+' : '') + r.pp.toFixed(1) + 'pp';
       const confCls = hb ? hb.confidenceClass(r.games) : 'hb-med';
       const confLbl = hb ? hb.confidenceLabel(r.games) : 'Medium';
-      return '<li class="mh-cards-row">' +
+      const qty = deckMap[_keyOf(r.name)] || 0;
+      const isIn = qty > 0;
+      if (isIn) inDeck.push({ name: r.name, qty: qty, isOver: isOver });
+      const rowCls = isIn ? ' mh-cards-row--in-deck' : '';
+      const inBadge = isIn
+        ? '<span class="mh-cards-in-list" title="Already in this list">✓ ' + qty + '× in list</span>'
+        : '';
+      return '<li class="mh-cards-row' + rowCls + '">' +
         '<span class="mh-cards-dot">' + dot + '</span>' +
-        '<span class="mh-cards-name">' + _esc(_short(r.name)) + '</span>' +
+        '<span class="mh-cards-name">' + _esc(_short(r.name)) + inBadge + '</span>' +
         '<span class="mh-cards-stat">' + deltaFmt +
         ' <span class="mh-cards-sample" role="button" tabindex="0" onclick="' + _cardOnclick(r) + '">' +
         _cardSampleLabel(r) + '</span>' +
@@ -208,10 +223,23 @@
     const underHtml = t.under.length
       ? '<ul class="mh-cards-list">' + t.under.map(function (r) { return renderRow(r, false); }).join('') + '</ul>'
       : '<div class="mh-cards-inline-empty">No underperformer ≤−' + STRONG_DELTA_PP + 'pp.</div>';
+
+    const note = inDeck.length
+      ? '<div class="mh-cards-in-deck-note">' +
+        '<strong>Already in this list:</strong> ' +
+        inDeck.map(function (c) {
+          const cls = c.isOver ? 'mh-in-over' : 'mh-in-under';
+          return '<span class="' + cls + '">' + c.qty + '× ' + _esc(_short(c.name)) + '</span>';
+        }).join(' · ') +
+        '</div>'
+      : '<div class="mh-cards-in-deck-note mh-cards-in-deck-note--empty">' +
+        'None of the trending cards are in this list yet.' +
+        '</div>';
+
     return '<div class="mh-cards-grid">' +
       '<div class="mh-cards-bucket"><div class="mh-cards-bucket-head">🟢 Overperforming</div>' + overHtml + '</div>' +
       '<div class="mh-cards-bucket"><div class="mh-cards-bucket-head">🔴 Underperforming</div>' + underHtml + '</div>' +
-      '</div>';
+      '</div>' + note;
   }
 
   // ---------------------- Row HTML ----------------------
@@ -309,14 +337,43 @@
             return '<span class="mh-chip mh-chip--miss">' + _esc(_short(m)) + '</span>';
           }).join('') + '</div>'
         : '';
+      // v3_payload coach_badges (max 2) inline next to name; mulligan focus
+      // shown as a single compact line beneath the coverage line. Both are
+      // optional and only appear for curves whose generation included v3.
+      const v3 = curve && typeof curve.v3_payload === 'object' ? curve.v3_payload : null;
+      var coachBadgesHtml = '';
+      if (v3 && Array.isArray(v3.coach_badges) && v3.coach_badges.length) {
+        coachBadgesHtml = v3.coach_badges.slice(0, 2).map(function (b) {
+          if (typeof b !== 'string' || !b.trim()) return '';
+          return '<span class="mh-exp-coach-badge" title="Coach badge">' + _esc(b) + '</span>';
+        }).join('');
+      }
+      var mulliganLine = '';
+      if (v3 && Array.isArray(v3.mulligan_focus) && v3.mulligan_focus.length) {
+        var mulText = v3.mulligan_focus
+          .filter(function (m) { return typeof m === 'string' && m.trim(); })
+          .slice(0, 2)
+          .map(_esc)
+          .join(' · ');
+        if (mulText) {
+          mulliganLine = '<div class="mh-exp-mulligan"><span class="mh-exp-mul-lbl">Mulligan:</span> ' + mulText + '</div>';
+        }
+      }
+      var hookLine = '';
+      if (v3 && typeof v3.one_line_hook === 'string' && v3.one_line_hook.trim()) {
+        hookLine = '<div class="mh-exp-hook">' + _esc(v3.one_line_hook) + '</div>';
+      }
       return '<div class="mh-exp-curve ' + bad.cls + '">' +
         '<div class="mh-exp-curve-head">' +
         '<span class="mh-exp-icon">' + bad.icon + '</span>' +
         '<span class="mh-exp-curve-name">' + name + '</span>' +
         (tturn ? '<span class="mh-exp-turn">' + tturn + '</span>' : '') +
         '<span class="mh-exp-freq">' + pct + ' observed</span>' +
+        coachBadgesHtml +
         '</div>' +
+        hookLine +
         '<div class="mh-exp-cov-line">' + covLine + '</div>' +
+        mulliganLine +
         haveChips + missChips +
         '</div>';
     }).join('');
@@ -350,7 +407,7 @@
         _curvesBlockHtml(opp, deckCode);
     } else {
       inner = '<div class="mh-exp-head">Cards trending <span class="mh-exp-sub">vs ' + _esc(opp) + ' · card_scores · 14d</span></div>' +
-        _cardsBucketGridHtml(opp);
+        _cardsBucketGridHtml(opp, deckCode);
     }
     return '<div class="mh-expand" onclick="event.stopPropagation()">' +
       tabsHtml + inner + _workspaceCtaHtml(opp) + '</div>';
@@ -426,10 +483,31 @@
       return row + exp;
     }).join('');
     const hint = '<div class="mh-hint">Sorted by win rate (worst first). Tap a row to expand · Open full workspace for the deep dive.</div>';
-    return '<div class="mh-card">' +
+    const intro = '<div class="deck-intro deck-intro--above">' +
+      '<strong>One row per opponent observed at least ' + MATRIX_MIN_GAMES + ' times</strong> ' +
+      'in the selected scope, sorted by archetype win rate worst-first — the matchups ' +
+      'that cost this deck the most lore are the ones most worth studying. Tap a row ' +
+      'to expand: the <strong>Cards</strong> tab shows which specific cards the winning ' +
+      'pilots of this archetype are running vs that opponent (with <em>in_deck_rate</em> — ' +
+      'share of observed decks actually running the card); the <strong>Curves</strong> ' +
+      'tab shows the opponent’s most common killer sequences, traffic-light coded ' +
+      'by how well this list answers them. Open the full workspace for the six-section ' +
+      'deep dive.' +
+      '</div>';
+    const headerRow = '<div class="mh-row-head" aria-hidden="true">' +
+      '<span class="mh-rh-col"></span>' +              // chev (aligns with row chev column)
+      '<span class="mh-rh-col mh-rh-col--left">Opponent</span>' +
+      '<span class="mh-rh-col"><span class="mh-rh-lbl">WR</span></span>' +
+      '<span class="mh-rh-col"><span class="mh-rh-lbl">Games</span></span>' +
+      '<span class="mh-rh-col"><span class="mh-rh-lbl">Conf.</span></span>' +
+      '<span class="mh-rh-col"><span class="mh-rh-lbl">Rating</span></span>' +
+      '<span class="mh-rh-col"><span class="mh-rh-lbl">Coverage</span></span>' +
+      '</div>';
+    return intro + '<div class="mh-card">' +
       '<div class="mh-head">Matchups ' +
       '<span class="mh-head-sub">' + rows.length + ' observed · ' + DAYS + 'd</span></div>' +
       otpStrip +
+      headerRow +
       '<div class="mh-list">' + body + '</div>' +
       hint +
       '</div>';

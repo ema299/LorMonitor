@@ -1212,11 +1212,65 @@ function kcResponseSummary(resp) {
   return resp.headline || resp.core_rule || resp.strategy || '';
 }
 
+function kcRenderV3Payload(p3, compact) {
+  if (!p3 || typeof p3 !== 'object') return '';
+  let html = '';
+  const fontMain = compact ? '0.82em' : '0.85em';
+  const fontLbl = compact ? '0.78em' : '0.8em';
+  const fontHook = compact ? '0.85em' : '0.9em';
+
+  // Coach badges — horizontal row, max 3 from prompt schema
+  if (Array.isArray(p3.coach_badges) && p3.coach_badges.length) {
+    html += `<div class="cv2-coach-badges" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">`;
+    p3.coach_badges.slice(0, 3).forEach(b => {
+      if (typeof b === 'string' && b.trim()) {
+        html += `<span style="background:rgba(212,160,58,0.15);color:var(--gold);padding:2px 8px;border-radius:10px;font-size:${fontLbl};font-weight:700;border:1px solid rgba(212,160,58,0.3)">${rvEscapeHtml(b)}</span>`;
+      }
+    });
+    html += `</div>`;
+  }
+
+  // One-line hook — punchy headline above main response
+  if (p3.one_line_hook && typeof p3.one_line_hook === 'string') {
+    html += `<div style="font-size:${fontHook};font-weight:700;color:var(--gold);margin-bottom:6px;line-height:1.35">${rvEscapeHtml(p3.one_line_hook)}</div>`;
+  }
+
+  // Mulligan focus — keep/cut priority before the match
+  if (Array.isArray(p3.mulligan_focus) && p3.mulligan_focus.length) {
+    html += `<div style="margin-top:6px">`;
+    html += `<div style="font-size:${fontLbl};font-weight:700;color:var(--green);margin-bottom:3px">Mulligan Priority</div>`;
+    html += `<ul style="margin:0;padding-left:18px;font-size:${fontMain};line-height:1.4">`;
+    p3.mulligan_focus.slice(0, 2).forEach(m => {
+      if (typeof m === 'string' && m.trim()) html += `<li>${rvEscapeHtml(m)}</li>`;
+    });
+    html += `</ul></div>`;
+  }
+
+  // Turn checklist — micro-playbook by turn
+  if (p3.turn_checklist && typeof p3.turn_checklist === 'object' && !Array.isArray(p3.turn_checklist)) {
+    const entries = Object.entries(p3.turn_checklist).filter(([t, v]) => typeof v === 'string' && v.trim());
+    if (entries.length) {
+      html += `<div style="margin-top:6px">`;
+      html += `<div style="font-size:${fontLbl};font-weight:700;color:var(--green);margin-bottom:3px">Turn Checklist</div>`;
+      entries.slice(0, 3).forEach(([turn, action]) => {
+        html += `<div class="cv2-turn-row" style="margin-top:2px"><span class="cv2-t">${rvEscapeHtml(turn)}</span><span class="cv2-play">${rvEscapeHtml(action)}</span></div>`;
+      });
+      html += `</div>`;
+    }
+  }
+  return html;
+}
+
 function kcRenderResponse(resp, opts) {
   opts = opts || {};
   if (!resp || typeof resp !== 'object') return '';
   const sections = kcResponseSections(resp);
   let html = '';
+  // v3_payload renders FIRST (when present): coach_badges + one_line_hook
+  // act as an entry point above the v2 detailed sections.
+  if (opts.v3Payload) {
+    html += kcRenderV3Payload(opts.v3Payload, opts.compact);
+  }
   if (sections.length) {
     sections.forEach(section => {
       html += `<div style="margin-top:${opts.compact ? '6px' : '8px'}">`;
@@ -1231,6 +1285,9 @@ function kcRenderResponse(resp, opts) {
     });
   } else if (resp.strategy) {
     html += `<div style="font-size:${opts.compact ? '0.82em' : '0.85em'}">${resp.strategy}</div>`;
+  } else if (opts.v3Payload && opts.v3Payload.user_copy && opts.v3Payload.user_copy.expanded) {
+    // Fallback: when v2 is absent, fall back to v3_payload.user_copy.expanded
+    html += `<div style="font-size:${opts.compact ? '0.82em' : '0.85em'}">${rvEscapeHtml(opts.v3Payload.user_copy.expanded)}</div>`;
   }
   if (resp.cards && resp.cards.length) {
     html += `<div style="margin-top:6px;font-size:${opts.compact ? '0.8em' : '0.82em'}"><strong>Key cards:</strong> ${resp.cards.join(', ')}</div>`;
@@ -1629,6 +1686,7 @@ function renderCoachV2Tab(main) {
       swing: curve.critical_turn?.swing || '',
       sequence: curve.sequence || {},
       response: curve.response || {},
+      v3_payload: curve.v3_payload || null,
       validation: curve.validation || {},
       keyCards: curve.key_cards || [],
       // From matching LLM threat
@@ -1823,7 +1881,7 @@ function renderCoachV2Tab(main) {
           responseHtml += `</div>`;
         });
       } else if (hasResponse) {
-        responseHtml += kcRenderResponse(tb.response, { compact: true });
+        responseHtml += kcRenderResponse(tb.response, { compact: true, v3Payload: tb.v3_payload });
       } else {
         responseHtml += `<div style="color:var(--text2);font-size:0.85em">Response not yet analyzed.</div>`;
       }
