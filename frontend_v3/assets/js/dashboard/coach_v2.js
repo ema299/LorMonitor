@@ -1629,7 +1629,19 @@ function renderCoachV2Tab(main) {
     playRegisterMatchupView(coachDeck, coachOpp);
   }
 
-  let content = selectorHtml;
+  // Visual parity with Deck — gold-rail block intros (`.deck-intro--above`).
+  // Strong headline = block title, prose = short description (1-2 lines).
+  const playPickerIntro = '<div class="deck-intro deck-intro--above">' +
+    '<strong>Pick the matchup.</strong> Choose the deck you are playing on the left ' +
+    'and your opponent on the right. Everything below — KPIs, threats, killer curves — ' +
+    'recalculates for that pair.' +
+    '</div>';
+  const playStripIntro = '<div class="deck-intro deck-intro--above">' +
+    '<strong>Match snapshot.</strong> Win rate, On-the-Play / On-the-Draw breakdown, ' +
+    'gap and observed sample size in the active scope. The <em>Pre-Match</em> button ' +
+    'opens a one-screen cheatsheet you can scroll while shuffling.' +
+    '</div>';
+  let content = playPickerIntro + selectorHtml + playStripIntro;
 
   // 1. Compact KPI strip
   const wrCl = (ov.wr||0) >= 50 ? 'wr-good' : 'wr-bad';
@@ -1742,6 +1754,11 @@ function renderCoachV2Tab(main) {
     <span class="tab-section-hdr__eyebrow">Threat Analysis</span>
     <span class="tab-section-hdr__title">Key threats &amp; how to respond</span>
   </div>`;
+  content += '<div class="deck-intro deck-intro--above">' +
+    '<strong>Threat-by-threat playbook.</strong> Each row below is an opponent line ' +
+    'observed in this matchup, sorted by frequency. Tap a row to expand the turn-by-turn ' +
+    'sequence and the recommended response from your deck.' +
+    '</div>';
   if (threatBriefs.length === 0) {
     content += `<div class="card" style="text-align:center;padding:24px;color:var(--text2)">No threats identified for this matchup.</div>`;
   }
@@ -1945,6 +1962,11 @@ function renderCoachV2Tab(main) {
     <span class="tab-section-hdr__eyebrow">Match Tools</span>
     <span class="tab-section-hdr__title">Killer Cards · Playbook</span>
   </div>`;
+  content += '<div class="deck-intro deck-intro--above">' +
+    '<strong>Match tools.</strong> <em>Killer Cards</em> ranks the opponent cards that ' +
+    'most often correlate with their wins in this matchup. <em>Full Playbook</em> shows ' +
+    'the complete turn-by-turn opponent script aggregated from observed losses.' +
+    '</div>';
   content += `<div class="cv2-secondary" id="cv2-sec-tabs">
     <button class="cv2-sec-tab${cv2SecTab==='killer_cards'?' active':''}" onclick="event.stopPropagation();cv2SecTab='killer_cards';renderCV2Secondary()">Killer Cards</button>
     <button class="cv2-sec-tab${cv2SecTab==='playbook'?' active':''}" onclick="event.stopPropagation();cv2SecTab='playbook';renderCV2Secondary()">Full Playbook</button>
@@ -1954,7 +1976,13 @@ function renderCoachV2Tab(main) {
   // Best Plays — sequence reali devastanti del deck in matchup
   if (typeof buildBestPlaysCard === 'function') {
     const bpHtml = buildBestPlaysCard(coachDeck);
-    if (bpHtml) content += bpHtml;
+    if (bpHtml) {
+      content += '<div class="deck-intro deck-intro--above">' +
+        '<strong>Best plays seen here.</strong> Real plays from observed wins of this deck — ' +
+        'the high-impact lines (wipes, lore swings, combo turns) you can study or replicate.' +
+        '</div>';
+      content += bpHtml;
+    }
   }
 
   main.innerHTML = content;

@@ -846,16 +846,30 @@ function renderProfileTab(main) {
     }
   } catch (_) { teaserHtml = ''; }
 
+  // Visual parity with Deck tab — gold-rail block intros (`.deck-intro--above`).
+  // Strong headline = block title, prose = short description (1-2 lines).
+  const heroIntro = '<div class="deck-intro deck-intro--above">' +
+    '<strong>Your home cockpit.</strong> Pick a deck on the left to anchor the dashboard, ' +
+    'then read the snapshot on the right to see how that deck is performing in the active scope. ' +
+    'Selection syncs to Play, Meta and Deck automatically.' +
+    '</div>';
+  const coachIntro = coachHtml ? '<div class="deck-intro deck-intro--above">' +
+    '<strong>Coach Corner.</strong> Notes, alerts and diary entries tied to your linked nickname. ' +
+    'Hidden when there is nothing to show.' +
+    '</div>' : '';
+
   main.innerHTML = `<div class="pf-dash">
     ${headerHtml}
     ${onboardHtml}
     ${nudgeHtml}
     ${teaserHtml}
+    ${heroIntro}
     <div class="pf-hero-row">
       ${heroDeckCard}
       ${heroRadarCard}
     </div>
     ${tipsHtml}
+    ${coachIntro}
     ${coachHtml}
   </div>
   ${drawerHtml}`;
