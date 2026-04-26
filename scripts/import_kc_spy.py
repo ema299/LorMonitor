@@ -88,4 +88,19 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as _exc:  # noqa: BLE001
+        try:
+            import traceback as _tb
+            from backend.services.incident_reporter import report_incident
+            report_incident(
+                source="import_kc_spy",
+                severity="error",
+                payload={"error": str(_exc), "traceback": _tb.format_exc(limit=20)},
+            )
+        except Exception:
+            pass
+        raise

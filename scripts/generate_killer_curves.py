@@ -864,4 +864,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as _exc:  # noqa: BLE001 — emit incident before re-raise
+        try:
+            import traceback as _tb
+            from backend.services.incident_reporter import report_incident
+            report_incident(
+                source="kc_batch_full",
+                severity="error",
+                payload={"error": str(_exc), "traceback": _tb.format_exc(limit=20)},
+            )
+        except Exception:
+            pass
+        raise

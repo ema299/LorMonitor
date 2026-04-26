@@ -399,5 +399,22 @@ def import_all(dry_run: bool = False):
 if __name__ == '__main__':
     dry_run = '--dry-run' in sys.argv
     t0 = time.time()
-    import_all(dry_run=dry_run)
+    try:
+        import_all(dry_run=dry_run)
+    except Exception as _exc:  # noqa: BLE001
+        try:
+            import traceback as _tb
+            from backend.services.incident_reporter import report_incident
+            report_incident(
+                source="import_matches",
+                severity="error",
+                payload={
+                    "error": str(_exc),
+                    "traceback": _tb.format_exc(limit=20),
+                    "dry_run": dry_run,
+                },
+            )
+        except Exception:
+            pass
+        raise
     print(f"Total time: {time.time() - t0:.1f}s")
