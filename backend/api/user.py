@@ -3,7 +3,7 @@ Requires: logged in (any tier).
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -206,29 +206,58 @@ def export_data(
 @router.post("/consent")
 def register_consent(
     payload: ConsentRequest,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Record a consent acceptance in users.preferences.consents.<kind>.
+    """Record a consent acceptance.
 
-    See ARCHITECTURE.md §24.3.2. Overwrites any previous version for the
-    same kind — the latest acceptance wins. For versioning / audit trail,
-    promote consents to a dedicated user_consents table (post-30gg).
+    B.3 dual-write: the canonical audit trail lives in ``user_consents``
+    (append-only, includes ip/user_agent for legal forensics). The
+    ``users.preferences.consents.<kind>`` JSONB cache is kept in sync as a
+    fast-read pointer to "latest acceptance per kind" for UI checks.
+
+    See ARCHITECTURE.md §24.3.2.
     """
-    from datetime import datetime, timezone
     from sqlalchemy.orm.attributes import flag_modified
 
+    # 1) Append-only history row
+    ip = request.client.host if request.client else None
+    ua = request.headers.get("user-agent")
+    row = user_service.record_consent(
+        db, user, kind=payload.kind, version=payload.version, ip=ip, user_agent=ua
+    )
+
+    # 2) JSONB cache (latest-per-kind) — kept for backward compat with code
+    #    paths that read preferences.consents.<kind> without DB hit.
     prefs = dict(user.preferences or {})
     consents = dict(prefs.get("consents", {}))
     consents[payload.kind] = {
         "version": payload.version,
-        "accepted_at": datetime.now(timezone.utc).isoformat(),
+        "accepted_at": row.accepted_at.isoformat() if row.accepted_at else None,
     }
     prefs["consents"] = consents
     user.preferences = prefs
     flag_modified(user, "preferences")
     db.commit()
-    return {"ok": True, "kind": payload.kind, "version": payload.version}
+
+    return {
+        "ok": True,
+        "kind": payload.kind,
+        "version": payload.version,
+        "accepted_at": consents[payload.kind]["accepted_at"],
+    }
+
+
+@router.get("/consents")
+def list_consents(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the latest accepted consent per kind, sourced from the
+    ``user_consents`` table (audit-grade, not the JSONB cache).
+    """
+    return {"latest": user_service.get_latest_consents(db, user)}
 
 
 # ── Soft paywall / waitlist (pre-monetization) ───────────────────────

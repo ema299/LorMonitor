@@ -148,14 +148,15 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 |------|--------|------------------|
 | Upload/delete owner-only verificati end-to-end (include `DELETE /api/v1/team/replay/:id` con `require_replay_owner`) | **DONE 25/04** — endpoint + UI + smoke test `scripts/replay_ownership_smoke.py` (7 check: T1 endpoint, T2 is_owner+has_note shape, T3 anon→401, T4 cross-user→403, T5 owner→204+gone, T6 rate limit, T7 notes round-trip). Run con `USER_A_TOKEN`/`USER_B_TOKEN`/`USER_A_GAME_ID` env. | Alto (Coach tier justification) |
 | Session notes persistenti per replay | **DONE 25/04 (MVP A owner-only)** — migration `b8e72d4a9c3f` (`replay_session_notes` table, CASCADE FK), endpoint `GET/PUT/DELETE /api/v1/team/replay/{game_id}/notes` (`require_replay_owner`, 50k chars cap), `has_note` privacy-aware in `/replay/list` (owner/admin only), GDPR export esteso (`replay_session_notes` key), UI inline in legacy `team_coaching.js` (textarea autosave 1.5s + min 5 chars threshold + manual Save + Clear con confirm + relative timestamp + has_note dot badge nelle list rows). MVP A = no sharing; estensione futura B aggiunge `visibility` enum senza breaking. | Alto (Coach tier) |
-| Coach flow più chiaro: landing Team → upload → viewer → notes → export | 2 dev day | Alto (Coach tier) |
 | Export PDF sessione (base: snapshot + note) | 2 dev day | Medio |
+
+> **Nota scope**: il "coach flow gestionale" (landing → roster → queue → review → export → share) è ora gestito interamente in **B.7 Coach Workspace** (nuova sezione). B.2 resta scoped alle *feature* di Board Lab (export PDF, viewer evolution, viewer comparativo).
 
 ## B.3. Privacy — hardening
 
 | Task | Effort | Impatto business |
 |------|--------|------------------|
-| Tabella `user_consents` dedicata (se serve versioning append-only) invece di JSONB `preferences.consents` | 1 dev day | Basso (compliance seria) |
+| Tabella `user_consents` dedicata (se serve versioning append-only) invece di JSONB `preferences.consents` | **DONE 26/04** — migration `c4f9e1d8a2b6` (`user_consents` table append-only, CASCADE FK su `users`, idx composto `(user_id, kind, accepted_at)`); model `UserConsent`; service helpers `record_consent` + `get_latest_consents`; endpoint `POST /api/v1/user/consent` ora dual-write (table + JSONB cache mantenuto per backward-compat) con `ip` + `user_agent` catturati da `request`; nuovo `GET /api/v1/user/consents` legge latest-per-kind da table; GDPR export esteso con `user_consents` key (full history); smoke `privacy_smoke_test.py` T8 (POST→JSONB sync + table append + GET latest match). | Basso (compliance seria) |
 | Rate limit upload replay (DoS prevention + abuse) | **DONE 25/04** (`backend/middleware/rate_limit.py:25-33` bucket dedicato per-tier: free 5/min, pro 30, team 60, admin 300) | Medio |
 | `DELETE /api/v1/team/replay/:id` endpoint + UI trigger | **DONE 25/04** — endpoint `team.py:184` con `require_replay_owner`; `is_owner` esposto in `/replay/list`; UI button (`team_coaching.js:228+225`) owner-only con confirm | Alto (GDPR right to delete) |
 
@@ -187,7 +188,128 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 | `daily_health_digest.py` 07:30 UTC → mail unica a `monitorteamfe@gmail.com` | Fase 1 | Raggruppa nuovi feedback per kind + incidents per source/severity + lista azioni suggerita |
 | `digest_remediation_plan.py` 08:00 UTC con LLM plan in `docs/incidents/YYYY-MM-DD.md` | Fase 2 | Solo suggerimenti, mai esecuzione; prompt con log pertinenti, no secrets, no destructive, compatibile con `ARCHITECTURE.md` |
 
-## B.7. NON in B — resta fuori scope 30 gg
+## B.7. Coach Workspace — tab Team end-to-end
+
+**Goal:** trasformare il tab Team da read-only KPI dashboard a workspace gestionale per Coach tier €39/m. Stessa nav, stesso tab, layered rendering basato su `User.tier` esistente. Player view (free/pro/coach-in-casual-mode) e Coach view convivono nella stessa pagina con render condizionale.
+
+**Architettura (vincoli non-negoziabili):**
+- **NESSUN nuovo tab** (V3 nav sacred, 7 tab fissi).
+- **NESSUNA seconda autenticazione** dentro il tab. JWT `tier='coach'` (già esistente in `auth_service.create_access_token`) basta. Il toggle Player/Coach view è UI-state in `User.preferences.team_view_mode`, non auth.
+- **NESSUNA nuova capability surface**: `users.tier` (`free|pro|coach|team`) + `promo_service.granted_tier` esistenti coprono entrambi gating Stripe e beta access.
+- **NESSUNA nuova tabella di membership**: si estende `team_roster` con `coach_id` + `student_user_id` (entrambi FK `users.id`, nullable). Il binding replay→studente passa per `team_replays.student_id` + nuovo campo `gz_internal_nick` (estratto al parse del `.gz`), **indipendente da `duels_nick`** — questo è il fix dello stress-test "CSV con 0 match in duels".
+- **Nuovo codice in moduli V3-native** (`frontend_v3/assets/js/dashboard/team_*.js`) wired via scaffolding `views/`. **Niente nuovo codice in `frontend/assets/js/team_coaching.js`** (legacy 2005 LOC, flagged C.2). Sblocca anche C.3 (`views/` scaffolding).
+- **Anonymizer** (`backend/services/replay_anonymizer.py`, già consent-aware da privacy V3) esteso: mostra `display_name` reale solo se ruolo richiedente = `coach_reviewer` AND `student.consent_version >= REQUIRED`. Default resta `Player/Opponent`.
+- **Migration alembic** sempre additive, non rompono head `9a1e47b3f0c2` (privacy V3) né `b8e72d4a9c3f` (session notes).
+- **Discord** mai prerequisito: workspace coach funziona end-to-end senza Discord (B.7.9 è Fase 2 opzionale).
+
+**Guardrail Claude:**
+- NON implementare in pre-launch. Anche post-launch, **B.7.0 (gating) è prerequisito infra** prima di qualsiasi altra sub-sezione.
+- Ogni sub-sezione = **PR separata**, mai bundle. Se una sub-sezione richiede migration + endpoint + UI, splittare in 3 PR consecutive.
+- **Mai introdurre WebSocket**, secondo login, account separati per coach/player, o un nuovo tab.
+- **Mai estendere `team_coaching.js`**: ogni nuovo componente in file V3-native nuovi.
+- **Audit privacy**: prima di ogni endpoint nuovo, verificare che `replay_anonymizer` sia stato considerato e che le 3 dependency `require_replay_owner` / `require_replay_reviewer` (NEW) / `require_replay_access` siano applicate correttamente.
+
+### B.7.0 Tier gating + beta access (prerequisito)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Stripe webhook → `users.tier='coach'` post-checkout (riusa `subscription_service.create_checkout_session`, già scaffold). Test con account dev Stripe + dry-run. | 2 dev day | Alto |
+| Beta redemption code: riuso `promo_service.granted_tier='coach'` + endpoint `POST /api/v1/promo/redeem-beta`, distribuibile a 5-10 power-coach prima di Stripe live. Codici scadono dopo N giorni o never (param). Audit log redemption. | 1 dev day | Alto (dogfooding) |
+| `User.preferences.team_view_mode` (`player`/`coach`, default `coach` se `tier=coach`, sennò non applicabile). Endpoint `PUT /api/v1/user/preferences` già accetta whitelist (`user_service.py::ALLOWED_PREFS`) — aggiungere `team_view_mode` lì. | 0.5 dev day | Medio |
+| **Tier `team` legacy compatibility**: `users.tier` ENUM oggi accetta `free|pro|coach|team` (`team` è valore storico pre-`coach`). Default policy B.7: `tier='team'` mappato a Coach Workspace capability (alias temporaneo) per non rompere user paganti esistenti. Decisione finale di prodotto sul tier `team` (deprecate / alias permanente / tier intermedio €19) tracciata in B.7.Y. Nessun nuovo signup deve poter scegliere `team` — restringere `interest_to_pay` pattern a `(pro\|coach)` in `backend/api/user.py`. | 0.5 dev day | Alto (no silent default-deny per pagante) |
+
+### B.7.1 Layered rendering tab Team (player / coach view)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| `renderTeamTab()` in `team.js` switch su `(tier, team_view_mode)`: free+team→KPI+roster cards read-only (oggi), pro→+analytics avanzate (read-only), coach+coach-mode→full workspace, coach+player-mode→stessa vista pro. | 1 dev day | Alto |
+| Toggle Player/Coach view nell'header del tab Team (visibile solo se `tier=coach`). Persistenza in `preferences.team_view_mode`. | 0.5 dev day | Medio |
+| Empty states differenziati: (no team / free with team / coach without students / coach onboarding). Soft-gating upsell card per pro→coach: "Upgrade to manage students". | 1 dev day | Medio (conversion) |
+
+### B.7.2 Roster gestionale + CSV import
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Migration additiva `team_roster`: `+ coach_id FK users, student_user_id FK users NULL, display_name, status_admin ENUM[invited|active|paused|archived], duels_nick, duels_nick_status ENUM[missing|unverified|linked|conflict], discord_username, discord_id, notes, revoked_at`. Backfill rows esistenti come `coach_id=NULL` (roster legacy team-wide resta accessibile a admin). | 1 dev day | Alto (foundation) |
+| Endpoint `POST /api/v1/team/students` (single CRUD) + `POST /api/v1/team/students/bulk` (CSV: display_name, duels_nick?, discord?). Parser server-side, validazione nick contro `matches` table (max 10k row check). Quote: max 50 studenti per coach. | 2 dev day | Alto |
+| UI `team_roster_editor.js` (NEW MODULO V3): tabella editabile, add/remove/edit inline, import CSV button, badge `Linked · 47 matches` / `Missing — ask student to play`. | 2 dev day | Alto |
+
+### B.7.3 Nickname binding (gz_internal_nick + duels_nick separati)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Parser `.gz` (estende `replay_archive_service.py` + `match_log_features_service.py`) salva `team_replays.gz_internal_nick` al parse. Migration additiva. | 1 dev day | Alto (stress-test fix) |
+| Tabella `replay_nick_bindings (coach_id, gz_internal_nick, student_id, created_at)` UNIQUE`(coach_id, gz_internal_nick)`. Endpoint `POST /api/v1/team/bindings` per assegnazione manuale. Auto-suggest se nick coincide con `team_roster.duels_nick` di studente già linked. | 1 dev day | Alto |
+| UI student-picker modal post-upload `.gz` (`team_student_picker.js` NEW): "Who is this replay from?" → dropdown studenti + auto-suggest. Successivi upload con stesso `gz_internal_nick` saltano il modal. | 1 dev day | Alto (UX critico) |
+| Validazione `duels_nick` in `team_roster`: cron giornaliero (riusa slot `monitor_kc_freshness` 07:00 UTC) verifica match in `matches` table, aggiorna `duels_nick_status`. | 0.5 dev day | Medio |
+
+### B.7.4 Replay queue + review states
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Migration additiva `team_replays`: `+ student_id FK team_roster NULL, review_status ENUM[new|in_review|reviewed|shared|archived] DEFAULT 'new', reviewed_at, reviewed_by FK users`. Indice composto `(coach_id, review_status, created_at DESC)` per queue performance (essenziale a 1500+ replay/coach). | 1 dev day | Alto |
+| Endpoint `PATCH /api/v1/team/replay/{id}/status` con dependency `require_replay_reviewer` (NEW: coach del team del cui studente è il replay, con consent OK). | 0.5 dev day | Alto |
+| Endpoint `GET /api/v1/team/workspace` (no-cache, separato da `/team/overview` blob 2h): queue replay + counters per stato + roster live + activity recent. Paginazione (default 50, max 200) + filtri (`student_id`, `status`, `date_from`, `date_to`). | 2 dev day | Alto |
+| UI queue panel `team_queue.js` (NEW MODULO V3): landing del Coach view in tab Team. Filtri queue, counter chip ("3 new", "5 to deliver"), click row → Board Lab viewer con replay caricato. | 2-3 dev day | Alto |
+
+### B.7.5 Session notes visibility model (extension MVP A)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Migration additiva `replay_session_notes`: `+ visibility ENUM[owner_only|coach_private|shared_with_student] DEFAULT 'owner_only'`. No breaking — MVP A esistenti restano `owner_only`. | 0.5 dev day | Medio |
+| Endpoint `PUT /notes` accetta `visibility`. Read logic: studente vede solo `shared_with_student`, coach vede `coach_private` + `shared_with_student` dei propri student, owner vede sempre proprie note. | 1 dev day | Alto (loop coaching) |
+| UI toggle "Share with student" inline su nota in Board Lab. Studente in tab Team vede badge "Coach notes (X)" sui suoi replay condivisi, click → vista note shared. | 1 dev day | Alto |
+
+### B.7.6 Coach feedback hook (extension B.6)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| `user_feedback.kind` aggiunge valore `coach_issue`. Auto-context modal: roster size, replay pending count, last review date. Triage prioritario nel digest B.6 (sezione coach-only). | 0.5 dev day (extension B.6) | Medio |
+
+### B.7.7 Side studente — revoke + GDPR cascade + audit log
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Studente vede "Your coaches" in Profile: lista coach + button "Revoke coach access". `team_roster.revoked_at` + cascade soft (replay restano con `student_id → null`, note `coach_private` orfanate restano coach-asset, `shared_with_student` decadono). | 1.5 dev day | Alto (GDPR + trust) |
+| Account delete cascade: `team_roster.student_user_id → null`, `team_replays.student_id → null` ma `gz_internal_nick` resta (asset coach), note pseudonimizzate (`display_name → "Former student"`). Test in `scripts/privacy_smoke_test.py` (estensione T8/T9). | 1 dev day | Alto (compliance) |
+| Tabella `replay_access_log (replay_id, viewer_id, action ENUM[view|review|share|note_create|note_share], at)`. Append-only. Studente può richiedere "audit del proprio replay" via GDPR export esteso. | 1 dev day | Medio (privacy posture) |
+
+### B.7.8 Notifications & realtime (no WebSocket)
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Polling `/team/workspace` ogni 30s in tab Team attivo (gated by `document.visibilityState`). Counter unread su tab Team navbar quando `new` queue cambia. Pause polling se tab nascosto. | 1 dev day | Medio |
+| Mail immediata "Coach reviewed your replay" allo studente quando coach setta `shared_with_student`. Riusa SMTP esistente (`/tmp/.smtp_pass`, sender `monitorteamfe@gmail.com`). | 0.5 dev day | Alto (loop coaching) |
+| Mail digest "X new replays from your students today" al coach (extension B.6 daily digest, sezione coach-only). | 0.5 dev day (extension B.6) | Medio |
+
+### B.7.9 Discord integration (Fase 2 — NON blocker)
+
+Discord come acceleratore. Workspace funziona end-to-end senza Discord. **Vincolo invariante:** ogni studente importato da Discord deve comunque passare per `duels_nick` linking — Discord ≠ analytics access.
+
+| Task | Effort | Impatto |
+|------|--------|---------|
+| Discord bot OAuth + scelta server/ruolo (es. `Students`, `DKP Students`) + import membri come `team_roster` con `discord_id`/`discord_username`. Sync periodico: nuovo membro→`invited`, ruolo rimosso→`paused`, leave→`archived` (con confirm). | 3-5 dev day | Medio-Alto |
+| Discord notifications (replay received / review completed / N pending). Opt-in per coach. | 2 dev day | Medio |
+
+### B.7.X Vincoli inline (applicati a tutte le sub-sezioni)
+
+- **Quote per tier**: free→nessun roster gestionale (oggi), pro→roster read-only, coach→max 50 studenti + max 500 replay storage (configurabile env). Enforcement lato endpoint.
+- **Tier gating UI**: render condizionale, mai hard-hide componenti — sempre mostrare upsell CTA dove applicabile (drives conversion).
+- **Migration policy**: tutte additive, mai breaking. Ogni migration deve coesistere con head `7894044b7dd3` cassetto Set12 dormant.
+- **English-only copy** (CLAUDE.md): UI tab Team, mail notification, error messages tutti in inglese.
+- **No new cron**: riusare slot esistenti (`monitor_kc_freshness` 07:00, `daily_health_digest` 07:30 di B.6) per validation/digest task. Cron nuovo solo se Fase 2 Discord sync.
+
+### B.7.Y Decisioni esplicitamente DEFERRED
+
+- **Multi-coach per team** (assistant coach, head coach + sub-coach) — Fase 3 post B.7 stable.
+- **Note collaborative** (studente risponde alla nota del coach, thread) — MVP unidirezionale.
+- **Studente ospite via magic link** senza account metamonitor — riduce barriera adoption ma è feature grossa, DEFERRED.
+- **Coach contattabilità senza account studente** (coach uploada `.gz` ricevuti via DM) — funziona già con `gz_internal_nick` binding lato coach senza che lo studente sia user. Resta supportato come fallback, non come flusso primario.
+- **Decisione finale tier `team`**: in B.7.0 è alias temporaneo a Coach capability per non rompere user paganti esistenti. 3 strade aperte da decidere come **decisione di prodotto** (non tecnica): (a) deprecate definitivo + migrazione user esistenti a `coach`/`pro`; (b) alias permanente di `coach` riservato per multi-coach team (sblocca multi-coach Fase 3); (c) tier intermedio €19/m tra Pro e Coach (Pro+roster read-only, no queue/review). Decisione attesa entro 30 gg dal B.7 launch. Fino ad allora: alias = `coach`, signup nuovo `team` bloccato.
+
+---
+
+## B.8. NON in B — resta fuori scope 30 gg
 
 - Country segmentation / meta locale (richiede ≥500 utenti con country; post-60 gg minimo)
 - Coach page pubblica `/coach/<slug>` + affiliate (post-validazione Coach tier, non prima)
@@ -220,12 +342,14 @@ Da `feedback_v3_anti_monolith_rules.md`:
 - Dedup: sostituisci con chiamate a moduli V3-native dove possibile
 - Effort stimato: 1 settimana
 
+**Sequenziamento con B.7:** se B.7 (Coach Workspace) chiude prima di C.2, gran parte di `team_coaching.js` (notes UI, share toggle, queue hooks) è già stata riscritta in moduli V3-native (`team_roster_editor.js`, `team_queue.js`, `team_student_picker.js`). In quel caso C.2 collassa a *deprecation/delete dopo parity check* — effort scende da 1 settimana a 1-2 giorni. Se invece C.2 viene fatto prima, B.7 deve riusare i nuovi `team_coaching_*.js` modularizzati invece di crearne di nuovi paralleli.
+
 ## C.3. V3 — `views/` scaffolding non wired
 
 `assets/js/views/` (148 LOC totali, 8 file) sono placeholder per split futuro.
 
 - Decidere: wire o rimuovere
-- Raccomandazione: wire gradualmente quando si fa C.1 (profile.js split → home.js + improve.js useranno lo scaffolding)
+- Raccomandazione: wire gradualmente quando si fa C.1 (profile.js split → home.js + improve.js useranno lo scaffolding) **o quando si fa B.7** (i nuovi `team_roster_editor.js` / `team_queue.js` / `team_student_picker.js` di Coach Workspace sono i candidati naturali per popolare lo scaffolding)
 
 ## C.4. Service Worker cleanup
 
@@ -345,6 +469,7 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 |------------|-------|
 | Alembic head `9a1e47b3f0c2` (team_replays ownership) | Applicato |
 | Deps `require_replay_access` / `require_replay_owner` | Live |
+| Dep `require_replay_reviewer` (coach del team del cui studente è il replay, consent-aware) | PENDING — sarà introdotto da B.7.4 (Replay queue + review states) |
 | `replay_anonymizer.py` + wiring API | Live |
 | `POST /api/v1/user/interest` + `POST /api/v1/user/consent` | Live |
 | GDPR export esteso con `team_replays` | Live |
@@ -383,6 +508,8 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 **Goal:** rendere Home, Play, Meta, Team, Improve, Events coerenti con la maturità visuale del tab Deck senza cambiare nav o contenuti. Non blocca go-live; sprint di polish post-launch.
 
 **Guardrail Claude:** visual parity non significa redesign. Non cambiare nav, ordine tab, copy strategica, dati mostrati, gating/paywall o layout funzionale. Prima fare audit e lista differenze; poi patch CSS/classi condivise piccole. Evitare refactor monolitici e non toccare più di 1-2 tab per commit. Ogni patch deve passare smoke mobile/desktop e controllare overflow/overlap.
+
+**Sequenziamento con B.7:** il tab Team passa per ultimo nel C.12 sweep. Non lavorare su visual parity tab Team finché B.7.4 (queue + roster componenti V3-native) non è chiuso e stabile — altrimenti CSS thrash tra ridisegno e wiring nuovi componenti.
 
 | Task | Nota |
 |------|------|

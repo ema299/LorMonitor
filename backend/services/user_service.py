@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import and_, text
 from sqlalchemy.orm import Session
 
+from backend.models.consent import UserConsent
 from backend.models.team import ReplaySessionNote, TeamReplay
 from backend.models.user import User
 from backend.models.user_deck import UserDeck
@@ -228,6 +229,27 @@ def export_user_data(db: Session, user: User) -> dict:
         for n, gid in note_rows
     ]
 
+    # B.3 — Append-only consent history (all acceptances, oldest first).
+    # The JSONB cache `preferences.consents.<kind>` already exposes the latest
+    # acceptance per kind; this list adds the audit trail.
+    consent_rows = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == user.id)
+        .order_by(UserConsent.accepted_at.asc())
+        .all()
+    )
+    consents_out = [
+        {
+            "id": str(c.id),
+            "kind": c.kind,
+            "version": c.version,
+            "accepted_at": c.accepted_at.isoformat() if c.accepted_at else None,
+            "ip": c.ip,
+            "user_agent": c.user_agent,
+        }
+        for c in consent_rows
+    ]
+
     return {
         "profile": get_profile(user),
         "nicknames": get_nicknames(user),
@@ -235,8 +257,57 @@ def export_user_data(db: Session, user: User) -> dict:
         "decks": decks,
         "team_replays": replays_out,
         "replay_session_notes": notes_out,
+        "user_consents": consents_out,
         "exported_at": datetime.utcnow().isoformat(),
     }
+
+
+# ── Consents (B.3 — append-only audit trail) ────────────────────────
+
+def record_consent(
+    db: Session,
+    user: User,
+    kind: str,
+    version: str,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> UserConsent:
+    """Append a consent acceptance to user_consents. The JSONB cache is
+    updated separately by the API endpoint to keep that responsibility
+    explicit. Truncates user_agent at 500 chars defensively.
+    """
+    row = UserConsent(
+        user_id=user.id,
+        kind=kind[:40],
+        version=version[:20],
+        ip=ip[:45] if ip else None,
+        user_agent=user_agent[:500] if user_agent else None,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+def get_latest_consents(db: Session, user: User) -> dict:
+    """Return latest acceptance per kind from user_consents table.
+    Returns ``{kind: {version, accepted_at}}`` — same shape as the JSONB
+    cache, sourced from the table for audit-grade reads.
+    """
+    rows = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == user.id)
+        .order_by(UserConsent.kind, UserConsent.accepted_at.desc())
+        .all()
+    )
+    latest: dict[str, dict] = {}
+    for r in rows:
+        if r.kind not in latest:
+            latest[r.kind] = {
+                "version": r.version,
+                "accepted_at": r.accepted_at.isoformat() if r.accepted_at else None,
+            }
+    return latest
 
 
 # ── My Stats ─────────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ Checks (matches ARCHITECTURE.md §24.10 A10 and friends):
     T5  GDPR export — response includes team_replays + preferences
     T6  Soft paywall — POST /api/v1/user/interest records intent in preferences
     T7  Orphan records — pre-M1 replays (user_id IS NULL) denied for non-admin
+    T8  Consent dual-write — POST /consent appends user_consents AND mirrors
+        in preferences.consents.<kind>; GET /consents reads from table
 
 T2 and T7 need at least one non-admin user + an admin user. The script uses
 env vars to receive JWT tokens; if tokens are missing, those checks are
@@ -234,7 +236,7 @@ def t4_anonymization(base: str) -> Result:
 
 
 def t5_gdpr_export(base: str, token: str | None) -> Result:
-    r = Result("T5 GDPR export — includes team_replays + replay_session_notes + preferences")
+    r = Result("T5 GDPR export — includes team_replays + replay_session_notes + user_consents")
     if not token:
         r.skip("USER_A_TOKEN required")
         return r
@@ -243,14 +245,18 @@ def t5_gdpr_export(base: str, token: str | None) -> Result:
         r.fail(f"status {resp.status_code}: {resp.text[:120]}")
         return r
     body = resp.json()
-    required = ("profile", "decks", "preferences", "team_replays", "replay_session_notes")
+    required = (
+        "profile", "decks", "preferences",
+        "team_replays", "replay_session_notes", "user_consents",
+    )
     missing = [k for k in required if k not in body]
     if missing:
         r.fail(f"missing keys: {missing}")
     else:
         r.pass_(
             f"keys present (team_replays={len(body['team_replays'])}, "
-            f"replay_session_notes={len(body['replay_session_notes'])})"
+            f"replay_session_notes={len(body['replay_session_notes'])}, "
+            f"user_consents={len(body['user_consents'])})"
         )
     return r
 
@@ -279,6 +285,60 @@ def t6_interest(base: str, token: str | None) -> Result:
         r.pass_(f"interest_to_pay persisted: tier={itp['tier']} at={itp['at'][:19]}")
     else:
         r.fail(f"interest_to_pay not recorded: {itp}")
+    return r
+
+
+def t8_consent_dual_write(base: str, token: str | None) -> Result:
+    r = Result("T8 consent dual-write — POST mirrors to JSONB + appends user_consents")
+    if not token:
+        r.skip("USER_A_TOKEN required")
+        return r
+
+    # Use 'marketing' kind with a sentinel version to avoid clobbering real
+    # tos/privacy/replay_upload acceptances (idempotent for the test user).
+    sentinel_version = "smoke-1.0"
+    post_resp = post(
+        f"{base}/api/v1/user/consent",
+        token=token,
+        json={"kind": "marketing", "version": sentinel_version},
+    )
+    if post_resp.status_code != 200:
+        r.fail(f"POST /consent status {post_resp.status_code}: {post_resp.text[:120]}")
+        return r
+    pj = post_resp.json() or {}
+    if pj.get("kind") != "marketing" or pj.get("version") != sentinel_version:
+        r.fail(f"POST /consent response mismatch: {pj}")
+        return r
+
+    # JSONB cache reflects the acceptance
+    exp = get(f"{base}/api/v1/user/export", token=token)
+    if exp.status_code != 200:
+        r.fail(f"export verify failed: {exp.status_code}")
+        return r
+    body = exp.json() or {}
+    cache = ((body.get("preferences") or {}).get("consents") or {}).get("marketing") or {}
+    if cache.get("version") != sentinel_version:
+        r.fail(f"JSONB cache not updated: {cache}")
+        return r
+
+    # Audit table list contains the acceptance
+    audit = body.get("user_consents") or []
+    has_row = any(c.get("kind") == "marketing" and c.get("version") == sentinel_version for c in audit)
+    if not has_row:
+        r.fail(f"user_consents table missing the row (got {len(audit)} entries)")
+        return r
+
+    # GET /consents returns latest from table
+    g = get(f"{base}/api/v1/user/consents", token=token)
+    if g.status_code != 200:
+        r.fail(f"GET /consents status {g.status_code}")
+        return r
+    latest = (g.json() or {}).get("latest") or {}
+    if latest.get("marketing", {}).get("version") != sentinel_version:
+        r.fail(f"GET /consents latest mismatch: {latest}")
+        return r
+
+    r.pass_("POST mirrored to JSONB + appended row + GET returns latest from table")
     return r
 
 
@@ -350,6 +410,7 @@ def main() -> int:
         t5_gdpr_export(base, user_a_token),
         t6_interest(base, user_a_token),
         t7_orphan_denied(base, admin_token, user_a_token),
+        t8_consent_dual_write(base, user_a_token),
     ]
 
     print(f"{BOLD}Results:{RESET}")
