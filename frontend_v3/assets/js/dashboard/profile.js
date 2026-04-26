@@ -1556,6 +1556,11 @@ function renderImproveTab(main) {
       <span class="tab-section-hdr__eyebrow">Profile</span>
       <span class="tab-section-hdr__title">Setup &middot; pinned deck &middot; player lookup</span>
     </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>Profile.</strong> Link your duels.ink nickname so the dashboard can pull
+      your real matches and turn them into improvement signals. The bridge card and
+      the path below are computed from this link.
+    </div>
 
     ${nickHeroHtml}
     ${headerHtml}
@@ -1569,6 +1574,11 @@ function renderImproveTab(main) {
       <span class="tab-section-hdr__eyebrow">Player lookup</span>
       <span class="tab-section-hdr__title">Win rates &middot; matchup gaps &middot; deck history</span>
     </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>Player lookup.</strong> Public match-log signals for the linked nickname:
+      WR per deck, worst matchup per deck, best MMR. These are the numbers the
+      improvement path uses to suggest the next move.
+    </div>
 
     <div class="pf-kpi-card">
       <div style="font-size:0.82em;color:var(--text2);margin-bottom:12px">Performance signals based on the linked nickname's public match logs.</div>
@@ -1579,6 +1589,11 @@ function renderImproveTab(main) {
       <span class="tab-section-hdr__eyebrow">Study</span>
       <span class="tab-section-hdr__title">Blind playbook &middot; card analysis</span>
     </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>Study.</strong> The Blind Playbook is the pre-meta-knowledge guide for
+      your deck — what to keep on mulligan, which curves to look for, what to fear.
+      Card Analysis breaks down which cards in your list pull weight and which drag.
+    </div>
 
     <div id="pf-blind-playbook-host-improve"></div>
     ${(window.V3 && window.V3.CardAnalysis) ? window.V3.CardAnalysis.buildSections() : ''}
@@ -1586,6 +1601,11 @@ function renderImproveTab(main) {
     <div class="tab-section-hdr" style="margin-top:var(--sp-5)">
       <span class="tab-section-hdr__eyebrow">Practice</span>
       <span class="tab-section-hdr__title">Mulligan Trainer &middot; Replay Viewer</span>
+    </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>Practice.</strong> Drill the openings against real PRO opening hands and
+      replay your own match logs at your own pace. Repetition here is what closes the
+      gap between knowing the matchup and playing it cleanly.
     </div>
     ${(window.V3 && window.V3.ImprovePlayTools) ? window.V3.ImprovePlayTools.buildSections() : ''}
   </div>`;

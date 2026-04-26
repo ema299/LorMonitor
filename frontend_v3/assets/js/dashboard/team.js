@@ -110,6 +110,11 @@ function buildBoardLabSection() {
     '<span class="tab-section-hdr__eyebrow">Board Lab</span>' +
     '<span class="tab-section-hdr__title">Replay viewer &middot; game-by-game analysis</span>' +
     '</div>' +
+    '<div class="deck-intro deck-intro--above">' +
+    '<strong>Board Lab.</strong> Upload a <em>.replay.gz</em> match and step through it ' +
+    'turn by turn — board state, ink, hand and resolved abilities reconstructed from the ' +
+    'log. Your uploads are private to you unless you explicitly share them.' +
+    '</div>' +
     '<div class="tt-collapsible open" id="tt-lab-coll">' +
     '<button class="tt-coll-head" onclick="ttToggleSection(\'tt-lab-coll\')">' +
     '<span class="tt-coll-title">🧪 Board Lab</span>' +
@@ -279,6 +284,11 @@ function renderTeamTab(main) {
   <div class="tab-section-hdr">
     <span class="tab-section-hdr__eyebrow">Team Overview</span>
     <span class="tab-section-hdr__title">Performance KPIs &middot; alerts</span>
+  </div>
+  <div class="deck-intro deck-intro--above">
+    <strong>Team overview.</strong> Roster size, average win rate, total games and the
+    daily WR sparkline aggregated across all your players. Alerts surface here when a
+    player drops below threshold or a deck pick stops working.
   </div>`;
 
   // ── KPI Strip ──
@@ -313,6 +323,11 @@ function renderTeamTab(main) {
   html += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
     <span class="tab-section-hdr__eyebrow">Roster</span>
     <span class="tab-section-hdr__title">Player cards &middot; matchup breakdown &middot; focus areas</span>
+  </div>
+  <div class="deck-intro deck-intro--above">
+    <strong>Roster.</strong> One card per player with their best deck, recent WR trend
+    and the matchups dragging their results down. Tap a card to expand into the
+    matchup-by-matchup breakdown and the focus areas worth coaching next.
   </div>`;
   html += '<div class="tt-cards-grid">';
   players.sort((a, b) => b.wr - a.wr).forEach((p, idx) => {
@@ -413,6 +428,11 @@ function renderTeamTab(main) {
   html += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
     <span class="tab-section-hdr__eyebrow">Analysis</span>
     <span class="tab-section-hdr__title">Meta coverage &middot; lineup &middot; heatmap</span>
+  </div>
+  <div class="deck-intro deck-intro--above">
+    <strong>Team analysis.</strong> How well your roster covers the current meta,
+    a suggested lineup for an event, and the full WR heatmap by player and matchup.
+    Use this to decide who plays what before tournament day.
   </div>`;
 
   // ── Meta Coverage heatmap ──
@@ -530,6 +550,11 @@ function renderTeamTab(main) {
   html += `<div class="tab-section-hdr" style="margin-top:var(--sp-5)">
     <span class="tab-section-hdr__eyebrow">Board Lab</span>
     <span class="tab-section-hdr__title">Replay viewer &middot; game-by-game analysis</span>
+  </div>
+  <div class="deck-intro deck-intro--above">
+    <strong>Board Lab.</strong> Upload a <em>.replay.gz</em> match and step through it
+    turn by turn — board state, ink, hand and resolved abilities reconstructed from the
+    log. Your uploads are private to you unless you explicitly share them.
   </div>`;
   html += `<div class="tt-collapsible open" id="tt-lab-coll">
     <button class="tt-coll-head" onclick="ttToggleSection('tt-lab-coll')">
