@@ -38,6 +38,7 @@ output/
 # Local backups and runtime cache
 *.bak
 scripts/.import_skip_cache
+scripts/.unmapped_monitor_state.json
 backups/
 .codex
 
