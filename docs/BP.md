@@ -1,10 +1,11 @@
 # Lorcana Monitor — Business Plan
 
-**Versione:** 4.1 reality-aligned | **Data:** 24 Aprile 2026 (sera)
+**Versione:** 4.2 timing-corrected + conversion-recalibrated | **Data:** 26 Aprile 2026
 **Scope:** documento ufficiale di business di `metamonitor.app`.
 
-**Changelog — v4.0 (mattina) → v4.1 (sera) dopo audit `V3_CURRENT_STATE.md`:**
+**Changelog — v4.1 → v4.2 (26/04, post stress-test):**
 
+- **NUOVO v4.2 (26/04, recalibrated):** §11 conversion rate scenari ricalibrati su benchmark consumer-SaaS reali (0.5% / 1.5% / 3% — il vecchio "Base" 3% era di fatto Ottimistico) · §11.4 Coach numbers ridimensionati a outreach plausibile · §11.6 vincolo bancario marcato come P0 upstream · §12 ristrutturato in **Phase A pre-launch (Mag-Ago)** + **Phase B Set 12 hard launch (Set 2026)** dopo correzione timing Ravensburger (Set 12 = Settembre, non Maggio) · §12.0 step bancario gating esplicitato.
 - **NUOVO v4.1 (24/04 sera, reality-aligned):** §2.2 struttura frontend reale = **7 tab primary (non 5+2)** · §2.2a fake paywall + interest tracking già live · §2.4 limitazioni attuali dichiarate · §3.2 conversion loop diagnosi→prescrizione→applicazione · §6 tabella Tier con mental model · §6.4 posizionamento Replay come engagement, non revenue · §9.2 Board Lab stato reale V3 (stub + legacy `team_coaching.js`) · §12.1 settimana 1 Launch Plan riscritta (no tab rename, no drawer, focus privacy + Play + swap) · §12.2 nota "W2 no code"
 - **NUOVO v4.0 (mattina, riscrittura strategica GPT 24/04 06:48 — `BP_STRATEGIST_POINT.md`):** §1 Executive Summary · §2 Prodotto · §3 Core Value Proposition · §4 Mercato · §5 Posizionamento · §6 Business Model (2 SKU, €9/€39) · §7 Go-To-Market · §8 Strategia di Prodotto · §9 Coaching e Board Lab · §10 Rischi · §11 Proiezioni · §12 Launch Plan 14 gg
 - **EREDITATO dalla v3.1 (22/04) perché ancora valido:** §13 Landscape legale Duels.ink · §14 Ravensburger · §15 Piani contingenza dati · §16 Tech Moat · §17 Struttura fiscale · §18 Feature escluse
@@ -424,53 +425,69 @@ Resta monomaniaco su questi finché i dati non dicono diversamente.
 
 ---
 
-## 11. Proiezioni Finanziarie
+## 11. Proiezioni Finanziarie (recalibrate v4.2)
 
-Tre scenari. Tutti e tre assumono founder solo, no paid acquisition, Set 12 launch Maggio 2026 come mese 0.
+Tre scenari ricalibrati su conversion rate consumer-SaaS realistici (benchmark op.gg Plus ~0.3%, hsreplay ~0.5%, indie TCG/gaming tools 1-2%). Le percentuali v4.1 (1% / 3% / 5%) erano sovrastimate di una tacca: il vecchio "Base" è ora "Ottimistico", e il nuovo "Pessimistico" 0.5% è più aderente al base-rate consumer SaaS in nicchie da 30-50K competitive players.
 
-### 11.1 Pessimistico (conversion base-rate ~1%)
+Tutti gli scenari assumono founder solo, no paid acquisition, **mese 0 = Set 12 launch (Settembre 2026 atteso, non Maggio come v4.1)**. I 4-5 mesi precedenti (Maggio-Agosto 2026) sono **Phase A pre-launch waitlist** (vedi §12): utenti registrati e lead crescono ma intent Pro non monetizza fino a Paddle attivo (post SRL chiusa, vedi §11.6 + §17).
 
-| Metrica | M3 | M6 | M12 |
-|---------|----|----|-----|
-| Utenti registrati | 300 | 700 | 1.800 |
-| Pro (€9/m) | 3 | 10 | 30 |
-| Coach (€39/m) | 0 | 1 | 2 |
-| Revenue Pro | €27/m | €90/m | €270/m |
-| Revenue Coach | €0 | €39/m | €78/m |
-| **MRR totale** | **€27** | **€129** | **€348** |
-| Annual run rate M12 | | | **€4.176** |
-
-Conclusione: non è un business. In questo scenario, o il prodotto è sbagliato, o il canale è sbagliato, o il TAM è sbagliato. Decisione kill/pivot entro M6.
-
-### 11.2 Base (conversion ~3%, modesta adozione coach)
+### 11.1 Pessimistico (conversion ~0.5%)
 
 | Metrica | M3 | M6 | M12 |
 |---------|----|----|-----|
-| Utenti registrati | 500 | 1.500 | 4.000 |
-| Pro (€9/m) | 15 | 45 | 120 |
+| Utenti registrati | 250 | 600 | 1.500 |
+| Pro (€9/m) | 1 | 3 | 8 |
+| Coach (€39/m) | 0 | 0 | 1 |
+| Revenue Pro | €9/m | €27/m | €72/m |
+| Revenue Coach | €0 | €0 | €39/m |
+| **MRR totale** | **€9** | **€27** | **€111** |
+| Annual run rate M12 | | | **€1.332** |
+
+Conclusione: sotto break-even fisso (€330/m) per tutto il primo anno. Prodotto/canale/TAM da rivedere strutturalmente. **Decisione kill/pivot entro M6.**
+
+### 11.2 Base (conversion ~1.5%, mediana consumer SaaS)
+
+| Metrica | M3 | M6 | M12 |
+|---------|----|----|-----|
+| Utenti registrati | 400 | 1.200 | 3.000 |
+| Pro (€9/m) | 6 | 18 | 45 |
+| Coach (€39/m) | 0 | 2 | 4 |
+| Revenue Pro | €54/m | €162/m | €405/m |
+| Revenue Coach | €0 | €78/m | €156/m |
+| **MRR totale** | **€54** | **€240** | **€561** |
+| Annual run rate M12 | | | **€6.732** |
+
+Conclusione: marginalmente sopra floor fisso (€330) **da M9-M10**, non da M6 come v4.1 ipotizzava. Side business operativo ma nessuna luxury: copre VPS/LLM/Paddle, copre commercialista solo da M10+. **Decisione M12: continua come side business o ricalibra canale.**
+
+### 11.3 Ottimistico (conversion ~3%, coach diventano canale)
+
+| Metrica | M3 | M6 | M12 |
+|---------|----|----|-----|
+| Utenti registrati | 600 | 2.000 | 5.000 |
+| Pro (€9/m) | 18 | 60 | 150 |
 | Coach (€39/m) | 1 | 4 | 8 |
-| Revenue Pro | €135/m | €405/m | €1.080/m |
+| Revenue Pro | €162/m | €540/m | €1.350/m |
 | Revenue Coach | €39/m | €156/m | €312/m |
-| **MRR totale** | **€174** | **€561** | **€1.392** |
-| Annual run rate M12 | | | **€16.700** |
+| **MRR totale** | **€201** | **€696** | **€1.662** |
+| Annual run rate M12 | | | **€19.944** |
 
-Conclusione: side business viable. Copre tooling, subscription, qualche buffer. Decision point M12: continua come side business o scala via multi-TCG.
+Conclusione: corrisponde a quello che il BP v4.1 chiamava "Base". È il home-run, non la mediana. Side business sostenibile, copre tutti i costi e lascia margine reinvestimento. Soglia per considerare full-time switch o espansione multi-TCG. **Decisione M12: scale o no.**
 
-### 11.3 Ottimistico (conversion ~5%, coach diventano un canale)
+### 11.4 Coach numbers — nota di realtà sul funnel
 
-| Metrica | M3 | M6 | M12 |
-|---------|----|----|-----|
-| Utenti registrati | 800 | 3.000 | 8.000 |
-| Pro (€9/m) | 40 | 150 | 400 |
-| Coach (€39/m) | 2 | 8 | 15 |
-| Revenue Pro | €360/m | €1.350/m | €3.600/m |
-| Revenue Coach | €78/m | €312/m | €585/m |
-| **MRR totale** | **€438** | **€1.662** | **€4.185** |
-| Annual run rate M12 | | | **€50.220** |
+I numeri Coach sopra (4 a M12 Base, 8 a M12 Ottimistico) assumono **outreach sistematico 40-80 touchpoint** in Phase A (vedi §12.2) verso coach Metafy-adjacent + judges + content creator coach-track. Il piano v4.1 prevedeva 5-10 DM totali, che con conversion cold DM 10-20% → 1-2 coach max.
 
-Conclusione: rimpiazza parte dello stipendio bancario. Decision point M12: lasciare o no.
+Senza scaling outreach, i Coach realistici sono:
 
-### 11.4 Costi (flat across scenari)
+| Scenario | Coach a M12 (con outreach v4.1, 5-10 DM) | Coach a M12 (con outreach scalato, 40-80 DM) |
+|----------|-------------------------------------------|------------------------------------------------|
+| Pessimistico | 0 | 0-1 |
+| Base | 1 (€39 MRR) | 2-4 (€78-156 MRR) |
+| Ottimistico | 2 (€78 MRR) | 6-8 (€234-312 MRR) |
+
+**Decisione di scope:** o triplichi outreach Coach in Phase A, o accetti il downgrade Coach revenue (-€80 a -€230 MRR a M12 vs tabelle 11.1-11.3 sopra).
+
+### 11.5 Costi (invariati v4.1)
 
 | Voce | Mensile |
 |------|---------|
@@ -482,64 +499,108 @@ Conclusione: rimpiazza parte dello stipendio bancario. Decision point M12: lasci
 | Commercialista + SRL fisso | €290/m (€3.5K/anno) |
 | **Floor fisso** | **~€330/m** |
 
-Break-even: ~40 utenti Pro o 9 utenti Coach. Raggiunto nello scenario Base attorno a M6.
+Break-even: ~40 Pro o 9 Coach. Raggiunto **scenario Base ~M9-M10**, **scenario Ottimistico ~M5-M6**, **scenario Pessimistico mai entro M12**.
+
+### 11.6 Bancario constraint = P0 upstream
+
+Il vincolo §17 (founder dipendente bancario, possibile incompatibilità SRL/secondary activity per CCNL bancario) è il **vero gating event di tutto §11**. Senza risoluzione, tutti i numeri sopra sono accademici: non puoi incassare legalmente. Questo P0 va chiuso nelle prime 2 settimane di Phase A (vedi §12.0), pena scivolamento del Phase B Set 12.
+
+Tre esiti possibili:
+1. **SRL personale OK** (nessuna incompatibilità contrattuale) → strada lineare, Paddle attivabile a Settembre 2026.
+2. **SRL incompatibile, fiduciaria possibile** (intestata a persona di fiducia, founder consulente tecnico) → strada percorribile ma con governance esplicita su account Stripe/Paddle/dominio/banking. Rischio operativo non trascurabile.
+3. **Entrambi bloccati** → riconsidera roadmap: o cambio employment, o partner co-founder con cui condividere quote, o waitlist economy permanente (non monetizzi, raccogli email per opzionalità futura). Nessuno di questi è "kill", ma ognuno cambia drasticamente §11.
 
 ---
 
-## 12. Launch Plan (14 giorni, concreto)
+## 12. Launch Plan — Phase A pre-launch + Phase B Set 12 (recalibrato v4.2)
 
-Assume start giorno 0 = 24 Aprile 2026. Target go-live prima del drop Set 12 (inizio Maggio 2026).
+**Cambio di struttura vs v4.1.** Il piano "14 giorni a launch" assumeva Set 12 a Maggio 2026 come finestra di acquisizione primaria. La verifica timing (vedi `CLAUDE.md` §Set12 readiness — *"Prossima finestra rotation attesa — Settembre 2026, non ancora annunciato ufficialmente"*) conferma che **Set 12 è atteso Settembre 2026, non Maggio**. Il piano si riorganizza in due fasi:
 
-### 12.1 Settimana 1 — launch readiness tecnico (reality-aligned)
+- **Phase A — Pre-launch waitlist economy (Maggio-Agosto 2026, ~16 settimane).** Soft launch metamonitor.app live in modalità free + fake paywall. Build email list, valida Play conversion, sblocca SRL/bancario, scala outreach Coach. Nessun "launch event" pubblico.
+- **Phase B — Set 12 hard launch (Settembre 2026, finestra 14 giorni).** Quando Ravensburger annuncia Set 12 release date, attiva Set 12 Hub messaging, flip Paddle billing on, push intensivo creator/Discord/Reddit. Questo è il vero launch event.
 
-V3 è già a **7 tab**, rename già fatto (Monitor→Meta, Coach→Play, Lab→Deck sono storia). La settimana 1 NON è tab rename + drawer: è **fix privacy + porting minimo V3 + Play conversion clarity + swap legacy→V3**.
+### 12.0 Pre-condizione P0 — Bancario constraint (settimane 1-2 di Phase A)
 
-| Giorno | Task | Ore |
-|--------|------|-----|
-| 1 | Dominio (già `metamonitor.app`). Verifica Resend/email pipeline. Discord server live. **V3 swap-ready:** verifica `backend/main.py:_serve_dashboard()` per flip legacy→V3 (una riga). **NO tab rename (già fatto). NO drawer (decisione preservata).** | 3 |
-| 2 | Home: Set 12 Hub già live, verifica `FORM_ACTION` + `DISCORD_INVITE` (`set12_hub.js:27-34`). Sostituisci placeholder con URL reali. Aggiungi **headline insight teaser** sopra chip ("Your worst matchup is X (Y%) · Open Play →"). | 4 |
-| 3 | **Play conversion clarity:** titolo insight sopra killer curves + "How to Respond" come accordion visibile (gated se manca dato o Pro). Paywall trigger **4° matchup/giorno** (counter localStorage + reset 00:00 UTC) **DONE** via `play_gate.js`. Mulligan reveal gating **DEFERRED** (TODO §A.3) — `improve_play_tools.js:17` monta Mulligan senza `wrapPremium()`, rinviato per isolamento Play-only. | 6 |
-| 4 | **Privacy minima pre-launch:** consent modal V3 (port da legacy commit `1abbdd0`). 412 handling su upload Board Lab. About link già live in footer. Verifica `POST /api/v1/user/consent` + export GDPR (fix `05845e3`). | 4 |
-| 5 | **Board Lab wiring minimo:** verifica access-control `/api/v1/team/replay/*`, ownership attiva (M1 `9a1e47b3f0c2`), `require_replay_owner` su delete/edit. **NO label enrichment.** | 3 |
-| 6 | Hosting pubblico: nginx + Let's Encrypt già live su `metamonitor.app`. Verifica disclaimer footer + alias `legal@` (o `monitorteamfe@gmail.com` finché alias Cloudflare non up). | 2 |
-| 7 | QA: mobile + desktop, tab switch, paywall triggers, consent flow, upload owner-only. Fix solo regressioni bloccanti. | 6 |
+Niente Phase B può partire senza:
+1. Verifica contratto banca + regolamento interno (1h lettura founder).
+2. Consulto commercialista startup digitali (1h, €50-100).
+3. Decisione struttura: SRL personale (se compatibile) o SRL fiduciaria (se incompatibile, con governance esplicita su account/dominio/billing/banking).
+4. Apertura SRL prima del primo intent-to-real conversion (Phase B D-day).
 
-**Fine settimana 1:** V3 live su `metamonitor.app`. Struttura tab = **7 primary (invariata)**. Fake paywall già in produzione. Privacy V3 al minimo richiesto. Play con conversion clarity.
+Senza questi 4 step chiusi entro Luglio 2026, il fake paywall resta fake all'infinito e il Phase B Settembre slitta.
 
-### 12.2 Settimana 2 — content + outreach + lancio
+### 12.1 Phase A — Settimane 1-3: Technical readiness (Maggio 2026)
 
-| Giorno | Task | Ore |
-|--------|------|-----|
-| 8 | Scrivi content Set 12 Meta Preview. 10-15 predizioni matchup ancorate alle 268 killer curves esistenti. | 6 |
-| 9 | Produci versione PDF del Meta Preview (WeasyPrint da markdown). Gate dietro email capture. | 3 |
-| 10 | Registra demo video 60 secondi (tab Play → killer curve → "ecco la carta esatta che ti uccide"). | 4 |
-| 11 | 5 screenshot social: matchup matrix, esempio killer curve, viewer Board Lab, mulligan trainer reveal, meta radar. | 3 |
-| 12 | Outreach: DM 2 YouTuber IT + 1 EU + 1 NA creator + 5 coach. Personale, breve, una data story ciascuno. | 4 |
-| 13 | Push pre-lancio: Discord (server IT + EU + NA, post rule-respecting), thread X con matrix, post Reddit r/Lorcana. | 3 |
-| 14 | **Launch day**: Set 12 drops. Newsletter alla email list. Annuncio Discord. Thread X. Monitora signups. | 4 |
+I task tecnici del v4.1 §12.1 restano corretti, solo riallocati su 3 settimane invece di 7 giorni (no fretta artificiale, qualità sopra cadenza). Si lavora con `~10-15h/sett` realistiche.
 
-**Target fine settimana 2:**
-- 150 email catturate.
-- 80 membri Discord.
-- 300 utenti registrati.
-- 10 "intent Pro" registrati via fake paywall (waitlist economy: segnale WTP, non revenue reale fino a fiscale chiuso).
+| Settimana | Task | Ore |
+|-----------|------|-----|
+| W1 | V3 swap-ready: verifica `backend/main.py:_serve_dashboard()` flip legacy→V3 (una riga). Play conversion clarity (titolo insight + How to Respond accordion). Paywall trigger 4° matchup/giorno **DONE** via `play_gate.js`. Verifica Resend/email pipeline + Discord server live. | 12-15 |
+| W2 | Privacy minima V3: consent modal port da legacy commit `1abbdd0`. 412 handling Board Lab upload. Verifica `POST /api/v1/user/consent` + GDPR export (fix `05845e3`). Board Lab wiring minimo: access-control `/api/v1/team/replay/*` + ownership M1 `9a1e47b3f0c2`. | 10-12 |
+| W3 | QA mobile + desktop, tab switch, paywall triggers, consent flow, upload owner-only. **Set 12 Hub structure pronta ma disabled** (feature flag), si accende solo a annuncio Ravensburger. Verifica disclaimer footer + alias `legal@`. Soft launch pubblico metamonitor.app. | 8-10 |
 
-**Nota operativa:** durante la settimana 2, **NON si tocca codice applicativo salvo bug**. Tutto il tempo va su content + outreach. Il prodotto è quello al giorno 7.
+**Fine W3 (~fine Maggio 2026):** V3 live su `metamonitor.app`, free tier completo, fake paywall attivo, struttura tab 7 primary invariata. Modalità "soft, no announce" — link condivisibile a chi chiede direttamente, no push organico ancora.
 
-### 12.3 Cosa il launch day NON include
+### 12.2 Phase A — Mesi 2-4 (Giugno-Agosto 2026): Waitlist + Coach outreach sistematico
 
+Tempo founder ~10-15h/sett. Allocazione raccomandata:
+
+| Attività | Ore/sett | Output 90gg target |
+|----------|----------|---------------------|
+| **Coach outreach sistematico** (40-80 touchpoint totali su 12 settimane = 4-7 DM/sett, CRM minimo per tracking) | 3-4h | 8-15 conversazioni avviate, 3-5 coach interessati alla beta gratuita Phase A |
+| **Creator seed** (5-8 YouTuber/streamer Lorcana, gift Pro full access, hand-deliver data story personalizzata) | 2-3h | 2-3 creator engaged, 1 menzione video entro Agosto |
+| **Discord presence** (2-3 server IT/EU/NA, rispondere a domande con screenshot, no spam) | 3-4h | Trust building, 50-150 utenti registrati referenziali |
+| **Asset content low-burn** (1 thread X o post Reddit/sett con matchup matrix screenshot) | 1-2h | 100-300 visite/post organic, slow burn email capture |
+| **Bug fix + small UX polish** | 2-3h | Mantieni qualità, no nuove feature |
+
+**Cosa NON si fa Mesi 2-4:**
+- No Set 12 Hub push (è disabled, lo accendi solo a annuncio Ravensburger).
 - No paid ads.
 - No comunicato stampa.
-- No "Product Hunt" launch (audience sbagliata).
-- No annuncio pubblico tier Pro fino a day 14 post-metriche che confermano che il funnel funziona.
+- No nuove feature core (Board Lab refactor, Improve restructure, Country segmentation → tutto post Phase B).
 
-### 12.4 Gate decisione giorno 15+
+**Target fine Phase A (fine Agosto 2026):**
+- 200-500 utenti registrati.
+- 80-150 email in waitlist.
+- 50-100 membri Discord.
+- 20-50 intent-to-pay registrati via fake paywall (segnale WTP, validation pre-Paddle).
+- 3-5 coach in conversazione attiva (1-2 confermati per Phase B beta).
+- SRL aperta, Paddle account configurato, billing pronto da accendere.
 
-Guarda i numeri:
+### 12.3 Phase B — Settembre 2026: Set 12 hard launch (finestra 14 giorni)
 
-- Se conversion > 3%: scala outreach, assumi un creator content part-time (€200-400/mese), vai avanti.
-- Se conversion 1-3%: il prodotto converte, il canale è sotto-dimensionato. Raddoppia outreach creator, considera affiliate aggressivo.
-- Se conversion < 1%: **stop**. Intervista 10 utenti registrati non-paganti. Diagnosi. Non scrivere altro codice finché la diagnosi non è chiara.
+Trigger: Ravensburger annuncia Set 12 release date. Da quel momento, finestra di **2 settimane intense** (rimette il founder a ~25-30h/sett per 14 giorni).
+
+| Giorno | Task | Ore |
+|--------|------|-----|
+| D-7 a D-1 | Set 12 Meta Preview content (10-15 predizioni matchup ancorate alle killer curves esistenti). PDF gated email (WeasyPrint da markdown). Demo video 60s (tab Play → killer curve). 5 screenshot social. | 18-22 |
+| D-3 | Flip Paddle billing on. Test conversion fake → real su 1-2 utenti waitlist disponibili. | 2-3 |
+| D-day | Set 12 release: attiva Set 12 Hub feature flag. Newsletter alla email list. Annuncio Discord (IT + EU + NA). Thread X con matrix. Post Reddit r/Lorcana. | 6-8 |
+| D+1 a D+7 | Push outreach personale (DM 8-12 creator + 5-10 coach con angolo Set 12 specifico). Live tweets/threads. Monitor signups + conversion. | 3-4h/giorno |
+| D+7 a D+14 | Misurazione: cosa converte, cosa no. Iterazione copy paywall, fix bug bloccanti. **Nessuna nuova feature.** | 2-3h/giorno |
+
+**Target fine Phase B (D+14):**
+- +400-800 utenti registrati (delta vs fine Phase A).
+- +100-200 email aggiuntive in waitlist.
+- 10-30 conversioni Pro reali (€90-270 MRR).
+- 1-2 conversioni Coach reali (€39-78 MRR).
+- Conversion rate fake→real misurato su almeno 30 utenti (calibra modello §11).
+
+### 12.4 Gate decisione Phase B+30 (Ottobre 2026)
+
+Guarda i numeri post-lancio (con la nuova scala v4.2):
+
+- **Conversion > 2%**: scala. Considera light paid retargeting (€50-100/sett su Reddit Lorcana ads), valuta creator part-time (€200-400/mese).
+- **Conversion 0.5-2%**: il prodotto converte ma sotto-canale. Raddoppia outreach creator/coach, considera affiliate aggressivo (30% recurring, non 20%).
+- **Conversion < 0.5%**: **stop scaling**. Intervista 10 utenti registrati non-paganti. Diagnosi prodotto vs prezzo vs canale. Non scrivere altro codice finché la diagnosi non è chiara. Decisione kill/pivot entro Dicembre 2026.
+
+### 12.5 Cosa il Phase B NON include
+
+- No Product Hunt launch (audience sbagliata).
+- No paid ads pre-D+30.
+- No comunicato stampa generalist.
+- No espansione multi-TCG announce (resta opzione M12+).
+- No annuncio pubblico tier Pro fino a D+14 metriche confermano che il funnel funziona.
 
 ---
 
@@ -863,22 +924,24 @@ Quello che **scegliamo di non fare** è importante quanto quello che facciamo. O
 ## Verifica finale
 
 - [x] Eseguibile da 1 persona, part-time
-- [x] Lanciabile in 7 giorni (tecnico) + 7 (content/outreach)
+- [x] Phase A pre-launch (Mag-Ago) + Phase B Set 12 hard launch (Set 2026) — timing allineato a Ravensburger reale
 - [x] Nessuna dipendenza da feature non esistenti
 - [x] Tutte feature core preservate (killer curves, Play, Replay Viewer, Board Lab, Meta, Deck, Mulligan, Community)
 - [x] Un core value driver identificato (Play + killer curves)
 - [x] Board Lab posizionato come coaching tool, non side feature
 - [x] Rischio dati riconosciuto, mitigato (Piano A+B+C)
 - [x] Legale pragmatico, non over-focused
-- [x] TAM onesto (30-50K competitive → 3-8K paying max)
+- [x] TAM onesto (30-50K competitive → 1-3K paying realistic, 3-8K cap teorico)
 - [x] Solo 2 SKU, pricing defendible (€9 Pro / €39 Coach)
-- [x] Launch plan 14 giorni concreto
-- [x] Decision gate definiti (M6 kill/pivot, M12 scale/continue, day 15 canale)
+- [x] Conversion rate scenari ricalibrati su benchmark consumer-SaaS reali (0.5% / 1.5% / 3%)
+- [x] Decision gate definiti (M6 kill/pivot, M12 scale/continue, Phase B+30 canale)
 - [x] Feature esplicitamente escluse documentate
 - [x] Struttura fiscale coperta (SRL + Paddle + vincolo bancario)
+- [x] Vincolo bancario marcato come P0 upstream (§11.6 + §12.0) — gate prerequisito di Phase B
 - [x] Rischio legale coperto (Duels ToS + Ravensburger Community Code)
+- [x] Coach outreach sizing realistico (40-80 touchpoint, non 5-10)
 
-Plan finalizzato.
+Plan finalizzato — v4.2.
 
 ---
 
@@ -886,3 +949,5 @@ Plan finalizzato.
 - *`analisidef/business/BP_STRATEGIST_POINT.md` (Refined v1, GPT 24/04 06:48) — base §1-§12*
 - *`analisidef/BUSINESS_PLAN.md` (v3.1, 22/04) — §13-§18 ereditati*
 - *Complementari: `V3_ARCHITECT_POINT.md` (architettura/overview V3) e `TODO.md` (operativo).*
+
+*Patch v4.2 (26 Aprile 2026): timing Set 12 corretto a Settembre, conversion ricalibrate, launch plan ristrutturato in Phase A + Phase B, vincolo bancario marcato P0.*
