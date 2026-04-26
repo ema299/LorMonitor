@@ -152,6 +152,75 @@ them anywhere:
 """
 
 
+def _build_legal_fallback_guard(digest_data: dict | None, our: str, game_format: str) -> str:
+    """Allow a small controlled pool of legal-but-not-observed cards.
+
+    This keeps the model anchored in the current meta by default while still
+    letting it surface newly legal or underplayed Core cards when the digest
+    does not contain a satisfactory observed answer.
+    """
+    if game_format != "core" or not digest_data:
+        return ""
+
+    legal_sets = sorted(_get_core_legal_sets())
+    if not legal_sets:
+        return ""
+
+    latest_legal_set = legal_sets[-1]
+    our_colors_str = DECK_COLORS[our]
+    our_set = {c.strip().lower() for c in our_colors_str.split(",")}
+    meta = _get_meta_relevant(game_format)
+    cards_db = digest_data.get("cards_db", {}) or {}
+
+    fallback_cards = []
+    for card_name, card_info in cards_db.items():
+        set_num = _parse_card_set(card_info)
+        if set_num != latest_legal_set:
+            continue
+        if card_name in meta:
+            continue
+        ink = ""
+        if isinstance(card_info, dict):
+            ink = (card_info.get("ink", "") or "").lower()
+        if not ink:
+            continue
+        if "/" in ink:
+            ink_ok = all(c.strip() in our_set for c in ink.split("/"))
+        else:
+            ink_ok = ink in our_set or ink in ("dual ink", "inkless")
+        if ink_ok:
+            fallback_cards.append(card_name)
+
+    fallback_cards = sorted(set(fallback_cards))
+    if not fallback_cards:
+        return ""
+
+    # Keep the pool compact; the digest already carries the full cards_db.
+    fallback_cards = fallback_cards[:40]
+    listed = "\n".join(f"  - {c}" for c in fallback_cards)
+    return f"""
+=== LEGAL FALLBACK POOL — ALLOWED FOR RESPONSE ONLY ===
+
+These cards are Core-legal and match {our_colors_str}, but they are not in
+the current meta sample yet. Use them only if the observed meta cards do not
+give a precise answer for this curve.
+
+Legal fallback set: set {latest_legal_set}
+
+FALLBACK CARDS:
+{listed}
+
+Rules:
+1. Prefer observed-meta cards first.
+2. If no observed card answers the curve cleanly, you may use one or more
+   cards from the fallback pool above in response.cards.
+3. Never use fallback cards in sequence.plays[].
+4. Never invent cards outside the fallback pool just because they are legal.
+
+=== END LEGAL FALLBACK POOL ===
+"""
+
+
 def _build_core_legality_guard(digest_data: dict | None = None) -> str:
     legal_sets = _get_core_legal_sets()
     if not digest_data or not legal_sets:
@@ -454,6 +523,7 @@ These curves were generated previously. Use them as a base:
     sequence_guard = _build_sequence_guard(our, opp, digest_data=_digest_for_guard)
     legality_guard = _build_core_legality_guard(_digest_for_guard) if game_format == 'core' else ""
     meta_guard = _build_meta_relevance_guard(_digest_for_guard, game_format)
+    fallback_guard = _build_legal_fallback_guard(_digest_for_guard, our, game_format)
 
     prompt = f"""You are a tactical analyst for Disney Lorcana. Generate killer curves for {our} vs {opp}.
 
@@ -465,6 +535,7 @@ DECK COLORS — memorize BEFORE reading any data:
 {sequence_guard}
 {legality_guard}
 {meta_guard}
+{fallback_guard}
 Today's date: {today}
 
 === LORCANA RULES ===
@@ -503,6 +574,7 @@ Before writing each curve, verify:
 - our_playbook data is FOR enriching the response block, NOT for populating sequence
 - response.strategy = one-line summary only
 - detailed response fields must stay tied to this exact curve, not generic matchup coaching
+- if format is Core and a response card is not in the current meta, it must come from the LEGAL FALLBACK POOL
 Swapping sides is the most common LLM failure — double-check before output.
 """
     return prompt

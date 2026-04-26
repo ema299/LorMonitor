@@ -91,6 +91,28 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
         "play_draw_note": "More dangerous on the Draw.|More dangerous on the Play.|Similar on the Play and on the Draw.",
         "failure_state": "what happens if we fail to answer this curve"
       },
+      "v3_payload": {
+        "one_line_hook": "short V3 headline for this exact curve",
+        "mulligan_focus": ["keep/remove priority tied to this curve", "optional second priority"],
+        "turn_checklist": {
+          "T1": "what to check or avoid",
+          "T2": "what to prepare",
+          "T3": "what to answer"
+        },
+        "coach_badges": ["answer by T4", "kill setup", "do not overcommit"],
+        "user_copy": {
+          "short": "1 sentence for collapsed card",
+          "expanded": "2 sentences for opened coaching panel"
+        }
+      },
+      "self_check": {
+        "curve_specific": true,
+        "mentions_key_card": true,
+        "mentions_response_card_name": true,
+        "response_by_turn": N,
+        "not_generic": true,
+        "uses_only_prompt_cards": true
+      },
       "example_game_ids": [N, N],
       "recursion_sources": [
         {"card": "Nome carta enabler", "enables": "item-from-discard|char-from-discard|bounce-to-hand|shuffle-back|play-from-discard", "ability_excerpt": "frase esatta dal testo ability che giustifica il riuso"}
@@ -119,6 +141,9 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
 - [ ] response.cards SOLO nei colori del NOSTRO deck
 - [ ] response text in ENGLISH only
 - [ ] response must stay curve-specific, not generic matchup advice
+- [ ] if response.cards is non-empty, at least one of those cards must be named verbatim in the readable response fields (`headline`, `core_rule`, `priority_actions`, `what_to_avoid`, `stock_build_note`, `off_meta_note`, `play_draw_note`, `failure_state`)
+- [ ] v3_payload must be short: max 3 coach_badges, max 3 turn_checklist turns, max 2 mulligan_focus items
+- [ ] self_check is diagnostic only; do not use it to excuse weak response content
 
 ## Regole ferree
 - NON cercare pattern — Python li ha già trovati. Leggi aggregates.
@@ -130,3 +155,6 @@ Verifica: Ward blocca "chosen" (serve challenge o "all opposing"). Evasive: solo
 - `response.strategy` = one-line summary only, in English
 - Put the detailed readable guidance in: `headline`, `core_rule`, `priority_actions`, `what_to_avoid`, `stock_build_note`, `off_meta_note`, `play_draw_note`, `failure_state`
 - `How to Respond` must explain how to answer THIS curve, not the matchup in general
+- If `response.cards` has cards, the detailed readable guidance must name at least one of them verbatim.
+- `v3_payload` is UI copy for V3. Keep it concise, concrete, and tied to THIS curve.
+- Do not invent facts in `v3_payload`; it must be derived from the same sequence, response, and digest evidence.

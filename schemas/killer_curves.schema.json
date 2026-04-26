@@ -36,6 +36,45 @@
               "failure_state": {"type": "string"}
             }
           },
+          "v3_payload": {
+            "type": "object",
+            "properties": {
+              "one_line_hook": {"type": "string"},
+              "mulligan_focus": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 2
+              },
+              "turn_checklist": {
+                "type": "object",
+                "additionalProperties": {"type": "string"},
+                "maxProperties": 3
+              },
+              "coach_badges": {
+                "type": "array",
+                "items": {"type": "string"},
+                "maxItems": 3
+              },
+              "user_copy": {
+                "type": "object",
+                "properties": {
+                  "short": {"type": "string"},
+                  "expanded": {"type": "string"}
+                }
+              }
+            }
+          },
+          "self_check": {
+            "type": "object",
+            "properties": {
+              "curve_specific": {"type": "boolean"},
+              "mentions_key_card": {"type": "boolean"},
+              "mentions_response_card_name": {"type": "boolean"},
+              "response_by_turn": {"type": "integer"},
+              "not_generic": {"type": "boolean"},
+              "uses_only_prompt_cards": {"type": "boolean"}
+            }
+          },
           "worst_case_validated": {"type": "boolean"},
           "validation": {"type": "object"}
         },
