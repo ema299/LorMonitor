@@ -4,13 +4,12 @@
 // live as the user edits.
 //
 // Semantics (docs/DECK_REFACTOR_PARITY.md Rule 4):
-//   1. Deck size    — green 60/60, yellow 58-62, red otherwise
-//   2. Curve health — balanced / top-heavy / low-curve (from cost distribution)
-//   3. Response cov — 🟢 ≥4 of top 5 curves covered / 🟡 2-3 / 🔴 0-1
-//                     Uses worst observed matchup when no opp is set.
+//   1. Deck size — green 60/60, yellow 58-62, red otherwise
+//   2. Inkable   — inkable vs non-ink count + ratio; meta healthy ≈ 50-80% ink
+//   3. Colors    — per-ink breakdown for the deck's two colors + dual-ink total
 //
-// Consumes: myDeckCards, DATA.consensus, rvCardsDB (for costs), getPerimData,
-//   getMatchupData, V3.ResponseCheck._coverageForCurve.
+// Consumes: myDeckCards, DATA.consensus, rvCardsDB (for ink + inkable),
+//   DECK_INKS (archetype → [ink1, ink2]).
 
 (function () {
   'use strict';
@@ -32,42 +31,100 @@
     return { cls: 'bs-red', icon: '🔴', title: 'Deck size', label: total + ' / 60 cards' };
   }
 
-  function _curveStatus(entries) {
+  function _inkableStatus(entries) {
     if (typeof rvCardsDB === 'undefined' || !rvCardsDB) {
-      return { cls: 'bs-gray', icon: '⚪', title: 'Curve', label: 'Loading card DB' };
+      return { cls: 'bs-gray', icon: '⚪', title: 'Inkable', label: 'Loading card DB' };
     }
-    const buckets = {};
-    let total = 0;
-    let weightedCost = 0;
+    let inkable = 0, nonInk = 0, unknown = 0;
     entries.forEach(function (e) {
       const meta = rvCardsDB[e.card];
-      if (!meta) return;
-      const cost = parseInt(meta.cost, 10);
-      if (!Number.isFinite(cost)) return;
       const qty = e.qty || 0;
-      buckets[cost] = (buckets[cost] || 0) + qty;
-      total += qty;
-      weightedCost += qty * cost;
+      if (!meta || meta.inkable === undefined || meta.inkable === null) {
+        unknown += qty; return;
+      }
+      if (meta.inkable === true || meta.inkable === 'true' || meta.inkable === 1) inkable += qty;
+      else nonInk += qty;
     });
-    if (!total) return { cls: 'bs-gray', icon: '⚪', title: 'Curve', label: 'No cost data' };
+    const known = inkable + nonInk;
+    if (!known && !unknown) return { cls: 'bs-gray', icon: '⚪', title: 'Inkable', label: 'No cards' };
+    if (!known) return { cls: 'bs-gray', icon: '⚪', title: 'Inkable', label: unknown + ' unknown' };
 
-    const avg = weightedCost / total;
-    const lowShare = ((buckets[0] || 0) + (buckets[1] || 0) + (buckets[2] || 0)) / total;
-    const highShare = Object.keys(buckets)
-      .map(Number)
-      .filter(function (c) { return c >= 6; })
-      .reduce(function (s, c) { return s + (buckets[c] || 0); }, 0) / total;
+    const pct = Math.round((inkable / known) * 100);
+    // Deck-building heuristic: ~60-80% inkable is typical meta. Below 50% is
+    // often a tempo trap (not enough ink to pay for cards); above 85% is
+    // stats-heavy and light on tech answers.
+    let cls, icon;
+    if (pct >= 60 && pct <= 80) { cls = 'bs-green'; icon = '🟢'; }
+    else if (pct >= 50 && pct <= 85) { cls = 'bs-yellow'; icon = '🟡'; }
+    else { cls = 'bs-red'; icon = '🔴'; }
+    const note = unknown ? ' · ' + unknown + ' unknown' : '';
+    return {
+      cls: cls, icon: icon, title: 'Inkable',
+      label: inkable + ' ink · ' + nonInk + ' no-ink · ' + pct + '%' + note,
+    };
+  }
 
-    // Heuristic bands. Lorcana decks typically want avg cost 3.3-4.0.
-    let label, cls, icon;
-    if (avg < 2.8 || lowShare > 0.55) { label = 'Low-curve'; cls = 'bs-yellow'; icon = '🟡'; }
-    else if (avg > 4.3 || highShare > 0.30) { label = 'Top-heavy'; cls = 'bs-yellow'; icon = '🟡'; }
-    else if (avg >= 3.2 && avg <= 4.0 && lowShare >= 0.25) { label = 'Balanced'; cls = 'bs-green'; icon = '🟢'; }
-    else { label = 'Workable'; cls = 'bs-green'; icon = '🟢'; }
+  // Deck color breakdown. Lorcana decks use two inks; cards are either
+  // single-ink (one of the two) or dual-ink (both). Shown as:
+  //   "Em 31 · Sa 24 · Dual 5"
+  // Out-of-color ink appears only if misplayed builds have it (tracked as
+  // warning yellow). Unknown / Inkless / Location-neutral cards go in a
+  // trailing "other N" bucket.
+  function _colorsStatus(entries, deckCode) {
+    if (typeof rvCardsDB === 'undefined' || !rvCardsDB) {
+      return { cls: 'bs-gray', icon: '⚪', title: 'Colors', label: 'Loading card DB' };
+    }
+    const targetInks = (typeof DECK_INKS !== 'undefined' && DECK_INKS[deckCode]) || [];
+    if (targetInks.length < 2) {
+      return { cls: 'bs-gray', icon: '⚪', title: 'Colors', label: 'No archetype colors' };
+    }
+    const ink1 = String(targetInks[0] || '').toLowerCase();
+    const ink2 = String(targetInks[1] || '').toLowerCase();
 
-    if (avg < 2.2 || avg > 5.0) { label = 'Skewed'; cls = 'bs-red'; icon = '🔴'; }
+    let c1 = 0, c2 = 0, dual = 0, other = 0, offColor = 0;
+    entries.forEach(function (e) {
+      const meta = rvCardsDB[e.card];
+      const qty = e.qty || 0;
+      if (!meta) { other += qty; return; }
+      const inkRaw = String(meta.ink || '').toLowerCase();
+      if (!inkRaw) { other += qty; return; }
+      if (inkRaw.includes('/')) {
+        // duels.ink encoding for dual ink (e.g. "amethyst/sapphire")
+        const parts = inkRaw.split('/').map(function (s) { return s.trim(); });
+        const hitsDeck = (parts.indexOf(ink1) >= 0) || (parts.indexOf(ink2) >= 0);
+        if (hitsDeck) dual += qty; else offColor += qty;
+        return;
+      }
+      if (inkRaw === ink1) c1 += qty;
+      else if (inkRaw === ink2) c2 += qty;
+      else if (inkRaw === 'dual ink') dual += qty;
+      else if (inkRaw === 'inkless' || inkRaw === 'location') other += qty;
+      else offColor += qty;
+    });
 
-    return { cls: cls, icon: icon, title: 'Curve', label: label + ' · avg ' + avg.toFixed(1) };
+    const bits = [
+      _inkLabel(targetInks[0]) + ' ' + c1,
+      _inkLabel(targetInks[1]) + ' ' + c2,
+    ];
+    if (dual) bits.push('Dual ' + dual);
+    if (other) bits.push('Other ' + other);
+    if (offColor) bits.push('Off-color ' + offColor);
+
+    let cls, icon;
+    if (offColor > 0) { cls = 'bs-red'; icon = '🔴'; }
+    else if (other > 4) { cls = 'bs-yellow'; icon = '🟡'; }
+    else { cls = 'bs-green'; icon = '🟢'; }
+    return { cls: cls, icon: icon, title: 'Colors', label: bits.join(' · ') };
+  }
+
+  // Short ink label suitable for the strip — uppercase 3-letter abbreviation.
+  function _inkLabel(ink) {
+    const s = String(ink || '').toLowerCase();
+    const map = {
+      amber: 'Amb', amethyst: 'Amy', emerald: 'Em',
+      ruby: 'Rub', sapphire: 'Sap', steel: 'Stl',
+    };
+    return map[s] || ink;
   }
 
   function _worstObservedOpp(deckCode) {
@@ -142,11 +199,11 @@
     if (!deckCode) return '';
     const entries = _deckEntries(deckCode);
     const size = _sizeStatus(entries);
-    const curve = _curveStatus(entries);
-    const cov = _coverageStatus(deckCode, oppCode);
+    const inkable = _inkableStatus(entries);
+    const colors = _colorsStatus(entries, deckCode);
 
     return '<div class="bs-bar" role="status" aria-live="polite">' +
-      _pill(size) + _pill(curve) + _pill(cov) +
+      _pill(size) + _pill(inkable) + _pill(colors) +
       '</div>';
   }
 

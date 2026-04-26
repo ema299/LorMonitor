@@ -5,6 +5,8 @@ let pfActiveDeck = 'EmSa';
 let pfInkPickerOpen = false;
 let pfInkSel = [];
 let pfImproveDeckFocus = null;
+let pfImproveDeckStoryCache = {};
+let pfImproveDeckStoryInflight = {};
 let pfStateBootstrapped = false;
 const DEMO_PLAYER = { nick: 'CLOUD', country: 'IT', decks: ['ESt','AmySt','AbSt'] };
 
@@ -33,9 +35,6 @@ function pfCardMeta(name) {
   };
 }
 
-// B.1 — nickname bridge stats. Surfaces "X match associati, Y% WR personal"
-// when duels.ink nickname is linked, on Home and Improve. Reads from
-// DATA.player_lookup; no backend call.
 function pfPlayerBridgeStats(saved, scope) {
   const nick = saved && saved.duelsNick ? saved.duelsNick.trim() : '';
   if (!nick || !scope) return null;
@@ -637,7 +636,7 @@ function renderProfileTab(main) {
         <label>Email</label>
         <input type="email" class="ev-input" id="pf-email" value="${saved.email}" placeholder="your@email.com">
       </div>
-      <button class="pf-save-btn" onclick="localStorage.setItem('pf_email',document.getElementById('pf-email').value);pfCloseDrawer();renderProfileTab(document.getElementById('main-content'))">Save</button>
+      <button class="pf-save-btn" onclick="localStorage.setItem('pf_email',document.getElementById('pf-email').value);pfCloseDrawer();render()">Save</button>
     </div>
     <div class="pf-drawer-section">
       <h4>Gaming</h4>
@@ -649,7 +648,7 @@ function renderProfileTab(main) {
         <label>Lorcanito Nickname</label>
         <input type="text" class="ev-input" id="pf-lorca-nick" value="${saved.lorcaNick}" placeholder="YourNickname">
       </div>
-      <button class="pf-save-btn" onclick="localStorage.setItem('pf_duels_nick',document.getElementById('pf-duels-nick').value);localStorage.setItem('pf_lorca_nick',document.getElementById('pf-lorca-nick').value);localStorage.removeItem('pf_demo');pfCloseDrawer();renderProfileTab(document.getElementById('main-content'))">Save Nicknames</button>
+      <button class="pf-save-btn" onclick="localStorage.setItem('pf_duels_nick',document.getElementById('pf-duels-nick').value);localStorage.setItem('pf_lorca_nick',document.getElementById('pf-lorca-nick').value);localStorage.removeItem('pf_demo');pfCloseDrawer();render()">Save Nicknames</button>
       <div class="pf-form-group" style="margin-top:14px">
         <label>Country</label>
         <select class="deck-select" id="pf-country" onchange="localStorage.setItem('pf_country',this.value)" style="width:100%">${countryOpts}</select>
@@ -862,9 +861,9 @@ function renderProfileTab(main) {
   ${drawerHtml}`;
 }
 
-function pfBuildDeckWorkspace() {
+function pfBuildDeckWorkspace(deckCode) {
   const scope = getScopeContext();
-  const activeDk = coachDeck || selectedDeck || pfActiveDeck;
+  const activeDk = deckCode || coachDeck || selectedDeck || pfActiveDeck;
   if (!activeDk) {
     return `<div class="pf-list-panel" style="margin-bottom:16px">
       <div class="pf-std-card">
@@ -981,6 +980,269 @@ function pfBuildDeckWorkspace() {
       ${curveHtml}
     </div>
     ${techCardPanel}
+  </div>`;
+}
+
+function pfDeckStoryKey(deckCode) {
+  const scope = getScopeContext();
+  return [scope.format, scope.primaryPerimeter, deckCode].join('|');
+}
+
+function pfDeckTrendSvg(daily) {
+  const pts = (Array.isArray(daily) ? daily : []).filter(d => d && d.wr != null);
+  if (!pts.length) {
+    return '<div style="color:var(--text2);font-size:0.82em;padding:10px 0">No trend data in the last 5 days.</div>';
+  }
+
+  const width = 320;
+  const height = 120;
+  const padX = 16;
+  const padY = 14;
+  const innerW = width - padX * 2;
+  const innerH = height - padY * 2;
+  const values = pts.map(p => Number(p.wr) || 0);
+  const min = Math.min.apply(null, values);
+  const max = Math.max.apply(null, values);
+  const range = Math.max(1, max - min);
+  const stepX = pts.length > 1 ? innerW / (pts.length - 1) : 0;
+  const coords = pts.map((p, i) => {
+    const x = padX + (stepX * i);
+    const y = padY + innerH - (((Number(p.wr) || 0) - min) / range) * innerH;
+    return { x, y, wr: Number(p.wr) || 0, date: p.date };
+  });
+  const line = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(' ');
+  const first = coords[0];
+  const last = coords[coords.length - 1];
+  const delta = last.wr - first.wr;
+  const deltaCls = delta > 0 ? 'var(--green)' : delta < 0 ? 'var(--red)' : 'var(--text2)';
+
+  return `
+    <div style="width:100%">
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" style="width:100%;height:120px;display:block">
+        <rect x="0" y="0" width="${width}" height="${height}" rx="10" fill="rgba(255,255,255,0.02)"></rect>
+        <line x1="${padX}" y1="${height - padY}" x2="${width - padX}" y2="${height - padY}" stroke="rgba(255,255,255,0.08)" stroke-width="1"></line>
+        <polyline fill="none" stroke="var(--gold)" stroke-width="2.5" points="${line}"></polyline>
+        ${coords.map(c => `
+          <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" fill="var(--gold)"></circle>
+        `).join('')}
+      </svg>
+      <div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:0.72em;color:var(--text2)">
+        ${coords.map(c => `
+          <span style="min-width:0;text-align:center;flex:1">${String(c.date || '').slice(5)}<br><strong style="color:var(--text)">${c.wr.toFixed(1)}%</strong></span>
+        `).join('')}
+      </div>
+      <div style="margin-top:8px;font-size:0.76em;color:${deltaCls};font-weight:700">Trend ${delta >= 0 ? '+' : ''}${delta.toFixed(1)}pp over ${coords.length} observed day${coords.length === 1 ? '' : 's'}</div>
+    </div>`;
+}
+
+function pfDeckWorstOpps(deckCode) {
+  const scope = getScopeContext();
+  const perimKey = scope.primaryPerimeter;
+  const trend = ((DATA.matchup_trend || {})[perimKey] || {})[deckCode] || {};
+  const opps = Object.entries(trend)
+    .map(([opp, stats]) => ({
+      opp,
+      current_wr: stats.current_wr != null ? Number(stats.current_wr) : null,
+      prev_wr: stats.prev_wr != null ? Number(stats.prev_wr) : null,
+      delta: stats.delta != null ? Number(stats.delta) : null,
+      recent_games: stats.recent_games != null ? Number(stats.recent_games) : 0,
+    }))
+    .filter(row => row.current_wr != null && row.recent_games >= 3)
+    .sort((a, b) => a.current_wr - b.current_wr || (b.delta || -999) - (a.delta || -999))
+    .slice(0, 3);
+  return opps;
+}
+
+function pfDeckSampleBreakdown(deckCode) {
+  const scope = getScopeContext();
+  const perims = scope.isInfinity
+    ? [
+        { key: 'infinity', label: 'Standard' },
+        { key: 'infinity_top', label: 'Top' },
+        { key: 'infinity_pro', label: 'Pro' },
+      ]
+    : [
+        { key: 'set11', label: 'Standard' },
+        { key: 'top', label: 'Top' },
+        { key: 'pro', label: 'Pro' },
+      ];
+  const source = (DATA && DATA.perimeters) || {};
+  return perims.map(p => {
+    const pd = source[p.key];
+    const row = pd && pd.wr && pd.wr[deckCode];
+    if (!row) return null;
+    const games = Number(row.games || 0);
+    const wr = row.wr != null ? Number(row.wr) : null;
+    if (!games || wr == null) return null;
+    return { label: p.label, key: p.key, games, wr };
+  }).filter(Boolean);
+}
+
+function pfGetMatchupReport(deckCode, oppCode) {
+  if (!deckCode || !oppCode) return null;
+  const analyzer = (DATA && DATA.matchup_analyzer) || {};
+  const block = analyzer[deckCode];
+  if (!block) return null;
+  return block[`vs_${oppCode}`] || null;
+}
+
+function pfDeckCrisisCards(deckCode, oppCodes) {
+  const oppList = Array.isArray(oppCodes) ? oppCodes.filter(Boolean) : [oppCodes].filter(Boolean);
+  const rows = [];
+
+  oppList.forEach(oppCode => {
+    const report = pfGetMatchupReport(deckCode, oppCode);
+    const scores = (report && report.card_scores) || {};
+    Object.entries(scores).forEach(([name, entry]) => {
+      const apps = entry && entry.apps != null ? Number(entry.apps) : Number(entry.games || 0);
+      const winApps = entry && entry.win_apps != null ? Number(entry.win_apps) : 0;
+      const lossApps = entry && entry.loss_apps != null ? Number(entry.loss_apps) : 0;
+      const delta = entry && typeof entry.delta === 'number' ? Number(entry.delta) : null;
+      const lossHeavy = Math.max(0, lossApps - winApps);
+      if (delta == null || apps < 15 || (delta >= 0 && lossHeavy <= 0)) return;
+      rows.push({ name, opp: oppCode, apps, delta, winApps, lossApps, lossHeavy });
+    });
+  });
+
+  rows.sort((a, b) => (b.lossHeavy - a.lossHeavy) || (a.delta - b.delta) || (b.apps - a.apps));
+  return rows.slice(0, 5);
+}
+
+function pfLoadDeckStory(deckCode) {
+  if (!deckCode) return;
+  const scope = getScopeContext();
+  const key = pfDeckStoryKey(deckCode);
+  if (pfImproveDeckStoryCache[key] || pfImproveDeckStoryInflight[key]) return;
+  pfImproveDeckStoryInflight[key] = true;
+  fetch(`/api/v1/coach/deck-history/${encodeURIComponent(deckCode)}?game_format=${encodeURIComponent(scope.format)}&perimeter=${encodeURIComponent(scope.primaryPerimeter)}&days=5`)
+    .then(r => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then(data => {
+      pfImproveDeckStoryCache[key] = data || {};
+    })
+    .catch(err => {
+      pfImproveDeckStoryCache[key] = { error: String(err && err.message ? err.message : err), daily: [] };
+    })
+    .finally(() => {
+      delete pfImproveDeckStoryInflight[key];
+      if (pfImproveDeckFocus === deckCode && currentTab === 'improve') {
+        render();
+      }
+    });
+}
+
+function pfBuildDeckStory(deckCode) {
+  const key = pfDeckStoryKey(deckCode);
+  const story = pfImproveDeckStoryCache[key];
+  if (!story && !pfImproveDeckStoryInflight[key]) {
+    pfLoadDeckStory(deckCode);
+  }
+
+  if (story && story.error) {
+    return `<div class="pf-std-card" style="margin-bottom:12px">
+      <div class="pf-std-title"><span>Deck story</span></div>
+      <div style="color:var(--text2);font-size:0.82em;padding:10px 0">Trend data unavailable for the last 5 days.</div>
+    </div>`;
+  }
+
+  if (!story) {
+    return `<div class="pf-std-card" style="margin-bottom:12px">
+      <div class="pf-std-title"><span>Deck story</span></div>
+      <div style="color:var(--text2);font-size:0.82em;padding:10px 0">Loading last 5 days...</div>
+    </div>`;
+  }
+
+  const daily = Array.isArray(story.daily) ? story.daily : [];
+  const points = daily.filter(d => d && d.wr != null);
+  const first = points[0] || null;
+  const last = points[points.length - 1] || null;
+  const delta = first && last ? (Number(last.wr) - Number(first.wr)) : 0;
+  const direction = delta > 0 ? 'climbing' : delta < 0 ? 'slipping' : 'flat';
+  const worstOpps = pfDeckWorstOpps(deckCode);
+  const focusOpp = worstOpps[0] && worstOpps[0].opp ? worstOpps[0].opp : null;
+  const crisisCards = pfDeckCrisisCards(deckCode, worstOpps.slice(0, 3).map(o => o.opp));
+  const sampleMix = pfDeckSampleBreakdown(deckCode);
+  const topOpps = worstOpps.map(o => {
+    const deltaTxt = o.delta != null ? `${o.delta > 0 ? '+' : ''}${o.delta.toFixed(1)}pp` : '—';
+    return `<button type="button" onclick="coachDeck='${deckCode}';coachOpp='${o.opp}';switchToTab('play')" style="display:flex;justify-content:space-between;gap:8px;width:100%;padding:8px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;background:rgba(255,255,255,0.02);color:inherit;cursor:pointer;text-align:left;margin-bottom:8px">
+      <span style="min-width:0;flex:1">
+        <strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${o.opp}</strong>
+        <span style="font-size:0.75em;color:var(--text2)">${o.recent_games} recent games</span>
+      </span>
+      <span style="text-align:right;min-width:72px">
+        <strong style="display:block;color:${wrColor(o.current_wr)}">${o.current_wr.toFixed(1)}%</strong>
+        <span style="font-size:0.75em;color:${o.delta != null && o.delta < 0 ? 'var(--red)' : 'var(--text2)'}">${deltaTxt}</span>
+      </span>
+    </button>`;
+  }).join('') || `<div style="color:var(--text2);font-size:0.82em;padding:8px 0">Not enough matchup history yet.</div>`;
+
+  const crisisHtml = crisisCards.length
+    ? crisisCards.map(c => {
+        const deltaPp = Number(c.delta || 0) * 100;
+        const conf = c.apps >= 100 ? 'High' : c.apps >= 30 ? 'Medium' : 'Low';
+        const lossLine = c.lossApps || c.winApps
+          ? `${c.lossApps} losses · ${c.winApps} wins`
+          : `${c.apps} observed games`;
+        return `<div style="display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid rgba(255,255,255,0.06);border-radius:8px;background:rgba(255,255,255,0.02);margin-bottom:8px">
+          <span style="min-width:0;flex:1">
+            <strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.name}</strong>
+            <span style="font-size:0.75em;color:var(--text2)">${lossLine} · vs ${c.opp} · ${conf} confidence</span>
+          </span>
+          <span style="text-align:right;min-width:72px;color:${deltaPp <= -2 ? 'var(--red)' : 'var(--gold)'};font-weight:700">${deltaPp > 0 ? '+' : ''}${deltaPp.toFixed(1)}pp</span>
+        </div>`;
+      }).join('')
+    : `<div style="color:var(--text2);font-size:0.82em;padding:8px 0">No strong crisis cards surfaced yet.</div>`;
+
+  const sampleHtml = sampleMix.length
+    ? `<div style="margin-top:12px">
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Sample mix</div>
+        <div style="display:grid;grid-template-columns:repeat(${sampleMix.length},minmax(0,1fr));gap:8px">
+          ${sampleMix.map(s => `<div style="padding:10px 11px;border:1px solid rgba(255,255,255,0.06);border-radius:8px;background:rgba(255,255,255,0.02)">
+            <div style="font-size:0.7em;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em">${s.label}</div>
+            <div style="margin-top:4px;font-weight:700;color:${wrColor(s.wr)}">${s.wr.toFixed(1)}%</div>
+            <div style="font-size:0.72em;color:var(--text2)">${s.games.toLocaleString()} games</div>
+          </div>`).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const storyLine = points.length >= 2
+    ? `Over the last 5 days, ${deckCode} went from ${first.wr.toFixed(1)}% to ${last.wr.toFixed(1)}% WR (${delta > 0 ? '+' : ''}${delta.toFixed(1)}pp). The pressure is concentrated in ${worstOpps.slice(0, 2).map(o => o.opp).join(' and ') || 'the current field'}.`
+    : `Not enough observed games to tell a clean 5-day story yet.`;
+
+  return `<div class="pf-std-card" style="margin-bottom:12px">
+    <div class="pf-std-title" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px">
+      <div>
+        <span>Deck story</span>
+        <div style="font-size:0.76em;color:var(--text2);margin-top:2px">${storyLine}</div>
+      </div>
+      <div style="text-align:right;font-size:0.74em;color:var(--text2)">${direction === 'flat' ? 'Flat' : direction === 'climbing' ? 'Momentum up' : 'Momentum down'}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,1fr);gap:14px;align-items:start">
+      <div>
+        ${pfDeckTrendSvg(daily)}
+        ${sampleHtml}
+      </div>
+      <div>
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Worst opponents</div>
+        ${topOpps}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:14px">
+      <div>
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Cards in crisis</div>
+        ${crisisHtml}
+      </div>
+      <div>
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px">Coach narration</div>
+        <div style="padding:12px 14px;border:1px solid rgba(255,255,255,0.06);border-radius:8px;background:rgba(255,255,255,0.02);font-size:0.88em;line-height:1.45;color:var(--text2)">
+          ${storyLine}
+          ${focusOpp && crisisCards.length ? `<br><br>The first fix is usually not a full rebuild: it is tightening the cards that slide hardest in ${focusOpp}.` : ''}
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1135,11 +1397,22 @@ function pfImprovementPath(saved, scope) {
 
 function pfOpenImproveDeckWorkspace(deck) {
   pfImproveDeckFocus = deck;
-  pfSelectDeck(deck);
+  pfLoadDeckStory(deck);
+  render();
 }
 
 function pfCloseImproveDeckWorkspace() {
   pfImproveDeckFocus = null;
+  render();
+}
+
+function pfToggleImproveDeckWorkspace() {
+  if (pfImproveDeckFocus) {
+    pfImproveDeckFocus = null;
+  } else {
+    pfImproveDeckFocus = pfActiveDeck || selectedDeck || coachDeck || null;
+    if (pfImproveDeckFocus) pfLoadDeckStory(pfImproveDeckFocus);
+  }
   render();
 }
 
@@ -1251,14 +1524,18 @@ function renderImproveTab(main) {
   const nickHeroHtml = pfImproveNickHero(saved, isDemo, scope);
   const bridgeStatsHtml = pfBridgeStatsCard(saved, scope, 'improve');
   const improvementPathHtml = pfImprovementPath(saved, scope);
-  const improveDeckWorkspaceHtml = pfImproveDeckFocus ? `
-    <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
-      <span class="tab-section-hdr__eyebrow">Deck Focus</span>
-      <span class="tab-section-hdr__title">${pfImproveDeckFocus} improvement workspace</span>
-      <button class="pf-info-btn" onclick="pfCloseImproveDeckWorkspace()" title="Close deck focus" style="margin-left:auto">&times;</button>
-    </div>
-    ${pfBuildDeckWorkspace()}
-  ` : '';
+  const improveDeckWorkspaceHtml = `
+    <div class="pf-my-stats-section" style="margin-top:14px">
+      <div class="pf-my-stats-toggle" onclick="pfToggleImproveDeckWorkspace()" style="cursor:pointer">
+        <span class="pf-my-stats-label">Deck focus</span>
+        <span style="font-size:0.72em;color:var(--text2)">${pfImproveDeckFocus || 'expand the deck workspace'}</span>
+        <svg class="pf-my-stats-chev${pfImproveDeckFocus ? ' open' : ''}" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div id="pf-improve-deck-focus-body" style="display:${pfImproveDeckFocus ? 'block' : 'none'};padding-top:10px">
+        ${pfImproveDeckFocus ? pfBuildDeckStory(pfImproveDeckFocus) : ''}
+        ${pfImproveDeckFocus ? pfBuildDeckWorkspace(pfImproveDeckFocus) : ''}
+      </div>
+    </div>`;
   main.innerHTML = `<div class="pf-dash">
 
     <div class="tab-section-hdr">
@@ -1616,14 +1893,14 @@ function pfTogglePin(deck) {
   localStorage.setItem('pf_deck_pins', JSON.stringify(pins));
   // Also keep legacy key in sync
   localStorage.setItem('pf_deck', pins[0] || '');
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfToggleStudied(deck) {
   const studied = JSON.parse(localStorage.getItem('pf_studied_mus') || '[]');
   const idx = studied.indexOf(deck);
   if (idx >= 0) studied.splice(idx, 1); else studied.push(deck);
   localStorage.setItem('pf_studied_mus', JSON.stringify(studied));
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfSelectDeck(deck) {
   pfActiveDeck = deck;
@@ -1637,7 +1914,7 @@ function pfSelectDeck(deck) {
     const inks = DECK_INKS[deck];
     if (inks) selectedInks = [...inks];
   }
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfRemoveDeck(deck) {
   let pins = JSON.parse(localStorage.getItem('pf_deck_pins') || '[]');
@@ -1645,12 +1922,12 @@ function pfRemoveDeck(deck) {
   localStorage.setItem('pf_deck_pins', JSON.stringify(pins));
   localStorage.setItem('pf_deck', pins[0] || '');
   if (pfActiveDeck === deck) pfActiveDeck = pins[0] || 'STANDARD';
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfToggleInkPicker() {
   pfInkPickerOpen = !pfInkPickerOpen;
   pfInkSel = [];
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfToggleInk(inkId) {
   const idx = pfInkSel.indexOf(inkId);
@@ -1668,7 +1945,7 @@ function pfToggleInk(inkId) {
       selectedInks = [...pfInkSel];
     }
   }
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfPinAndSelect(deckCode) {
   let pins = JSON.parse(localStorage.getItem('pf_deck_pins') || '[]');
@@ -1697,7 +1974,7 @@ function pfAddDeckFromInks() {
   coachDeck = deckCode;
   const inks = DECK_INKS[deckCode];
   if (inks) selectedInks = [...inks];
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfLoadDemo() {
   localStorage.setItem('pf_duels_nick', DEMO_PLAYER.nick);
@@ -1711,12 +1988,12 @@ function pfLoadDemo() {
   coachDeck = firstDeck;
   pfInkSel = DECK_INKS[firstDeck] ? [...DECK_INKS[firstDeck]] : [];
   selectedInks = [...pfInkSel];
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }
 function pfClearDemo() {
   localStorage.removeItem('pf_duels_nick');
   localStorage.removeItem('pf_country');
   localStorage.setItem('pf_deck_pins', '[]');
   localStorage.removeItem('pf_demo');
-  renderProfileTab(document.getElementById('main-content'));
+  render();
 }

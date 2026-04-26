@@ -113,6 +113,41 @@ function mullReset() {
   renderMullHand();
 }
 
+// Confidence badge — sample-size honesty for the active filter (B.1).
+// <10 hands = low (red-ish), 10-29 = medium (amber), 30+ = high (green).
+function _mullSetConfidence(n) {
+  var conf = document.getElementById('mull-conf');
+  if (!conf) return;
+  if (n === 0) {
+    conf.textContent = 'No data';
+    conf.style.background = 'rgba(248,81,73,0.18)';
+    conf.style.color = 'var(--red)';
+    conf.title = 'No PRO hands recorded for this filter in the current matchup.';
+    return;
+  }
+  var label, bg, color, tip;
+  if (n < 10) {
+    label = 'Low confidence';
+    bg = 'rgba(248,81,73,0.18)';
+    color = 'var(--red)';
+    tip = 'Only ' + n + ' PRO hand' + (n === 1 ? '' : 's') + ' recorded — patterns are noisy. Treat as anecdotal.';
+  } else if (n < 30) {
+    label = 'Medium confidence';
+    bg = 'rgba(210,153,34,0.18)';
+    color = 'var(--yellow)';
+    tip = n + ' PRO hands recorded — directional signal, not yet decisive.';
+  } else {
+    label = 'High confidence';
+    bg = 'rgba(63,185,80,0.18)';
+    color = 'var(--green)';
+    tip = n + ' PRO hands recorded — sample size sufficient for stable patterns.';
+  }
+  conf.textContent = label + ' · n=' + n;
+  conf.style.background = bg;
+  conf.style.color = color;
+  conf.title = tip;
+}
+
 function renderMullHand() {
   var list = getFilteredMulls();
   var counter = document.getElementById('mull-counter');
@@ -122,6 +157,8 @@ function renderMullHand() {
   var container = document.getElementById('mull-cards');
   var revealArea = document.getElementById('mull-reveal-area');
   if (!counter || !container) return;
+
+  _mullSetConfidence(list.length);
 
   if (!list.length) {
     counter.textContent = 'No hands for this filter';
@@ -238,6 +275,7 @@ let _dbInkFilter = new Set();
 let _dbRankFilter = ''; // '', 'winner', 'top4', 'top8', 'top16'
 let _dbDateFilter = ''; // '', '3d', '7d', '30d'
 let _dbEventSearch = ''; // free-text event name filter (lowercase)
+let _dbDefaultsApplied = false;  // one-shot: seed inks/rank/date from analysis deck on first open
 const _DB_RANK_GROUPS = {
   winner: ['1st','2nd'],
   top4: ['1st','2nd','3rd','Top4'],
@@ -621,6 +659,20 @@ function buildDeckBrowser() {
   const allDecks = [...new Set([...Object.keys(refs), ...Object.keys(consensus)])].sort();
   if (!allDecks.length) return '';
 
+  // First-open defaults: pre-seed filters to the current analysis deck's
+  // inks + Top 16 + Last month, so user lands on recent pro variants of
+  // their archetype. Sentinel guards against overriding explicit changes.
+  if (!_dbDefaultsApplied) {
+    const analysisDeck = (typeof coachDeck !== 'undefined' && coachDeck)
+      || (typeof selectedDeck !== 'undefined' && selectedDeck) || null;
+    if (analysisDeck && typeof DECK_INKS !== 'undefined' && DECK_INKS[analysisDeck]) {
+      DECK_INKS[analysisDeck].forEach(i => _dbInkFilter.add(i));
+    }
+    if (!_dbRankFilter) _dbRankFilter = 'top16';
+    if (!_dbDateFilter) _dbDateFilter = '30d';
+    _dbDefaultsApplied = true;
+  }
+
   // Ink filter buttons
   const inkOrder = ['amber','amethyst','emerald','ruby','sapphire','steel'];
   const inkBtns = inkOrder.map(ink => {
@@ -957,6 +1009,7 @@ function buildMulliganTrainer(proMulls) {
         <button class="mf-btn" data-f="otd" onclick="setMullFilter('otd')">OTD</button>
       </div>
       <span id="mull-counter" style="font-size:0.85em;color:var(--text2)"></span>
+      <span id="mull-conf" style="font-size:0.74em;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:0.04em" title=""></span>
       <div style="display:flex;gap:4px;margin-left:auto">
         <button onclick="mullNav(-1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:1.1em">&#9664;</button>
         <button onclick="mullNav(1)" style="background:var(--bg3);border:1px solid var(--border);color:var(--text);width:44px;height:44px;border-radius:50%;cursor:pointer;font-size:1.1em">&#9654;</button>
@@ -992,8 +1045,6 @@ function renderLabTab(main) {
     syncOppInksFromDeck(labOpp);
   }
 
-  const selectorHtml = buildMatchupSelector('lab');
-
   // PR2 + PR3: build Summary and Improve BEFORE the matchup-data early returns
   // so the user always sees the above-the-fold (even when no opp has matchup
   // reports yet). Both modules handle opp=null gracefully.
@@ -1005,21 +1056,24 @@ function renderLabTab(main) {
     ? window.V3.DeckImprove.build(coachDeck, labOpp)
     : '';
 
+  // Matchup selector (ink-picker) removed from the Deck tab 2026-04-24 pm —
+  // the Matchups table row-click now acts as the opponent selector (sets
+  // labOpp + syncs inks). Shared legacy helper `buildMatchupSelector` still
+  // lives in monolith.js for coach_v2 / other tabs that rely on it.
+
   if (!az[coachDeck] || !labOpp) {
     main.innerHTML = _deckSummaryHtml
-      + selectorHtml
       + _deckImproveHtml
       + deckWorkspace
       + deckComparator
       + deckBrowser
-      + `<div class="section"><div class="section-title">Matchup Prep</div><div class="coming-soon-card"><div class="lock-emoji">🔒</div><h3>Coming Soon</h3><p>Select opponent using the ink icons above.</p></div></div>`;
+      + `<div class="section"><div class="section-title">Matchup Prep</div><div class="coming-soon-card"><div class="lock-emoji">🔒</div><h3>Coming Soon</h3><p>Tap a matchup row below to open its analysis.</p></div></div>`;
     return;
   }
 
   const mu = getMatchupData(labOpp);
   if (!mu) {
     main.innerHTML = _deckSummaryHtml
-      + selectorHtml
       + _deckImproveHtml
       + deckWorkspace
       + deckComparator
@@ -1053,7 +1107,7 @@ function renderLabTab(main) {
     ? window.V3.DeckMatchups.build(coachDeck, labOpp)
     : '';
 
-  let content = summaryHtml + selectorHtml + improveHtml + matchupsHtml;
+  let content = summaryHtml + improveHtml + matchupsHtml;
 
   // Area D Your list (PR4) — collapsed container for deck grid + lens +
   // builder panel, with header buttons View list / Edit deck / Compare to pros.

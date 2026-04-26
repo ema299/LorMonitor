@@ -111,95 +111,6 @@
       '</svg>';
   }
 
-  // Response Coverage mini-block inline, reusing the existing response_check
-  // logic but in compact form. Auto-derives worst matchup if no opp selected.
-  function _responseCoverageMini(deckCode, opponentCode, pd) {
-    let opp = opponentCode;
-    let autoDerived = false;
-    let worst = null;
-    if (!opp) {
-      worst = _worstMatchup(deckCode, pd);
-      if (worst) { opp = worst.opp; autoDerived = true; }
-    }
-    if (!opp) return '';
-
-    const mu = (typeof getMatchupData === 'function') ? getMatchupData(opp) : null;
-    const curves = (mu && Array.isArray(mu.killer_curves)) ? mu.killer_curves : [];
-    if (!curves.length) return '';
-
-    const sorted = curves.slice().sort(function (a, b) {
-      return ((b.frequency && b.frequency.pct) || 0) - ((a.frequency && a.frequency.pct) || 0);
-    }).slice(0, 5);
-
-    let covered = 0;
-    let totalCopies = 0;
-    sorted.forEach(function (curve) {
-      const cov = window.V3.ResponseCheck
-        ? window.V3.ResponseCheck._coverageForCurve(curve, _deckMap(deckCode, mu))
-        : null;
-      if (!cov) return;
-      if (cov.status === 'green' || cov.status === 'yellow') covered += 1;
-      totalCopies += cov.copies;
-    });
-
-    const statusCls = covered >= 4 ? 'sm-rc--good' : covered >= 2 ? 'sm-rc--mid' : 'sm-rc--bad';
-    const statusLabel = covered >= 4 ? 'Good coverage' : covered >= 2 ? 'Medium coverage' : 'Low coverage';
-    const statusDot = covered >= 4 ? '🟢' : covered >= 2 ? '🟡' : '🔴';
-
-    const contextBits = [];
-    const muWr = (pd && pd.matrix && pd.matrix[deckCode] && pd.matrix[deckCode][opp])
-      ? pd.matrix[deckCode][opp] : null;
-    if (muWr) {
-      const mwr = (muWr.w || 0) / Math.max(1, muWr.t);
-      const games = muWr.t;
-      const wrText = (window.V3 && window.V3.HonestyBadge)
-        ? window.V3.HonestyBadge.formatPct(mwr * 100, games)
-        : (mwr * 100).toFixed(0) + '%';
-      contextBits.push(wrText + ' on ' + games + ' observed games');
-    }
-    if (autoDerived) contextBits.push('worst observed matchup');
-
-    const hint = contextBits.length ? ' <span class="sm-rc-context">(' + contextBits.join(' · ') + ')</span>' : '';
-
-    return '<div class="sm-rc ' + statusCls + '">' +
-      '<div class="sm-rc-head">Response coverage vs <strong>' + _esc(opp) + '</strong>' + hint + '</div>' +
-      '<div class="sm-rc-body">' +
-      '<span class="sm-rc-dot">' + statusDot + '</span>' +
-      '<span class="sm-rc-text">Covers ' + covered + '/' + sorted.length +
-      ' top threat lines · ' + statusLabel + '</span>' +
-      '<a class="sm-rc-cta" href="#" onclick="window.V3.DeckSummary._requestWorkspace(\'' + _esc(opp) + '\');return false">View details →</a>' +
-      '</div></div>';
-  }
-
-  // Share the same deck map logic as ResponseCheck._deckCardMap (private), so
-  // we rebuild it here to avoid cross-module private access.
-  function _deckMap(deckCode, mu) {
-    if (!(window.V3 && window.V3.DeckGrid)) return {};
-    const cards = window.V3.DeckGrid._resolveCards(deckCode, mu) || [];
-    const map = {};
-    cards.forEach(function (c) {
-      const raw = String(c.card || '').trim();
-      const base = raw.includes(' - ') ? raw.split(' - ')[0] : raw;
-      const k = base.toLowerCase();
-      if (!k) return;
-      map[k] = (map[k] || 0) + (c.qty || 0);
-    });
-    return map;
-  }
-
-  function _recommendedActions(deckCode, opponentCode) {
-    if (!(window.V3 && window.V3.RecommendationEngine)) return '';
-    const actions = window.V3.RecommendationEngine.compute(deckCode, opponentCode);
-    if (!actions.length) return '';
-    const rows = actions.map(function (a) {
-      return window.V3.RecommendationEngine.renderAction(a);
-    }).join('');
-    return '<div class="sm-rec">' +
-      '<div class="sm-rec-title">Recommended actions <span class="sm-rec-sub">data-driven</span></div>' +
-      '<div class="sm-rec-list">' + rows + '</div>' +
-      '</div>';
-  }
-
   function _emptyState(deckCode) {
     return '<div class="sm-empty">' +
       '<div class="sm-empty-title">' + _esc(deckCode || 'No deck selected') + '</div>' +
@@ -207,27 +118,7 @@
       '</div>';
   }
 
-  // Store last build inputs so external handlers (e.g. matchup workspace CTA)
-  // can reach back. Kept minimal — no real state, just an escape hatch.
-  let _lastBuild = { deck: null, opp: null };
-
-  function _requestWorkspace(opp) {
-    // PR5: open the Matchup Workspace overlay. Falls back to setting labOpp
-    // and re-rendering if the workspace module isn't loaded yet.
-    const deck = _lastBuild.deck || (typeof coachDeck !== 'undefined' ? coachDeck : null);
-    if (deck && opp && window.V3 && window.V3.MatchupWorkspace &&
-        typeof window.V3.MatchupWorkspace.open === 'function') {
-      window.V3.MatchupWorkspace.open(deck, opp);
-      return;
-    }
-    if (typeof labOpp !== 'undefined' && opp) {
-      try { labOpp = opp; } catch (e) {}
-    }
-    if (typeof render === 'function') render();
-  }
-
   function build(deckCode, opponentCode) {
-    _lastBuild = { deck: deckCode, opp: opponentCode || null };
     if (!deckCode) return _emptyState(null);
 
     const pd = (typeof getPerimData === 'function') ? getPerimData() : null;
@@ -284,17 +175,25 @@
       '<div class="sm-kpi"><div class="sm-kpi-v">' + (worst ? Math.round(worst.wr) + '%' : '—') + '</div><div class="sm-kpi-l">' + (worst ? 'Worst vs ' + _esc(worst.opp) : 'Worst matchup') + '</div></div>' +
       '</div>';
 
-    const rcMini = _responseCoverageMini(deckCode, opponentCode, pd);
-    const recs = _recommendedActions(deckCode, opponentCode);
+    // Recommended actions block moved to the bottom of the "Your list"
+    // section so suggestions live next to the list they target, not inside
+    // the above-the-fold KPI card.
+    const intro = '<div class="deck-intro deck-intro--above">' +
+      '<strong>How this archetype is performing in the current meta</strong>, ' +
+      'not how you personally have been playing. The main win rate is computed over ' +
+      'the last 3 days of observed matches in the selected scope — the honesty badge ' +
+      'on the number separates a rock-solid 400-game sample from a 20-game noise ' +
+      'signal. Secondary tiles show meta share, fitness rank across the archetype ' +
+      'pool, and the single matchup worth prepping for next.' +
+      '</div>';
 
-    return '<div class="sm-card">' +
-      header + mainKpi + secondary + rcMini + recs +
+    return intro + '<div class="sm-card">' +
+      header + mainKpi + secondary +
       '</div>';
   }
 
   window.V3.DeckSummary = {
     build: build,
-    _requestWorkspace: _requestWorkspace,
     _worstMatchup: _worstMatchup,
   };
 })();

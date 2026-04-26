@@ -6,6 +6,7 @@ window.V3 = window.V3 || {};
 window.V3.SavedDecks = {
   STORAGE_KEY: 'v3_saved_decks',
   _delegateInstalled: false,
+  _loadedId: null,  // id of the last saved deck surfaced into myDeckCards
 
   _read() {
     try {
@@ -42,6 +43,9 @@ window.V3.SavedDecks = {
     const list = this.list();
     list.push(entry);
     this._write(list);
+    // Freshly-saved deck becomes the active "loaded" context so the header
+    // indicator updates from "Modified" to the new name immediately.
+    this._loadedId = entry.id;
     return { ok: true, id: entry.id };
   },
 
@@ -70,12 +74,42 @@ window.V3.SavedDecks = {
     if (!deck) return;
     myDeckCards = Object.assign({}, deck.cards);
     myDeckMode = 'custom';
+    this._loadedId = id;
     if (deck.deckCode) {
       if (typeof coachDeck !== 'undefined') coachDeck = deck.deckCode;
       if (typeof selectedDeck !== 'undefined') selectedDeck = deck.deckCode;
     }
     if (typeof currentTab !== 'undefined') currentTab = 'deck';
     if (typeof render === 'function') render();
+  },
+
+  // Current active saved-deck context for header indicators, or null.
+  // Returns the entry when the loaded deck still matches the active
+  // archetype; otherwise clears the tracker (user switched archetype and
+  // the indicator is no longer relevant).
+  getLoadedDeck() {
+    if (!this._loadedId) return null;
+    const entry = this.list().find(d => d.id === this._loadedId);
+    if (!entry) { this._loadedId = null; return null; }
+    const activeDeck = (typeof coachDeck !== 'undefined') ? coachDeck : null;
+    if (activeDeck && entry.deckCode && entry.deckCode !== activeDeck) return null;
+    if (typeof myDeckMode === 'undefined' || myDeckMode !== 'custom') return null;
+    return entry;
+  },
+
+  // True when myDeckCards diverges from the loaded saved deck (not from
+  // consensus). Lets the header distinguish "Loaded X" from "Loaded X · modified".
+  isDirtyVsLoaded() {
+    const entry = this.getLoadedDeck();
+    if (!entry) return false;
+    if (typeof myDeckCards === 'undefined' || !myDeckCards) return false;
+    const names = new Set([...Object.keys(myDeckCards), ...Object.keys(entry.cards)]);
+    for (const n of names) {
+      const a = Math.round(Number(myDeckCards[n] || 0));
+      const b = Math.round(Number(entry.cards[n] || 0));
+      if (a !== b) return true;
+    }
+    return false;
   },
 
   // True when myDeckCards (custom) differs from consensus for deckCode.
@@ -196,6 +230,81 @@ window.V3.SavedDecks = {
   _closeDialog() {
     const host = document.getElementById('sd-dialog-host');
     if (host) host.remove();
+  },
+
+  // Load popover (Deck tab header) — lets the user swap into one of their
+  // saved decks without bouncing through the Home tab. Defaults to filtering
+  // by the current archetype (coachDeck) so the list is short and relevant;
+  // a toggle switches to "All saved decks".
+  openLoadPopover() {
+    this._closeDialog();
+    const saved = this.list();
+    const currentDeck = (typeof coachDeck !== 'undefined') ? coachDeck : null;
+    const filterState = { onlyCurrent: !!currentDeck && saved.some(d => d.deckCode === currentDeck) };
+
+    const renderTiles = (onlyCurrent) => {
+      const visible = onlyCurrent && currentDeck
+        ? saved.filter(d => d.deckCode === currentDeck)
+        : saved.slice();
+      visible.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      if (!visible.length) {
+        const emptyMsg = onlyCurrent
+          ? 'No saved decks for <strong>' + this._esc(currentDeck || '?') + '</strong> yet.'
+          : 'No saved decks yet. Edit a list and click <strong>Save</strong>.';
+        return '<div class="sd-load-empty">' + emptyMsg + '</div>';
+      }
+      return visible.map(d => {
+        const count = this._totalCards(d.cards);
+        const under = count < 60;
+        const inks = (typeof DECK_INKS !== 'undefined' && DECK_INKS[d.deckCode]) || [];
+        const dots = inks.map(ink => {
+          const c = (typeof INK_COLORS !== 'undefined' && INK_COLORS[ink]) || '#888';
+          return '<span class="sd-dot" style="background:' + c + '"></span>';
+        }).join('');
+        return '<button class="sd-load-tile" type="button" ' +
+          'onclick="window.V3.SavedDecks._confirmLoad(\'' + d.id + '\')">' +
+          '<span class="sd-load-tile-inks">' + dots + '</span>' +
+          '<span class="sd-load-tile-body">' +
+          '<span class="sd-load-tile-name">' + this._esc(d.name) + '</span>' +
+          '<span class="sd-load-tile-meta">' + this._esc(d.deckCode || '?') + ' · ' +
+          '<span class="' + (under ? 'sd-under' : '') + '">' + count + ' cards' + (under ? ' · &lt;60' : '') + '</span> · ' +
+          'updated ' + this._timeAgo(d.updatedAt) +
+          '</span></span></button>';
+      }).join('');
+    };
+
+    const host = document.createElement('div');
+    host.id = 'sd-dialog-host';
+    host.innerHTML = '<div class="sd-dialog-backdrop" onclick="if(event.target===this)window.V3.SavedDecks._closeDialog()">' +
+      '<div class="sd-dialog sd-dialog--load" role="dialog" aria-label="Load saved deck">' +
+      '<div class="sd-dialog-title">Load a saved deck</div>' +
+      '<div class="sd-dialog-sub">Pick one of your lists to replace the current edit state.</div>' +
+      (currentDeck ? ('<label class="sd-load-filter">' +
+        '<input type="checkbox" id="sd-load-filter-toggle" ' + (filterState.onlyCurrent ? 'checked' : '') +
+        ' onchange="window.V3.SavedDecks._loadFilterToggled(this.checked)">' +
+        ' Only <strong>' + this._esc(currentDeck) + '</strong> lists</label>') : '') +
+      '<div id="sd-load-list" class="sd-load-list">' + renderTiles(filterState.onlyCurrent) + '</div>' +
+      '<div class="sd-dialog-btns">' +
+      '<button class="sd-btn sd-btn--ghost" onclick="window.V3.SavedDecks._closeDialog()">Close</button>' +
+      '</div></div></div>';
+    document.body.appendChild(host);
+    // Expose the rendered reference so the filter toggle can repaint just
+    // the list without rebuilding the whole popover.
+    this._loadPopoverRender = renderTiles;
+    requestAnimationFrame(() => host.classList.add('open'));
+  },
+
+  _loadFilterToggled(onlyCurrent) {
+    const host = document.getElementById('sd-load-list');
+    if (!host || typeof this._loadPopoverRender !== 'function') return;
+    host.innerHTML = this._loadPopoverRender(!!onlyCurrent);
+  },
+
+  _confirmLoad(id) {
+    this._closeDialog();
+    this.load(id);
+    const deck = this.list().find(d => d.id === id);
+    if (deck) this._toast("Loaded '" + deck.name + "'");
   },
 
   _toast(msg) {

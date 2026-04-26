@@ -71,6 +71,57 @@ window.V3.DeckLens = {
     </div>`;
   },
 
+  // Card-type taxonomy buckets. Song = Action with "Song" subtype;
+  // order here fixes the tile order in the grid.
+  TYPES: [
+    { id: 'character', icon: '👤', label: 'Characters' },
+    { id: 'action',    icon: '⚡', label: 'Actions' },
+    { id: 'song',      icon: '🎵', label: 'Songs' },
+    { id: 'item',      icon: '🔧', label: 'Items' },
+    { id: 'location',  icon: '🏰', label: 'Locations' },
+  ],
+
+  _typeOf(name) {
+    if (typeof rvCardsDB === 'undefined' || !rvCardsDB) return null;
+    const meta = rvCardsDB[name];
+    if (!meta) return null;
+    const t = String(meta.type || '').toLowerCase();
+    const subs = Array.isArray(meta.subtypes) ? meta.subtypes.map(s => String(s).toLowerCase()) : [];
+    if (t.includes('character')) return 'character';
+    if (t.includes('location')) return 'location';
+    if (t.includes('item')) return 'item';
+    if (t.includes('action')) return subs.includes('song') ? 'song' : 'action';
+    return null;
+  },
+
+  _typeCounts(cards) {
+    const counts = { character: 0, action: 0, song: 0, item: 0, location: 0 };
+    cards.forEach(c => {
+      const bucket = this._typeOf(c.card);
+      if (bucket) counts[bucket] += Number(c.qty) || 0;
+    });
+    return counts;
+  },
+
+  buildTypeBreakdown(cards) {
+    const counts = this._typeCounts(cards);
+    const tiles = this.TYPES.map(tp => {
+      const n = counts[tp.id] || 0;
+      const state = n === 0 ? 'dl-zero' : 'dl-good';
+      return `<div class="dl-class-tile ${state}">
+        <div class="dl-class-icon" aria-hidden="true">${tp.icon}</div>
+        <div class="dl-class-body">
+          <div class="dl-class-label">${tp.label}</div>
+          <div class="dl-class-count">${n}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="dl-section">
+      <div class="dl-sec-title">Type breakdown</div>
+      <div class="dl-class-grid">${tiles}</div>
+    </div>`;
+  },
+
   _deltaVsConsensus(deckCode) {
     const consensus = (DATA.consensus || {})[deckCode] || {};
     const my = (typeof myDeckCards !== 'undefined' && myDeckCards && typeof myDeckMode !== 'undefined' && myDeckMode === 'custom')
@@ -152,6 +203,7 @@ window.V3.DeckLens = {
     return `<div class="dl-panel">
       <div class="dl-panel-title">Deck Lens</div>
       ${this.buildDelta(deckCode, opponentCode)}
+      ${this.buildTypeBreakdown(cards)}
       ${this.buildClassBreakdown(cards)}
     </div>`;
   },

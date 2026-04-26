@@ -384,8 +384,12 @@
 
   // -------------------- Render / lifecycle --------------------
 
-  function _section(id, title, bodyHtml) {
-    return '<section class="mw-sec" data-sec="' + id + '">' +
+  function _section(id, title, bodyHtml, intro) {
+    const introHtml = intro
+      ? '<div class="deck-intro deck-intro--above mw-sec-intro">' + intro + '</div>'
+      : '';
+    return introHtml +
+      '<section class="mw-sec" data-sec="' + id + '">' +
       '<h3 class="mw-sec-title">' + title + '</h3>' +
       '<div class="mw-sec-body">' + bodyHtml + '</div>' +
       '</section>';
@@ -399,12 +403,41 @@
     const mu = _muFor(STATE.opp) || {};
     const header = _headerHtml(STATE.deck, STATE.opp);
     const body =
-      _section('snap', '1. Snapshot', _sectionSnapshot(STATE.deck, STATE.opp, mu)) +
-      _section('win',  '2. How to win', _sectionHowToWin(STATE.deck, STATE.opp, mu)) +
-      _section('dng',  '3. Danger sequences', _sectionDanger(STATE.deck, STATE.opp, mu)) +
-      _section('ans',  '4. Your answers', _sectionAnswers(STATE.deck, STATE.opp, mu)) +
-      _section('opt',  '5. Card optimization', _sectionCardOpt(STATE.deck, STATE.opp, mu)) +
-      _section('loss', '6. Loss review', _sectionLossReview(STATE.deck, STATE.opp, mu));
+      _section('snap', '1. Snapshot', _sectionSnapshot(STATE.deck, STATE.opp, mu),
+        '<strong>Headline numbers for this specific pairing</strong> — overall win rate, ' +
+        'OTP / OTD split (who goes first matters), and the 3-day vs 3-day-before trend. ' +
+        'All figures come from the observed sample in the current scope. Use the OTP/OTD ' +
+        'gap as the first red flag: a 10pp+ swing means the matchup quality depends ' +
+        'heavily on the coin flip, not on play skill.') +
+      _section('win',  '2. How to win', _sectionHowToWin(STATE.deck, STATE.opp, mu),
+        '<strong>Opening hands and early-turn patterns the archetype wins with</strong>, ' +
+        'pulled from the last 30 days of matches where this deck beat this opponent. ' +
+        'These are <em>observed patterns</em>, not a recipe: they tell you what ended up ' +
+        'on the board in wins, not necessarily what caused them. Use together with the ' +
+        'Mulligan Trainer in the Play tab for drillable reps.') +
+      _section('dng',  '3. Danger sequences', _sectionDanger(STATE.deck, STATE.opp, mu),
+        '<strong>Opponent killer curves</strong> — the recurring multi-turn lines that ' +
+        'close the game from their side, ranked by observed frequency. Each shows its ' +
+        'critical turn (the one where if unanswered, the game typically ends). The ' +
+        'coverage badge on each curve is computed against the reference decklist: ' +
+        '🟢 ≥3 copies of a listed answer, 🟡 1–2 copies, 🔴 no listed answer.') +
+      _section('ans',  '4. Your answers', _sectionAnswers(STATE.deck, STATE.opp, mu),
+        '<strong>The same killer curves as above, viewed from the response side</strong> — ' +
+        'which answer cards are already in the list and which would need to be added to ' +
+        'cover each threat line. Copy counts aggregate across reprints (any version of ' +
+        'the card with the same base name counts toward the total).') +
+      _section('opt',  '5. Card optimization', _sectionCardOpt(STATE.deck, STATE.opp, mu),
+        '<strong>Two signals side by side for tuning the 60 cards vs this matchup.</strong> ' +
+        '<em>Card scores</em> (correlation): win rate delta when the card is played vs when ' +
+        'it isn’t — directional, not causal, biased by game duration. <em>IWD</em> ' +
+        '(Improvement When Drawn): win rate delta when the card lands in hand by turn 3 vs ' +
+        'later — closer to causal. The optimized list applies the card-scores add/cut logic ' +
+        'to the consensus baseline.') +
+      _section('loss', '6. Loss review', _sectionLossReview(STATE.deck, STATE.opp, mu),
+        '<strong>Where this archetype tends to lose against this opponent</strong> — ' +
+        'primary loss causes, failure states extracted from killer curves, and a textual ' +
+        'summary if the LLM pipeline has run. Read this after Snapshot flags the matchup ' +
+        'as weak: it tells you <em>why</em>, not just that the WR is bad.');
 
     const footer =
       '<footer class="mw-footer">' +

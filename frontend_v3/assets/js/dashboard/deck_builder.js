@@ -142,29 +142,55 @@ window.V3.Builder = {
     });
   },
 
-  // Legal card pool: every card that appears in any consensus list or tournament
-  // reference list for the active format. Cached per format to avoid rescans.
-  _legalCardNames() {
+  // Pro pool for THIS archetype: cards appearing in consensus[deckCode] or
+  // in reference_decklists[deckCode] events within the last PRO_POOL_DAYS.
+  // Restricting by archetype avoids splash-ink contamination (e.g. EmSa
+  // surfacing Sapphire cards pros only run in Sapphire-Steel lists).
+  // Date window keeps the pool aligned with current meta pro decisions.
+  PRO_POOL_DAYS: 30,
+
+  _proPoolCutoff() {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - this.PRO_POOL_DAYS);
+    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  },
+
+  _legalCardNames(deckCode) {
     const fmt = (typeof currentFormat !== 'undefined') ? currentFormat : 'core';
-    if (this._legalCacheKey === fmt && this._legalCache) return this._legalCache;
+    const key = `${fmt}::${deckCode || '_any'}`;
+    if (this._legalCacheKey === key && this._legalCache) return this._legalCache;
     const set = new Set();
     const consensus = DATA.consensus || {};
-    Object.values(consensus).forEach(list => {
-      Object.keys(list || {}).forEach(name => set.add(name));
-    });
     const refs = DATA.reference_decklists || {};
-    Object.values(refs).forEach(refList => {
-      (refList || []).forEach(r => {
-        (r && r.cards ? r.cards : []).forEach(c => { if (c && c.name) set.add(c.name); });
+    if (deckCode) {
+      Object.keys(consensus[deckCode] || {}).forEach(name => set.add(name));
+      const cutoff = this._proPoolCutoff();
+      (refs[deckCode] || []).forEach(r => {
+        if (!r) return;
+        // Skip out-of-window refs when event_date is known. Keep refs with no
+        // date (older seed data) so the pool is never empty on niche archetypes.
+        if (r.event_date && r.event_date < cutoff) return;
+        (r.cards || []).forEach(c => { if (c && c.name) set.add(c.name); });
       });
-    });
-    // Keep cards currently in the user's deck even if not in consensus (they
+    } else {
+      // Fallback (no archetype context): union across everything, used when
+      // the builder is invoked without a deckCode. Matches legacy behavior.
+      Object.values(consensus).forEach(list => {
+        Object.keys(list || {}).forEach(name => set.add(name));
+      });
+      Object.values(refs).forEach(refList => {
+        (refList || []).forEach(r => {
+          (r && r.cards ? r.cards : []).forEach(c => { if (c && c.name) set.add(c.name); });
+        });
+      });
+    }
+    // Keep cards currently in the user's deck even if not in the pool (they
     // were manually added earlier — the builder should still show +1 on them).
     if (typeof myDeckCards !== 'undefined' && myDeckCards) {
       Object.keys(myDeckCards).forEach(name => set.add(name));
     }
     this._legalCache = set;
-    this._legalCacheKey = fmt;
+    this._legalCacheKey = key;
     return set;
   },
 
@@ -173,9 +199,9 @@ window.V3.Builder = {
   _filteredCards(deckCode) {
     if (typeof rvCardsDB === 'undefined' || !rvCardsDB) return [];
     const deckInks = (typeof DECK_INKS !== 'undefined' && DECK_INKS[deckCode]) || [];
-    // Pro-only gate: when enabled, restrict to cards present in any consensus
-    // or tournament reference list (pool of ~200-300 cards that pros actually run).
-    const proPool = this._state.proOnly ? this._legalCardNames() : null;
+    // Pro-only gate: when enabled, restrict to cards present in THIS archetype's
+    // consensus list + recent tournament refs for the same archetype (last 30d).
+    const proPool = this._state.proOnly ? this._legalCardNames(deckCode) : null;
     const out = [];
     Object.keys(rvCardsDB).forEach(name => {
       if (proPool && !proPool.has(name)) return;
@@ -264,7 +290,7 @@ window.V3.Builder = {
       </div>
       <div class="bld-pool-seg" role="tablist" aria-label="Card pool">
         <button class="bld-pro-seg ${!proActive ? 'active' : ''}" data-pro="false" onclick="window.V3.Builder.setProOnly(false)">All cards</button>
-        <button class="bld-pro-seg ${proActive ? 'active' : ''}" data-pro="true" onclick="window.V3.Builder.setProOnly(true)" title="Only cards currently played in pro tournament lists">Pro only</button>
+        <button class="bld-pro-seg ${proActive ? 'active' : ''}" data-pro="true" onclick="window.V3.Builder.setProOnly(true)" title="Only cards pros are currently running in this archetype (last 30 days)">Pro only</button>
       </div>
       <input class="bld-search" type="search" placeholder="Search card name…"
              oninput="window.V3.Builder.setSearch(this.value)"

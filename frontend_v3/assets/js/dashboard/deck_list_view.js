@@ -104,6 +104,22 @@
     const chevron = expanded ? '▾' : '▸';
     const toggleLabel = expanded ? 'Hide list' : 'View list';
 
+    // Loaded saved-deck indicator — "Loaded: <name>" (or "· modified" if
+    // myDeckCards has diverged from the loaded list since load).
+    let loadedIndicator = '';
+    if (window.V3 && window.V3.SavedDecks && window.V3.SavedDecks.getLoadedDeck) {
+      const loaded = window.V3.SavedDecks.getLoadedDeck();
+      if (loaded) {
+        const dirty = window.V3.SavedDecks.isDirtyVsLoaded && window.V3.SavedDecks.isDirtyVsLoaded();
+        loadedIndicator = '<span class="dlv-loaded' + (dirty ? ' dlv-loaded--dirty' : '') + '" ' +
+          'title="Currently loaded saved deck">' +
+          '<span class="dlv-loaded-lbl">Loaded:</span> ' +
+          '<strong>' + _esc(loaded.name) + '</strong>' +
+          (dirty ? ' <span class="dlv-loaded-tag">modified</span>' : '') +
+          '</span>';
+      }
+    }
+
     const head =
       '<div class="dlv-head">' +
       '<button class="dlv-toggle" type="button" onclick="window.V3.DeckListView.toggle()" ' +
@@ -111,10 +127,16 @@
       '<span class="dlv-chevron">' + chevron + '</span>' +
       '<span class="dlv-title">Your list</span>' +
       '<span class="dlv-sum">' + _esc(summaryLine) + '</span>' +
+      loadedIndicator +
       '</button>' +
       '<div class="dlv-actions">' +
       '<button class="dlv-btn dlv-btn--ghost" type="button" onclick="window.V3.DeckListView.toggle()">' +
       toggleLabel +
+      '</button>' +
+      '<button class="dlv-btn dlv-btn--ghost" type="button" ' +
+      'onclick="window.V3.SavedDecks && window.V3.SavedDecks.openLoadPopover()" ' +
+      'title="Load one of your saved decks into the editor">' +
+      'Load…' +
       '</button>' +
       '<button class="dlv-btn dlv-btn--gold" type="button" onclick="window.V3.DeckListView.triggerEdit()">' +
       (inEdit ? 'Done editing' : 'Edit deck') +
@@ -125,7 +147,15 @@
       '</div>' +
       '</div>';
 
-    if (!expanded) return '<div class="dlv-card dlv-collapsed">' + head + '</div>';
+    const intro = '<div class="deck-intro deck-intro--above">' +
+      '<strong>The consensus 60-card decklist</strong> for this archetype, aggregated ' +
+      'from the top-performing observed lists. Expand to see every card with its ' +
+      'in-matchup score (how much playing the card shifts the observed win rate in ' +
+      'wins vs losses), compare against the latest tournament decklists, or hit ' +
+      '<em>Edit deck</em> to build your own variant with consensus as the baseline. ' +
+      'Edits are saved locally in the browser — no account required.' +
+      '</div>';
+    if (!expanded) return intro + '<div class="dlv-card dlv-collapsed">' + head + '</div>';
 
     const gridHtml = (window.V3 && window.V3.DeckGrid)
       ? window.V3.DeckGrid.buildGrid(deckCode, opponentCode)
@@ -165,9 +195,27 @@
           '</div>'
         : gridHtml;
 
-    return '<div class="dlv-card dlv-expanded">' +
+    // Cross-matchup suggestions live at the bottom of the expanded Your
+    // list card. Engine runs without an opp hint → ranked by aggregate
+    // coverage gained / weighted-delta across the whole observed matrix.
+    let suggHtml = '';
+    if (window.V3 && window.V3.RecommendationEngine) {
+      const actions = window.V3.RecommendationEngine.compute(deckCode) || [];
+      const suggBody = actions.length
+        ? actions.map(function (a) { return window.V3.RecommendationEngine.renderAction(a); }).join('')
+        : '<div class="dlv-sugg-empty">No strong add / cut suggestions from the observed sample in the current scope.</div>';
+      suggHtml = '<div class="dlv-sugg">' +
+        '<div class="dlv-sugg-head">Suggested adds / cuts ' +
+        '<span class="dlv-sugg-sub">cross-matchup · observed sample · data-driven</span>' +
+        '</div>' +
+        '<div class="dlv-sugg-list">' + suggBody + '</div>' +
+        '</div>';
+    }
+
+    return intro + '<div class="dlv-card dlv-expanded">' +
       head +
       '<div class="dlv-body">' + statusHtml + bodyLayout + '</div>' +
+      suggHtml +
       '</div>';
   }
 

@@ -27,6 +27,27 @@
 
 ---
 
+## HARDBLOCK — No-Removal Window su Deck / Team / Play (valido fino al 2026-04-29 notte)
+
+L'utente è single-reviewer in finestra single-Claude fino a martedì 28/04 notte e **non può fare review esterna**. Per evitare regressioni silenziose:
+
+- **Deck · Team · Play sono in modalità ADD-ONLY.** Non si rimuove e non si sposta nulla di visibile (accordion, sezione, button, badge, KPI tile, intro copy) senza:
+  1. Nota esplicita nel commit message del tipo `breaking-ui(deck): removed X because <ragione>` oppure `breaking-ui(deck): moved X from <da> to <a>`.
+  2. Aggiornamento contestuale del file baseline (`frontend_v3/point/V3_CURRENT_STATE.md`) nello stesso commit.
+  3. Conferma utente prima del commit. **Se l'utente non è online, non rimuovere — sospendi il task e spostalo in PENDING.**
+- "Refactor che sposta senza perdita" conta comunque come rimozione fino a quando il commit non documenta esplicitamente il nuovo punto di vita dell'oggetto.
+- Cambi additivi (nuovi accordion, nuove sezioni, nuovi badge, nuove copy intro) restano **liberi** — è il working mode normale.
+- Vale per Deck, Team, Play. Meta / Events / Community non si toccavano già (vincolo preesistente in §A.6). Home / Improve restano modificabili come prima.
+- Baseline 26/04 sera = primo commit `dev` dopo questo blocco. La finestra termina **martedì 28/04 notte**: dopo, l'utente fa diff manuale contro lo snapshot.
+
+**Cosa è già stato accettato come baseline (NON da ripristinare, decisione utente 26/04):**
+- Deck Summary: rimossi `Response Coverage mini` + `Recommended actions opp-aware` (sostituito da versione cross-matchup in fondo a "Your list").
+- Deck: rimosso ink-picker matchup selector — selezione opp ora via row-click in Matchups.
+
+Tutto il resto in Deck / Team / Play come da `V3_CURRENT_STATE.md` snapshot 2026-04-24 è da preservare.
+
+---
+
 # Sezione A — PRE-LAUNCH (max 7 giorni)
 
 Scope: sblocco lancio + conversione minima. **Non toccare Meta, Deck, Events, Community salvo bug.**
