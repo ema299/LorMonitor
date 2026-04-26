@@ -358,6 +358,47 @@ def delete_replay_notes(
     return Response(status_code=204)
 
 
+@router.get("/replay/{game_id}/export-pdf")
+def export_replay_pdf(
+    replay: TeamReplay = Depends(require_replay_owner),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """B.2 — owner-only PDF of replay metadata + session notes.
+
+    Streams ``application/pdf`` with a friendly attachment filename. Caller
+    must be the replay owner (or admin) by virtue of ``require_replay_owner``.
+    """
+    note = (
+        db.query(ReplaySessionNote)
+        .filter(
+            ReplaySessionNote.replay_id == replay.id,
+            ReplaySessionNote.user_id == user.id,
+        )
+        .first()
+    )
+    notes_body = note.body if note else None
+    notes_updated = note.updated_at if note else None
+
+    from backend.services.replay_pdf_service import render_replay_pdf
+    pdf_bytes = render_replay_pdf(
+        replay,
+        notes_body=notes_body,
+        notes_updated_at=notes_updated,
+    )
+
+    safe_id = (replay.game_id or "replay").replace("/", "_").replace(" ", "_")
+    filename = f"lorcana_replay_{safe_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, max-age=0, no-store",
+        },
+    )
+
+
 @router.get("/roster")
 def get_roster(
     user: User | None = Depends(require_team_access),

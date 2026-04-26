@@ -303,6 +303,7 @@ function tcRenderNotesPanel() {
     + '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap">'
     +   '<button onclick="tcNotesSaveNow()" style="background:var(--gold);color:#1a1408;border:0;padding:6px 14px;border-radius:5px;font-size:0.82em;font-weight:700;cursor:pointer">Save</button>'
     +   '<button onclick="tcNotesClear()" style="background:transparent;border:1px solid rgba(248,81,73,0.35);color:var(--red);padding:6px 12px;border-radius:5px;font-size:0.8em;font-weight:600;cursor:pointer">Clear notes</button>'
+    +   '<button onclick="tcExportPdf()" style="background:transparent;border:1px solid rgba(212,160,58,0.45);color:var(--gold);padding:6px 12px;border-radius:5px;font-size:0.8em;font-weight:600;cursor:pointer">Export PDF</button>'
     +   '<span id="tc-notes-counter" style="font-size:0.74em;color:var(--text2);margin-left:auto">0 / 50000</span>'
     + '</div>'
     + '</div>';
@@ -2218,3 +2219,35 @@ function wbAddFromDeck(side, deckIdx) {
   `;
   document.head.appendChild(s);
 })();
+
+// B.2 — Export PDF for the current Board Lab replay (owner-only).
+// Triggers a download via /api/v1/team/replay/{game_id}/export-pdf which
+// returns application/pdf with Content-Disposition: attachment.
+async function tcExportPdf() {
+  const meta = (typeof tcCurrentReplayMeta !== 'undefined') ? tcCurrentReplayMeta : null;
+  if (!meta || !meta.game_id) {
+    alert('Open a replay before exporting.');
+    return;
+  }
+  try {
+    const url = '/api/v1/team/replay/' + encodeURIComponent(meta.game_id) + '/export-pdf';
+    const resp = await (typeof tcFetch === 'function' ? tcFetch(url) : fetch(url));
+    if (!resp.ok) {
+      let detail = resp.statusText;
+      try { detail = (await resp.json()).detail || detail; } catch (_) {}
+      alert('PDF export failed: ' + detail);
+      return;
+    }
+    const blob = await resp.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = 'lorcana_replay_' + String(meta.game_id).replace(/[^a-zA-Z0-9_-]+/g, '_') + '.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 1000);
+  } catch (err) {
+    alert('PDF export failed: ' + (err && err.message ? err.message : 'network error'));
+  }
+}
