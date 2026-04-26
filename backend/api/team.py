@@ -7,11 +7,14 @@ Privacy layer V3 (ARCHITECTURE.md §24.5):
 - list/get filter by ownership when user is authenticated non-admin
 - transitional nginx-only mode (user=None) preserves legacy behavior
 """
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Response, UploadFile, File, Query
-from sqlalchemy import exists, or_
+from pydantic import BaseModel, Field
+from sqlalchemy import and_, exists, or_
 from sqlalchemy.orm import Session
 
-from backend.deps import get_current_user, get_db, require_replay_owner, require_team_access
+from backend.deps import get_current_user, get_db, require_replay_owner, require_team_access, require_tier
 from backend.models.team import ReplaySessionNote, TeamReplay, TeamRoster
 from backend.models.user import User
 from backend.services import replay_service
@@ -19,6 +22,12 @@ from backend.services import replay_service
 # B.2 MVP A — owner-only private notes. 50k chars cap is conservative for a
 # coach-hobbyista (~10 A4 pages); raise if real usage hits the ceiling.
 NOTE_BODY_MAX_CHARS = 50_000
+
+# B.7.2 — Coach Workspace roster quotes.
+COACH_ROSTER_QUOTA = 50  # max active students per coach
+ROSTER_BULK_MAX_ROWS = 200  # CSV bulk per request
+
+VALID_STATUS_ADMIN = {"invited", "active", "paused", "archived"}
 
 router = APIRouter()
 
@@ -415,3 +424,194 @@ def update_roster(
         db.add(TeamRoster(name=name, role=p.get("role", "")))
     db.commit()
     return {"status": "ok", "count": len(players)}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Coach roster (B.7.2 — per-coach students, separate from legacy team_roster)
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class StudentCreate(BaseModel):
+    """Single student row creation. Coach is inferred from the JWT subject."""
+    display_name: str = Field(..., min_length=1, max_length=100)
+    duels_nick: str | None = Field(None, max_length=100)
+    discord_username: str | None = Field(None, max_length=50)
+    discord_id: str | None = Field(None, max_length=30)
+    notes: str | None = None
+    status_admin: str = Field("active")
+
+
+class StudentBulkRow(BaseModel):
+    display_name: str = Field(..., min_length=1, max_length=100)
+    duels_nick: str | None = Field(None, max_length=100)
+    discord_username: str | None = Field(None, max_length=50)
+
+
+class StudentBulkRequest(BaseModel):
+    rows: list[StudentBulkRow] = Field(..., min_length=1, max_length=ROSTER_BULK_MAX_ROWS)
+
+
+def _coach_active_students(db: Session, coach_id) -> int:
+    """Count current non-archived, non-revoked students for the coach."""
+    return (
+        db.query(TeamRoster)
+        .filter(
+            TeamRoster.coach_id == coach_id,
+            TeamRoster.revoked_at.is_(None),
+            TeamRoster.status_admin != "archived",
+        )
+        .count()
+    )
+
+
+def _serialize_student(row: TeamRoster) -> dict:
+    return {
+        "id": str(row.id),
+        "display_name": row.display_name or row.name,
+        "status_admin": row.status_admin,
+        "duels_nick": row.duels_nick,
+        "duels_nick_status": row.duels_nick_status,
+        "discord_username": row.discord_username,
+        "discord_id": row.discord_id,
+        "notes": row.notes,
+        "added_at": row.added_at.isoformat() if row.added_at else None,
+        "revoked_at": row.revoked_at.isoformat() if row.revoked_at else None,
+        "student_user_id": str(row.student_user_id) if row.student_user_id else None,
+    }
+
+
+@router.get("/students")
+def list_students(
+    user: User = Depends(require_tier("coach")),
+    db: Session = Depends(get_db),
+    include_archived: bool = Query(False),
+):
+    """List the caller's coached students. Excludes revoked unless ``include_archived``."""
+    q = db.query(TeamRoster).filter(TeamRoster.coach_id == user.id)
+    if not include_archived:
+        q = q.filter(
+            TeamRoster.revoked_at.is_(None),
+            TeamRoster.status_admin != "archived",
+        )
+    rows = q.order_by(TeamRoster.added_at.desc()).all()
+    return {"students": [_serialize_student(r) for r in rows], "quota": COACH_ROSTER_QUOTA}
+
+
+@router.post("/students", status_code=201)
+def create_student(
+    payload: StudentCreate,
+    user: User = Depends(require_tier("coach")),
+    db: Session = Depends(get_db),
+):
+    """Create a single student row attached to the caller's coach roster.
+
+    Quote: ``COACH_ROSTER_QUOTA`` active students per coach. Duplicate
+    ``display_name`` for the same coach is rejected by the unique idx.
+    """
+    status_admin = payload.status_admin if payload.status_admin in VALID_STATUS_ADMIN else "active"
+
+    if status_admin != "archived":
+        if _coach_active_students(db, user.id) >= COACH_ROSTER_QUOTA:
+            raise HTTPException(
+                status_code=400,
+                detail=f"roster quota reached ({COACH_ROSTER_QUOTA} active students max). Archive a student first.",
+            )
+
+    duels_nick = (payload.duels_nick or "").strip() or None
+    duels_nick_status = "unverified" if duels_nick else "missing"
+
+    row = TeamRoster(
+        # Legacy 'name' kept in sync with display_name to preserve readers
+        # that still query the legacy column.
+        name=payload.display_name.strip(),
+        role=None,
+        coach_id=user.id,
+        display_name=payload.display_name.strip(),
+        status_admin=status_admin,
+        duels_nick=duels_nick,
+        duels_nick_status=duels_nick_status,
+        discord_username=(payload.discord_username or "").strip() or None,
+        discord_id=(payload.discord_id or "").strip() or None,
+        notes=payload.notes,
+    )
+    db.add(row)
+    try:
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="display_name already exists for this coach")
+    return _serialize_student(row)
+
+
+@router.post("/students/bulk", status_code=200)
+def create_students_bulk(
+    payload: StudentBulkRequest,
+    user: User = Depends(require_tier("coach")),
+    db: Session = Depends(get_db),
+):
+    """CSV-style bulk import. Client parses CSV and posts a row list.
+
+    Per-row failures (quota, duplicate display_name) reported in ``errors``.
+    The remaining rows are still created. ``ROSTER_BULK_MAX_ROWS`` upper bound
+    limits payload size; quota check still applies — total active students
+    after import ≤ ``COACH_ROSTER_QUOTA``.
+    """
+    current_active = _coach_active_students(db, user.id)
+    remaining_quota = max(0, COACH_ROSTER_QUOTA - current_active)
+    created = 0
+    errors: list[dict] = []
+
+    for idx, r in enumerate(payload.rows):
+        if remaining_quota <= 0:
+            errors.append({"row": idx, "display_name": r.display_name, "error": "quota_exhausted"})
+            continue
+        duels_nick = (r.duels_nick or "").strip() or None
+        row = TeamRoster(
+            name=r.display_name.strip(),
+            role=None,
+            coach_id=user.id,
+            display_name=r.display_name.strip(),
+            status_admin="active",
+            duels_nick=duels_nick,
+            duels_nick_status="unverified" if duels_nick else "missing",
+            discord_username=(r.discord_username or "").strip() or None,
+        )
+        db.add(row)
+        try:
+            db.flush()
+            created += 1
+            remaining_quota -= 1
+        except Exception:
+            db.rollback()
+            errors.append({"row": idx, "display_name": r.display_name, "error": "duplicate_display_name"})
+
+    if created:
+        db.commit()
+
+    return {"created": created, "errors": errors, "quota_remaining": remaining_quota}
+
+
+@router.delete("/students/{student_id}", status_code=204)
+def archive_student(
+    student_id: str,
+    user: User = Depends(require_tier("coach")),
+    db: Session = Depends(get_db),
+):
+    """Soft-archive a student row (sets ``revoked_at`` + ``status_admin=archived``).
+
+    Owner-coach only. Hard delete is intentionally NOT exposed — preserves
+    audit trail of replay bindings (B.7.4) and notes (B.7.5) created during
+    the coaching relationship.
+    """
+    row = (
+        db.query(TeamRoster)
+        .filter(TeamRoster.id == student_id, TeamRoster.coach_id == user.id)
+        .first()
+    )
+    if not row:
+        raise HTTPException(status_code=404, detail="student not found")
+    row.revoked_at = datetime.now(timezone.utc)
+    row.status_admin = "archived"
+    db.commit()
+    return Response(status_code=204)

@@ -119,19 +119,118 @@ function buildBoardLabSection() {
     '</div>';
 }
 
+// ─── B.7.1 layered rendering helpers ────────────────────────────────
+// All purely additive; pre-existing renderTeamTab paths unchanged. The
+// strip + tier-aware empty states wrap the legacy body when applicable.
+
+function ttResolveView() {
+  const view = (typeof lmEffectiveTeamView === 'function') ? lmEffectiveTeamView() : 'free';
+  const u = window.LM_USER || {};
+  const lvl = (typeof lmTierLevel === 'function') ? lmTierLevel(u.tier || 'free') : 0;
+  return {
+    view,                        // 'free' | 'pro' | 'coach' | 'coach_player'
+    tier: u.tier || 'free',
+    isCoachTier: lvl >= 2,       // includes 'team' alias
+    isCoachView: view === 'coach',
+    isProOrAbove: lvl >= 1,
+    user: u,
+  };
+}
+
+async function lmSetTeamViewMode(mode) {
+  // Optimistic: flip locally, persist async, re-render. If PUT fails the
+  // local override sticks for the session; next page load re-syncs.
+  if (mode !== 'player' && mode !== 'coach') return;
+  if (window.LM_USER) window.LM_USER.team_view_mode = mode;
+  try {
+    const tokenKeys = ['lm_access_token', 'access_token', 'auth_access_token'];
+    let token = null;
+    for (const k of tokenKeys) { const v = localStorage.getItem(k); if (v) { token = v; break; } }
+    if (token) {
+      await fetch('/api/v1/user/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ team_view_mode: mode }),
+      });
+    }
+  } catch (_) { /* best-effort */ }
+  if (typeof render === 'function') render();
+}
+
+function buildLayeredTeamStrip() {
+  // Visible only when caller is coach tier (or 'team' alias). Toggles
+  // Player/Coach view via PUT preferences.
+  const r = ttResolveView();
+  if (!r.isCoachTier) return '';
+  const isCoach = r.isCoachView;
+  const playerActive = !isCoach;
+  return `<div class="tt-view-strip" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:8px 12px;border:1px solid rgba(255,215,0,0.18);border-radius:8px;background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.03));flex-wrap:wrap">
+    <span style="font-size:0.7rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700">View</span>
+    <div class="lab-base-seg" style="margin:0">
+      <button class="lab-base-btn${playerActive?' active':''}" style="padding:5px 14px;font-size:0.78em;font-weight:600" onclick="lmSetTeamViewMode('player')">Player</button>
+      <button class="lab-base-btn${isCoach?' active':''}" style="padding:5px 14px;font-size:0.78em;font-weight:600" onclick="lmSetTeamViewMode('coach')">Coach</button>
+    </div>
+    <span style="font-size:0.78em;color:var(--text2);flex:1;min-width:200px">${isCoach ? 'Full coaching workspace &mdash; roster, replay queue, notes sharing.' : 'Lighter view &mdash; same as Pro analytics. Switch to Coach to manage students.'}</span>
+  </div>`;
+}
+
+function buildProUpsellToCoachCard() {
+  return `<div class="card" style="padding:14px 16px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.32);background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(124,63,160,0.04));display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <div style="font-size:0.7rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">Coach tier &mdash; €39/m</div>
+      <div style="font-size:0.92em;font-weight:600;margin-bottom:4px">Manage your students inside Team</div>
+      <div style="font-size:0.82em;color:var(--text2)">Roster CSV import &middot; Board Lab queue &middot; Session notes shared with students.</div>
+    </div>
+    <button onclick="recordPaywallIntent('coach')" style="background:var(--gold);color:#1a1408;border:0;padding:9px 18px;border-radius:6px;font-size:0.86em;font-weight:700;cursor:pointer">Upgrade to Coach &rarr;</button>
+  </div>`;
+}
+
+function buildCoachOnboardingEmpty() {
+  return `<div class="card" style="text-align:center;padding:36px 20px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.22);background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(124,63,160,0.04))">
+    <div style="font-size:2em;margin-bottom:10px">🎓</div>
+    <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Coach onboarding</div>
+    <h2 style="margin-bottom:8px;font-size:1.1em">No students yet</h2>
+    <p style="color:var(--text2);font-size:0.86em;max-width:420px;margin:0 auto 14px">Add students to start the coaching workflow: upload their <strong>.replay.gz</strong> in Board Lab below, write session notes, and share feedback.</p>
+    <button onclick="alert('Roster editor coming in next sprint (B.7.2 UI). For now use POST /api/v1/team/students from the API.')" style="background:var(--gold);color:#1a1408;border:0;padding:8px 16px;border-radius:6px;font-size:0.85em;font-weight:700;cursor:pointer">Add students</button>
+    <div style="font-size:0.74em;color:var(--text2);margin-top:10px">Or upload a <strong>.replay.gz</strong> directly in Board Lab below — student binding will follow.</div>
+  </div>`;
+}
+
+function buildProEmptyTeam() {
+  return `<div class="card" style="text-align:center;padding:32px 20px;margin-bottom:18px">
+    <div style="font-size:2em;margin-bottom:10px">📊</div>
+    <h2 style="margin-bottom:6px;font-size:1.05em">Team analytics</h2>
+    <p style="color:var(--text2);font-size:0.85em;max-width:380px;margin:0 auto">No team configured yet. Roster analytics unlock once team data is added &mdash; Board Lab below works without a roster.</p>
+  </div>`;
+}
+
+function buildFreeEmptyTeam() {
+  return '<div class="card" style="text-align:center;padding:40px 20px;margin-bottom:18px">' +
+    '<div style="font-size:2.2em;margin-bottom:10px">🎮</div>' +
+    '<h2 style="margin-bottom:6px;font-size:1.05em">Team Training</h2>' +
+    '<p style="color:var(--text2);font-size:0.85em;max-width:360px;margin:0 auto">No team configured yet. Roster analytics unlock once players are added &mdash; Board Lab below works without a roster.</p></div>';
+}
+
 function renderTeamTab(main) {
+  // B.7.1 — layered rendering. Compute view + tier first; legacy paths
+  // below render the body, the wrapper in main.innerHTML composition adds
+  // the layered strip + tier-aware empty states.
+  const ttView = ttResolveView();
+  const ttStrip = buildLayeredTeamStrip();
   const team = DATA.team;
   if (!team || !team.players || team.players.length === 0) {
-    main.innerHTML = buildProToolsHeader() +
-      '<div class="card" style="text-align:center;padding:60px 20px">' +
-      '<div style="font-size:2.5em;margin-bottom:12px">\uD83C\uDFAE</div>' +
-      '<h2 style="margin-bottom:6px;font-size:1.1em">Team Training</h2>' +
-      '<p style="color:var(--text2);font-size:0.85em;max-width:360px;margin:0 auto">No team configured yet. Roster analytics unlock once players are added &mdash; Board Lab below works without a roster.</p></div>' +
+    let _ttEmpty;
+    if (ttView.isCoachView) _ttEmpty = buildCoachOnboardingEmpty();
+    else if (ttView.isProOrAbove) _ttEmpty = buildProEmptyTeam();
+    else _ttEmpty = buildFreeEmptyTeam();
+    main.innerHTML = ttStrip + buildProToolsHeader() + _ttEmpty +
       ((typeof buildProToolsIWDSection === 'function') ? buildProToolsIWDSection() : '') +
       buildBoardLabSection();
     if (typeof tcInit === 'function') tcInit('tc-container');
     return;
   }
+  // Legacy path below (pre-existing roster + analysis + Board Lab) wraps
+  // with ttStrip + optional pro-upsell banner at the final main.innerHTML.
 
   const players = team.players;
   const ov = team.overview || {};
@@ -475,7 +574,10 @@ function renderTeamTab(main) {
   // V3-5 22/04: IWD inline accordion (lazy load on expand).
   const iwdSection = (typeof buildProToolsIWDSection === 'function') ? buildProToolsIWDSection() : '';
 
-  main.innerHTML = buildProToolsHeader() + html + iwdSection;
+  // B.7.1 — pro-tier soft upsell to Coach (only Pro, not free, not coach).
+  const ttUpsell = (ttView.tier === 'pro') ? buildProUpsellToCoachCard() : '';
+
+  main.innerHTML = ttStrip + ttUpsell + buildProToolsHeader() + html + iwdSection;
 
   // Init Board Lab
   if (typeof tcInit === 'function') {
