@@ -17,7 +17,12 @@ security = HTTPBearer(auto_error=False)
 
 APPTOOL_ADMIN_TOKEN = os.environ.get("APPTOOL_ADMIN_TOKEN", "").strip()
 
-TIER_LEVEL = {"free": 0, "pro": 1, "team": 2, "admin": 3}
+# B.7.0 — `coach` is the new Coach Workspace tier (€39/m, BP §6).
+# Legacy `team` aliases to coach capability (same level) so existing paganti
+# don't lose access. Decision on tier `team` final disposition (deprecate /
+# alias permanente / tier intermedio €19) tracked in TODO §B.7.Y, atteso 30gg
+# post B.7 launch.
+TIER_LEVEL = {"free": 0, "pro": 1, "team": 2, "coach": 2, "admin": 3}
 
 
 def get_db():

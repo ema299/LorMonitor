@@ -75,6 +75,11 @@ ALLOWED_PREFS = {
     # funnels through this set, so these keys remain accepted there too —
     # but the UI never writes them via the generic preferences PUT).
     "consents", "interest_to_pay",
+    # B.7.0 — Coach Workspace tab Team layered rendering. Values: 'player'
+    # (lighter pro view) | 'coach' (full workspace, only effective when
+    # user.tier == 'coach' or alias 'team'). Default UI fallback handled in
+    # frontend; backend just whitelists the key here.
+    "team_view_mode",
 }
 
 

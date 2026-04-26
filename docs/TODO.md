@@ -123,6 +123,40 @@ Qualsiasi proposta che richiede cambio nav → tech debt deferred, NON implement
 - ❌ Meta / Deck / Events / Community: non toccare salvo bug
 - ❌ Improve ristrutturazione a percorso (resta raccolta strumenti pre-launch, dichiarato limite)
 
+## A.7. Auth UI minima — sign-up / sign-in / account dropdown
+
+**Goal:** chiudere il buco "utente arriva su V3 → vuole creare account / fare login → non c'è UI". Il backend `auth.py` espone già `/register`, `/login`, `/refresh`, `/logout`, `/forgot-password`, `/reset-password` — manca solo la superficie UI in V3.
+
+**Scope ristretto pre-launch:**
+- Sign-up form (email + password + display_name) → `POST /api/v1/auth/register`
+- Sign-in form (email + password) → `POST /api/v1/auth/login` → JWT in `localStorage` (key `lorcana_jwt`)
+- Account dropdown nell'header V3: avatar/initials, "Logout", link "Profile" (esistente in tab Improve)
+- Forgot password flow base: form mail → `/forgot-password`, token via mail → `/reset-password` UI minima
+- Stato anonimo resta default: tutto pubblico continua a funzionare senza login (no regression)
+
+**Coerenza con guardrail A.5 (riga 88):** quel guardrail vietava di introdurre login *durante il task QA privacy boundary V3*, non in assoluto. A.7 è task separato, esplicito. Il vincolo di A.5 ("no OAuth, no account claiming, no nuove tabelle") resta valido anche per A.7: niente Google/Discord OAuth, niente "claim this nickname", niente nuove tabelle DB (tutti gli endpoint backend già esistono).
+
+**Vincoli non-negoziabili:**
+- ❌ NO OAuth (Google/Discord/etc) — solo email+password
+- ❌ NO account claiming nickname duels.ink (resta separato, gestito via `/api/v1/user/nicknames`)
+- ❌ NO nuovi endpoint backend (tutti già esistono)
+- ❌ NO nuove tabelle DB
+- ❌ NO billing UI (è B.8, post-fiscal)
+- ✅ Solo presentation layer V3 + JWT storage + account dropdown header
+
+**Guardrail Claude:** non introdurre OAuth, social login, "claim nickname", reset password tramite SMS, 2FA, magic link. Se serve qualcosa oltre register/login form base + JWT cookie/localStorage + dropdown header → fermarsi e chiedere.
+
+| Task | Effort | Priorità |
+|------|--------|----------|
+| Sign-up form modal V3 (`auth_signup.js` NEW MODULO V3, ~150 LOC) — email + password + display_name + consent checkbox ToS/Privacy → `POST /api/v1/auth/register` | 1 dev day | P0 |
+| Sign-in form modal V3 (`auth_signin.js` NEW MODULO V3, ~100 LOC) → `POST /api/v1/auth/login` → JWT in `localStorage`, refresh token in cookie httpOnly se possibile | 1 dev day | P0 |
+| Account dropdown header V3 (`auth_header.js` NEW MODULO V3, ~80 LOC) — avatar con iniziali, menu "Profile / Logout", state-aware (anonymous → "Sign in" button, logged → dropdown) | 0.5 dev day | P0 |
+| Forgot/reset password flow minimal — modal "Reset password" → `POST /forgot-password` con messaggio "Check your email", landing `/reset-password?token=...` con form nuovo password → `POST /reset-password` | 1 dev day | P1 |
+| JWT lifecycle wiring globale: ogni `fetch()` autenticata aggiunge `Authorization: Bearer <token>`. Auto-refresh su 401 prima del retry. Logout su refresh fallito. | 0.5 dev day | P0 |
+| QA mobile: tutti i form full-screen su ≤640px (no modal scrollable cropped), keyboard handling iOS, autofocus. | 0.5 dev day | P0 |
+
+**Test backend pre-existing (no nuovo endpoint):** smoke `scripts/auth_smoke_test.py` (NEW) → register → login → me → logout → reset-password roundtrip. Run con account temp.
+
 ---
 
 # Sezione B — POST-LAUNCH (entro 30 giorni)
@@ -213,10 +247,10 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 
 | Task | Effort | Impatto |
 |------|--------|---------|
-| Stripe webhook → `users.tier='coach'` post-checkout (riusa `subscription_service.create_checkout_session`, già scaffold). Test con account dev Stripe + dry-run. | 2 dev day | Alto |
-| Beta redemption code: riuso `promo_service.granted_tier='coach'` + endpoint `POST /api/v1/promo/redeem-beta`, distribuibile a 5-10 power-coach prima di Stripe live. Codici scadono dopo N giorni o never (param). Audit log redemption. | 1 dev day | Alto (dogfooding) |
-| `User.preferences.team_view_mode` (`player`/`coach`, default `coach` se `tier=coach`, sennò non applicabile). Endpoint `PUT /api/v1/user/preferences` già accetta whitelist (`user_service.py::ALLOWED_PREFS`) — aggiungere `team_view_mode` lì. | 0.5 dev day | Medio |
-| **Tier `team` legacy compatibility**: `users.tier` ENUM oggi accetta `free|pro|coach|team` (`team` è valore storico pre-`coach`). Default policy B.7: `tier='team'` mappato a Coach Workspace capability (alias temporaneo) per non rompere user paganti esistenti. Decisione finale di prodotto sul tier `team` (deprecate / alias permanente / tier intermedio €19) tracciata in B.7.Y. Nessun nuovo signup deve poter scegliere `team` — restringere `interest_to_pay` pattern a `(pro\|coach)` in `backend/api/user.py`. | 0.5 dev day | Alto (no silent default-deny per pagante) |
+| Stripe webhook → `users.tier='coach'` post-checkout (riusa `subscription_service.create_checkout_session`, già scaffold). Test con account dev Stripe + dry-run. | **PENDING** (richiede struttura fiscale SRL chiusa, BP §6.3; coordinato con B.8 Stripe & Billing) | Alto |
+| Beta redemption code: riuso `promo_service.granted_tier='coach'` + endpoint `POST /api/v1/promo/redeem-beta`, distribuibile a 5-10 power-coach prima di Stripe live. Codici scadono dopo N giorni o never (param). Audit log redemption. | **DONE 26/04** — endpoint `backend/api/promo.py:91 redeem_beta_code` con doppia validazione (`type='tier_upgrade'` + `granted_tier='coach'`), opaque error per non leakare codici non-beta, audit log via logger (`code, user, tier, expires, ip, ua`). Riusa `promo_service.redeem_promo` esistente. Codici creati via `POST /api/v1/promo/create` con `granted_tier=coach` + `expires_at` opzionale. | Alto (dogfooding) |
+| `User.preferences.team_view_mode` (`player`/`coach`, default `coach` se `tier=coach`, sennò non applicabile). Endpoint `PUT /api/v1/user/preferences` già accetta whitelist (`user_service.py::ALLOWED_PREFS`) — aggiungere `team_view_mode` lì. | **DONE 26/04** — `team_view_mode` aggiunto a `ALLOWED_PREFS` in `user_service.py`. Endpoint PUT esistente lo accetta. Default UI fallback gestito in frontend (B.7.1). | Medio |
+| **Tier `team` legacy compatibility**: `users.tier` ENUM oggi accetta `free|pro|coach|team` (`team` è valore storico pre-`coach`). Default policy B.7: `tier='team'` mappato a Coach Workspace capability (alias temporaneo) per non rompere user paganti esistenti. Decisione finale di prodotto sul tier `team` (deprecate / alias permanente / tier intermedio €19) tracciata in B.7.Y. Nessun nuovo signup deve poter scegliere `team` — restringere `interest_to_pay` pattern a `(pro\|coach)` in `backend/api/user.py`. | **DONE 26/04** — `users.tier` è VARCHAR(20), no ENUM Postgres. `TIER_LEVEL` (`backend/deps.py:20`) e `TIER_LIMITS` + `UPLOAD_REPLAY_LIMITS` (`backend/middleware/rate_limit.py`) estesi con `coach=2` allo stesso livello di `team=2`. `InterestRequest` pattern (`backend/api/user.py:53`) ristretto da `(pro\|coach\|team)` a `(pro\|coach)`. Nessun nuovo signup può scegliere `team`; legacy paganti `team` mantengono Coach capability via alias. Frontend non posta `tier='team'`, breaking change safe. | Alto (no silent default-deny per pagante) |
 
 ### B.7.1 Layered rendering tab Team (player / coach view)
 
@@ -309,7 +343,37 @@ Discord come acceleratore. Workspace funziona end-to-end senza Discord. **Vincol
 
 ---
 
-## B.8. NON in B — resta fuori scope 30 gg
+## B.8. Billing & Stripe checkout — wiring reale (post-fiscal)
+
+**Goal:** sostituire fake paywall + interest tracking con Stripe checkout reale, una volta che la struttura fiscale (P.IVA, regime, fatturazione UE) è chiara. Backend ha già `subscription_service.create_checkout_session()` scaffold; manca wiring UI + webhook + customer portal.
+
+**Vincolo blocker (memoria `project_apptool_status` + A.6):** non implementare prima di struttura fiscale chiara. `interest_to_pay` resta meccanismo di tracking finché non c'è P.IVA + fatturazione automatica configurate.
+
+**Vincoli non-negoziabili:**
+- ❌ NO billing prima di fiscal setup (P.IVA, IVA OSS UE, regime fatturazione)
+- ❌ NO crediti API Anthropic per processi billing (memoria `feedback_claude_subscription_not_api`)
+- ❌ NO altri provider fuori da Stripe (no Paddle, no LemonSqueezy — riusare scaffold esistente)
+- ✅ Riusare `subscription_service.create_checkout_session()` esistente
+- ✅ Webhook secret in `/etc/apptool.env` (0600) come `APPTOOL_ADMIN_TOKEN` pattern
+
+**Guardrail Claude:** non avviare nessuna delle entry sotto finché il blocker fiscale non è chiuso. Se richiesto, partire da webhook backend + smoke test in dev (Stripe test mode), poi UI checkout, poi customer portal. Mai bypassare webhook signature validation. Mai esporre `STRIPE_SECRET_KEY` in frontend.
+
+| Task | Effort | Priorità |
+|------|--------|----------|
+| Wiring Stripe webhook backend `/api/v1/webhooks/stripe` (route già scaffold in `backend/main.py`) → su `checkout.session.completed` setta `users.tier='pro|coach'` + audit log | 1 dev day | P0 |
+| UI Upgrade modal V3 (`billing_upgrade.js` NEW MODULO V3) — pricing card con Pro €10/m + Coach €39/m + button "Subscribe" → `POST /api/v1/billing/checkout` → redirect Stripe Checkout. Sostituisce fake paywall + interest tracking. | 1.5 dev day | P0 |
+| Customer portal Stripe — button "Manage subscription" in account dropdown → `POST /api/v1/billing/portal` → redirect Stripe portal (cancel, update payment method, invoices history) | 0.5 dev day | P0 |
+| Migration `interest_to_pay → real conversion`: per user con `preferences.interest_to_pay` esistente, mostra banner "We're live! Activate your subscription" che li porta direttamente al checkout | 0.5 dev day | Alto (recover early interest) |
+| Webhook Stripe per `customer.subscription.deleted` → downgrade `tier='free'` con grace period 7gg. Mail al user con link reactivate. | 1 dev day | P0 |
+| Endpoint admin `GET /api/v1/admin/subscriptions` (gated `X-Admin-Token`) per audit MRR + active subscriptions count | 0.5 dev day | Medio |
+
+**Test smoke (Stripe test mode):** `scripts/billing_smoke_test.py` (NEW) — register → login → checkout (test card 4242) → webhook fires → `tier='pro'` → portal → cancel → grace period.
+
+**Coordinamento con B.7.0:** Stripe webhook in B.7.0 ("Stripe webhook → users.tier='coach' post-checkout") è subset di questo B.8. Se B.7 viene avviato prima di B.8, allora B.7.0 implementa il webhook minimo solo per Coach tier; B.8 lo estende a Pro + customer portal + grace period.
+
+---
+
+## B.9. NON in B — resta fuori scope 30 gg
 
 - Country segmentation / meta locale (richiede ≥500 utenti con country; post-60 gg minimo)
 - Coach page pubblica `/coach/<slug>` + affiliate (post-validazione Coach tier, non prima)

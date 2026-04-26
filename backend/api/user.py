@@ -50,7 +50,10 @@ class UpdateDeckRequest(BaseModel):
 class InterestRequest(BaseModel):
     """Soft paywall / waitlist intent — user clicks "Unlock Pro" / "Unlock Coach"
     before we have Stripe/Paddle live. See ARCHITECTURE.md §24.8."""
-    tier: str = Field(..., pattern="^(pro|coach|team)$")
+    # B.7.0 — `team` removed from the new-signup interest pattern: existing
+    # paganti keep tier='team' (aliased to coach capability via TIER_LEVEL),
+    # but no fresh signup picks `team` going forward.
+    tier: str = Field(..., pattern="^(pro|coach)$")
 
 
 class ConsentRequest(BaseModel):

@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 TIER_LIMITS = {
     "free": 100,    # per minute
     "pro": 500,
+    # B.7.0 — coach + team share the same rate ceiling (team is alias).
+    "coach": 1000,
     "team": 1000,
     "admin": 5000,
 }
@@ -25,6 +27,8 @@ LOGIN_WINDOW = 900    # 15 min
 UPLOAD_REPLAY_LIMITS = {
     "free": 5,      # per minute
     "pro": 30,
+    # B.7.0 — coach inherits team's upload bucket (alias).
+    "coach": 60,
     "team": 60,
     "admin": 300,
 }
