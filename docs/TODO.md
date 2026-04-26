@@ -133,7 +133,7 @@ Oggi Improve è un menu (My Stats + Blind Playbook + Card Analysis + Mulligan + 
 | Task | Effort | Impatto business |
 |------|--------|------------------|
 | Header "Your improvement path" con 3-4 step ordinati basati sul dato utente | **DONE 25/04** — `profile.js:912 pfImprovementPath()` 3 step (Worst matchup→Play / Best matchup→Play / Underperforming deck→Deck), gating: < 20 game = teaser cresci, 0 step = "balanced". Ogni step actionable con click → tab+preselect. | Alto (retention Pro) |
-| Nickname bridge più utile: quando bridge attivo, mostrare "X match associati, Y% WR personale" in Home + Improve | 1 dev day | Alto (feature hook, sblocca country segmentation futura) |
+| Nickname bridge più utile: quando bridge attivo, mostrare "X match associati, Y% WR personale" in Home + Improve | **DONE 26/04** — `profile.js` helper `pfPlayerBridgeStats()` aggrega da `DATA.player_lookup[fmt][nick]` (no backend) + `pfBridgeStatsCard(saved, scope, variant)` rendering Home/Improve variants. Stati gestiti: nickname assente (card hidden), linked-with-data ("X matches, Y% WR over N decks" + best deck line + "Open Improve"/"Review decks" CTA), linked-but-empty ("nickname linked, no matches in {fmt}"), demo (title swap "Demo bridge active"). Smoke unit 5/5 PASS. | Alto (feature hook, sblocca country segmentation futura) |
 | Confidence / sample size surface su Mulligan ("Based on N hands, confidence: low/med/high") | **DONE 25/04** — `lab.js:116 _mullSetConfidence()` badge inline accanto al counter, aggiornato per filtro attivo (Blind/OTP/OTD). Threshold: <10=Low rosso, 10-29=Medium giallo, 30+=High verde, 0=No data. Tooltip esplicativo per ogni soglia. | Medio (honesty) |
 | Blind Playbook personalizzato per-matchup (non solo per-deck) | 2 dev day | Medio |
 

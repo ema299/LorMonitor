@@ -33,6 +33,77 @@ function pfCardMeta(name) {
   };
 }
 
+// B.1 — nickname bridge stats. Surfaces "X match associati, Y% WR personal"
+// when duels.ink nickname is linked, on Home and Improve. Reads from
+// DATA.player_lookup; no backend call.
+function pfPlayerBridgeStats(saved, scope) {
+  const nick = saved && saved.duelsNick ? saved.duelsNick.trim() : '';
+  if (!nick || !scope) return null;
+  const fmtKey = scope.format || currentFormat || 'core';
+  const lookup = ((DATA.player_lookup || {})[fmtKey] || {})[nick.toLowerCase()] || {};
+  const decks = Object.entries(lookup);
+  if (!decks.length) return {
+    nick,
+    fmtKey,
+    games: 0,
+    wins: 0,
+    losses: 0,
+    wr: null,
+    deckCount: 0,
+    bestDeck: null,
+  };
+
+  let wins = 0;
+  let losses = 0;
+  let bestDeck = null;
+  decks.forEach(([deck, value]) => {
+    const w = Number(value.w || 0);
+    const l = Number(value.l || 0);
+    const games = w + l;
+    wins += w;
+    losses += l;
+    if (games && (!bestDeck || games > bestDeck.games)) {
+      bestDeck = { deck, games, wr: w / games * 100 };
+    }
+  });
+  const games = wins + losses;
+  return {
+    nick,
+    fmtKey,
+    games,
+    wins,
+    losses,
+    wr: games ? wins / games * 100 : null,
+    deckCount: decks.length,
+    bestDeck,
+  };
+}
+
+function pfBridgeStatsCard(saved, scope, variant) {
+  const stats = pfPlayerBridgeStats(saved, scope);
+  if (!stats) return '';
+  const isDemo = localStorage.getItem('pf_demo') === '1';
+  const title = isDemo ? 'Demo bridge active' : 'Nickname bridge active';
+  const deckLine = stats.bestDeck
+    ? `${deckImg(stats.bestDeck.deck, 16)} <span>${stats.bestDeck.deck} main deck (${stats.bestDeck.games}g, ${stats.bestDeck.wr.toFixed(1)}% WR)</span>`
+    : '<span>No deck sample yet</span>';
+  const body = stats.games
+    ? `<strong>${stats.games.toLocaleString()}</strong> matches associated, <strong style="color:${wrColor(stats.wr)}">${stats.wr.toFixed(1)}% WR</strong> personal over ${stats.deckCount} deck${stats.deckCount === 1 ? '' : 's'}.`
+    : `Nickname linked as <strong>${_bpEsc(stats.nick)}</strong>, but no ${stats.fmtKey.toUpperCase()} matches are associated yet.`;
+  const cta = stats.games
+    ? `<button onclick="${variant === 'home' ? "switchToTab('improve')" : "var b=document.getElementById('pf-my-stats-body-improve');if(b)b.scrollIntoView({behavior:'smooth',block:'center'});"}" style="background:transparent;border:1px solid rgba(255,215,0,0.34);color:var(--gold);padding:5px 10px;border-radius:5px;font-size:0.74em;font-weight:700;cursor:pointer">${variant === 'home' ? 'Open Improve' : 'Review decks'}</button>`
+    : `<button onclick="pfOpenDrawer()" style="background:transparent;border:1px solid rgba(255,215,0,0.34);color:var(--gold);padding:5px 10px;border-radius:5px;font-size:0.74em;font-weight:700;cursor:pointer">Check nickname</button>`;
+
+  return `<div class="pf-bridge-card" style="display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;padding:11px 13px;margin:${variant === 'home' ? '10px 0 12px' : '0 0 14px'};border:1px solid rgba(255,215,0,0.18);border-radius:8px;background:rgba(255,215,0,0.035)">
+    <div style="min-width:220px;flex:1">
+      <div style="font-size:0.7rem;color:var(--gold);letter-spacing:0.12em;text-transform:uppercase;font-weight:700;margin-bottom:4px">${title}</div>
+      <div style="font-size:0.84em;color:var(--text2);line-height:1.35">${body}</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:0.74em;color:var(--text2);margin-top:5px">${deckLine}</div>
+    </div>
+    ${cta}
+  </div>`;
+}
+
 function pfBuildCurveTimeline(cards) {
   if (!cards || typeof cards !== 'object') return '';
   const turns = [
@@ -613,6 +684,7 @@ function renderProfileTab(main) {
     <button class="lab-base-btn${scope.isCustomDeck?' active':''}" style="padding:3px 9px;font-size:0.7em"
       onclick="myDeckMode='custom';${hasDeck?'restoreMyDeckInks();render()':'showDeckHistory()'}">My Deck</button>
   </div>`;
+  const bridgeStatsHtml = pfBridgeStatsCard(saved, scope, 'home');
 
   // ── MY STATS (collapsible, from player_lookup) ──
   let myStatsHtml = '';
@@ -698,6 +770,7 @@ function renderProfileTab(main) {
     ${deckSelectorInner}
     ${pinsInner}
     ${(window.V3 && window.V3.SavedDecks) ? window.V3.SavedDecks.buildHomeSection() : ''}
+    ${bridgeStatsHtml}
     ${myStatsHtml}
   </div>`;
 
@@ -1176,6 +1249,7 @@ function renderImproveTab(main) {
   }
 
   const nickHeroHtml = pfImproveNickHero(saved, isDemo, scope);
+  const bridgeStatsHtml = pfBridgeStatsCard(saved, scope, 'improve');
   const improvementPathHtml = pfImprovementPath(saved, scope);
   const improveDeckWorkspaceHtml = pfImproveDeckFocus ? `
     <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
@@ -1196,6 +1270,7 @@ function renderImproveTab(main) {
     ${headerHtml}
     ${hasNudge && !nickHeroHtml ? `<div class="pf-info-tip" id="pf-improve-tip" style="margin:0 0 8px">${nudgeHtml || 'Improve collects your personal and study signals.'}</div>` : ''}
 
+    ${bridgeStatsHtml}
     ${improvementPathHtml}
     ${improveDeckWorkspaceHtml}
 
