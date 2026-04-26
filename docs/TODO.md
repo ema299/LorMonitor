@@ -1,6 +1,6 @@
 # App_tool — TODO Master
 
-**Ultimo aggiornamento:** 24 Aprile 2026 (sera — A.1 + A.2 + A.3 partial chiusi)
+**Ultimo aggiornamento:** 26 Aprile 2026 — B.1 nickname bridge stats chiuso; aggiunti privacy boundary V3, KC quality sprint, ops digest e visual parity.
 **Scope:** master TODO operativo di `metamonitor.app`. Tre sezioni ordinate per impatto business.
 
 ## Regola operativa per Claude
@@ -82,7 +82,10 @@ Opzione B (isolated Play-only gate). Scope: 4/5 task → DONE. 1 task deferred p
 |------|------|--------|----------|
 | **V3 swap one-liner** — `FRONTEND_DIR` in `_serve_dashboard()` da `frontend/` a `frontend_v3/`. Eseguire come ULTIMA azione settimana 1. | `backend/main.py` | 5 min + restart | P0 (ultima azione) |
 | QA end-to-end: tab switch, paywall triggers, consent flow, upload owner-only, mobile + desktop | manuale | 1 dev day | P0 |
+| **QA privacy boundary V3** — nickname manuale non deve sembrare "claimed": copy `Public player lookup`/demo finché non c'è verifica; `.replay.gz` owner-only; public replay viewer solo anonymized/reconstructed, niente nickname reali o hidden-hand/full private state derivato da upload altrui. | **DONE 26/04** — Audit (Fase 1): backend endpoint replay verificati clean (anonymizer wirato su `/api/replay/list|game|public-log`, `/api/v1/team/replay/*` owner/shared filter). Copy fix (Fase 2) in `profile.js` + `shared_ui.js`: `My Stats`→`Player lookup` (×7), `Your account · deck · performance`→`Setup · pinned deck · player lookup`, `Personal Profile`→`Profile`, `Your improvement path`→`Improvement path` (×3), `Personal performance signals…`→`Performance signals based on the linked nickname's public match logs.`, `personal stats`→`lookup stats` (4 empty-state CTAs), hero CTA `your real matches`→`public match logs for the linked nickname`, bullet `Personal WR per deck — what actually wins for you`→`WR per deck · what wins on that nickname's logs`, `My Decks (up to 3)`→`Pinned Decks (up to 3)`, demo nudge Improve allineato a Home con `Stats below are not yours.` Diff: profile.js +24/-24, shared_ui.js +3/-3. | 0.5 day | P0 |
 | Verifica service worker `frontend_v3/sw.js` self-destruct pulisce cache utenti legacy | client-side monitoring | auto | P1 |
+
+**Guardrail Claude per QA privacy boundary:** questo task è audit/copy/smoke, non una nuova feature. Non introdurre login, OAuth, account claiming, nuove tabelle o nuovo replay engine. Correzioni ammesse prima del lancio: rinominare copy ambigua (`My Stats` → `Public player lookup` quando nickname non verificato), nascondere/limitare dati se sembrano privati, verificare che Board Lab usi solo replay owner-uploaded e che il public viewer resti anonymized. Se serve backend nuovo, fermarsi e chiedere.
 
 ## A.6. Ciò che NON si fa pre-launch (decisioni preservate)
 
@@ -170,7 +173,21 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 | Set 12 Hub `FORM_ACTION` + `FORM_EMAIL_FIELD` + `DISCORD_INVITE` → URL reali | **BLOCKED** | attesa Google Form + Discord server. Marcatore `BLOCKED_URL_PENDING` in `set12_hub.js`. Non bloccante lancio. |
 | Improve onboarding più aggressivo sul nickname bridge | **DONE 25/04** | Hero CTA card sopra Improve quando `!duelsNick` (3 unlock bullets + Link/Demo dual CTA + counter player tracked) — `profile.js:913-940 pfImproveNickHero()`. Demo mode = strip slim. Linked = nascosto. |
 
-## B.6. NON in B — resta fuori scope 30 gg
+## B.6. Ops — Feedback & Ops Digest
+
+**Goal:** canale unico per bug/request utenti e anomalie pipeline notturne, con mail digest giornaliero. Non blocca V3 launch; serve a ridurre il tempo di triage post-lancio.
+
+**Guardrail Claude:** non implementare questa sezione durante pre-launch salvo richiesta esplicita. Se richiesto, partire da Fase 1 in commit piccoli: schema DB + endpoint feedback, poi incident reporter, poi digest mail. Non aggiungere LLM remediation nella stessa PR. Non leggere o inviare secrets nei digest. Non permettere azioni automatiche: il sistema deve solo raccogliere, raggruppare e suggerire.
+
+| Task | Fase | Nota |
+|------|------|------|
+| `user_feedback` table + `POST /api/v1/feedback` rate-limited + sticky feedback button/modal V3 (kind, text, page_url, ua, auto-context) | Fase 1 | Separare feedback utente da incidenti ops; limite 5/die user, 3/die anon-IP |
+| `ops_incidents` table + `backend/services/incident_reporter.py::report_incident()` | Fase 1 | Campi minimi: source, severity `info|warn|error|critical`, payload JSONB, status; helper riusabile dai cron |
+| Wiring cron/worker critici: import matches, KC batch, matchup reports, snapshot assembler, monitor unmapped, KC freshness, backup | Fase 1 | `catch + report_incident()` su failure; digest mostra solo `severity >= warn`, DB conserva tutto |
+| `daily_health_digest.py` 07:30 UTC → mail unica a `monitorteamfe@gmail.com` | Fase 1 | Raggruppa nuovi feedback per kind + incidents per source/severity + lista azioni suggerita |
+| `digest_remediation_plan.py` 08:00 UTC con LLM plan in `docs/incidents/YYYY-MM-DD.md` | Fase 2 | Solo suggerimenti, mai esecuzione; prompt con log pertinenti, no secrets, no destructive, compatibile con `ARCHITECTURE.md` |
+
+## B.7. NON in B — resta fuori scope 30 gg
 
 - Country segmentation / meta locale (richiede ≥500 utenti con country; post-60 gg minimo)
 - Coach page pubblica `/coach/<slug>` + affiliate (post-validazione Coach tier, non prima)
@@ -282,13 +299,28 @@ Doppio guard attivo in `pipelines/kc/`: prompt-time (`build_prompt._build_meta_r
 
 Admin endpoint `/api/v1/admin/reset-legality-cache` invalida anche `kc_meta_relevant` + `meta_relevance_cache`. One-shot `scripts/reclean_kc_meta.py` già eseguito (209 card ref strippate). Sync rapido `scripts/refresh_kc_matchup_reports.py`: `killer_curves` → `matchup_reports` senza full regen (12 min → 5 sec).
 
-### C.7.4. Invarianti KC da memoria
+### C.7.4. P1 KC quality sprint — validator, repair, batch safety
+
+**Stato 26/04:** key OpenAI ruotata e verificata; test reale `EmSa vs AmyE` Core OK dopo repair automatico `response_missing_named_card`; DB sorgente ha `digest_hash`, `prompt_contract_hash`, `schema_version`, `response_v2_complete=6/6`, `v3_payload_complete=6/6`, `self_check_complete=6/6`. Sync Core verso `matchup_reports` eseguito. Non lanciare batch completo finché i punti sotto non sono chiusi.
+
+**Guardrail Claude:** non lanciare `--format all`, non usare `--force`, non cambiare modello e non toccare la key OpenAI. Prima implementare validator deterministico e testarlo su righe esistenti. Ogni chiamata OpenAI reale deve essere single-pair, motivata e confermata dall'utente. Non pubblicare dati KC se il validator trova P0. Il repair LLM deve correggere solo il JSON già prodotto, non cambiare deck/format/sequence arbitrariamente.
+
+| Task | Stato | Nota |
+|------|-------|------|
+| Repair automatico singolo per `response_missing_named_card` | PARTIAL | Implementato in `scripts/generate_killer_curves.py`; serve test su 3-5 matchup Core/Infinity, incluso caso che falliva (`AbSt` vs `SSt` Infinity) |
+| Validator hard condiviso `pipelines/kc/validator.py` | PENDING | P0 fail: JSON/deck/format mismatch, Core-illegal, off-color, card non esistente, campi v2 mancanti, sequence lato sbagliato |
+| Schema validation prima dell'upsert + `quality_status/errors/warnings` in `meta` | PENDING | Pubblicare in V3 solo `quality_status=pass` o warning esplicitamente accettati |
+| Drop metrics granulari | PENDING | Separare response vs sequence, core-illegal vs non-meta; oggi `cards_dropped` è aggregato |
+| Consistency check `killer_curves` → `matchup_reports` → dashboard blob | PENDING | Fallire refresh/cache se mancano matchup non spiegati o se il formato finisce nel blob sbagliato |
+| Batch completo KC | PENDING | Solo dopo validator + smoke; poi `refresh_kc_matchup_reports.py --format all` + `/api/v1/dashboard-data?refresh=true` |
+
+### C.7.5. Invarianti KC da memoria
 
 - KC full batch solo **martedì 01:30** — non lanciare run manuali (`project_kc_pipeline_cost`)
 - KC Spy = canary $0.05/die
 - OpenAI gpt-5.4-mini, mai crediti Anthropic API (`feedback_claude_subscription_not_api`, `project_api_constraint`)
 
-### C.7.5. Canary + monitoring ops
+### C.7.6. Canary + monitoring ops
 
 | Cron | Ora | Cosa alerta |
 |------|-----|-------------|
@@ -345,6 +377,19 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 - Headline auto-generato template `T${turn} ${cards.join('+')} → N kills, +X lore`
 - Wiring in `snapshot_assembler.py` (popola `blob["best_plays"]` e `blob["best_plays_infinity"]`)
 - Smoke test: count reports populated, sample shape match con frontend renderer schema
+
+## C.12. V3 visual parity — Deck tab as design baseline
+
+**Goal:** rendere Home, Play, Meta, Team, Improve, Events coerenti con la maturità visuale del tab Deck senza cambiare nav o contenuti. Non blocca go-live; sprint di polish post-launch.
+
+**Guardrail Claude:** visual parity non significa redesign. Non cambiare nav, ordine tab, copy strategica, dati mostrati, gating/paywall o layout funzionale. Prima fare audit e lista differenze; poi patch CSS/classi condivise piccole. Evitare refactor monolitici e non toccare più di 1-2 tab per commit. Ogni patch deve passare smoke mobile/desktop e controllare overflow/overlap.
+
+| Task | Nota |
+|------|------|
+| Audit stile per tab | Confrontare typography, spacing, section headers, divider comments, card radius, color usage, CTA density contro Deck tab |
+| Shared CSS tokens/components | Estrarre o riallineare classi comuni invece di inline style duplicati; mantenere mobile-first |
+| Section comment/structure consistency | Uniformare commenti divisori e naming interno per ridurre drift tra tab |
+| Smoke visual desktop/mobile | Verificare text overflow, overlap, contrast, tab switch e componenti con contenuto lungo |
 
 ---
 

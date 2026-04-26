@@ -300,7 +300,7 @@ function renderProfileTab(main) {
   {
     let nudgeInner = '';
     if (!saved.duelsNick) {
-      nudgeInner = `<a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see personal stats, or <a onclick="pfLoadDemo()" style="color:var(--gold);cursor:pointer;text-decoration:underline">try demo player</a>.`;
+      nudgeInner = `<a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see lookup stats, or <a onclick="pfLoadDemo()" style="color:var(--gold);cursor:pointer;text-decoration:underline">try demo player</a>.`;
     } else if (isDemo) {
       nudgeInner = `Demo mode — viewing <strong>${saved.duelsNick}</strong>. <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Set your own nickname</a> · <a onclick="pfClearDemo()" style="color:var(--text2);cursor:pointer;text-decoration:underline">reset</a>`;
     }
@@ -656,7 +656,7 @@ function renderProfileTab(main) {
       </div>
     </div>
     <div class="pf-drawer-section">
-      <h4>My Decks (up to 3)</h4>
+      <h4>Pinned Decks (up to 3)</h4>
       <div style="font-size:0.78em;color:var(--text2);margin-bottom:8px">Click to pin/unpin decks for your home dashboard.</div>
       ${pinPickerHtml}
     </div>
@@ -737,7 +737,7 @@ function renderProfileTab(main) {
 
       myStatsHtml = `<div class="pf-my-stats-section">
         <div class="pf-my-stats-toggle" onclick="var b=document.getElementById('pf-my-stats-body');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.pf-my-stats-chev').classList.toggle('open')">
-          <span class="pf-my-stats-label">My Stats</span>
+          <span class="pf-my-stats-label">Player lookup</span>
           <span style="font-size:0.72em;color:var(--text2)">${totalGames}g · ${totalWr}% · MMR ${bestMmr}</span>
           <svg class="pf-my-stats-chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
@@ -749,14 +749,14 @@ function renderProfileTab(main) {
       </div>`;
     } else {
       myStatsHtml = `<div class="pf-my-stats-section">
-        <div class="pf-my-stats-label" style="padding:0">My Stats</div>
+        <div class="pf-my-stats-label" style="padding:0">Player lookup</div>
         <div style="font-size:0.75em;color:var(--text2);padding:4px 0">No games found for <strong>${myNick}</strong> in the last 3 days</div>
       </div>`;
     }
   } else {
     myStatsHtml = `<div class="pf-my-stats-section">
-      <div class="pf-my-stats-label" style="padding:0">My Stats</div>
-      <div style="font-size:0.75em;color:var(--text2);padding:4px 0"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see your personal stats</div>
+      <div class="pf-my-stats-label" style="padding:0">Player lookup</div>
+      <div style="font-size:0.75em;color:var(--text2);padding:4px 0"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see lookup stats</div>
     </div>`;
   }
 
@@ -816,7 +816,7 @@ function renderProfileTab(main) {
         <div class="pf-onboard-step-body">Go to <strong>Play</strong> for killer curves, threats and cheatsheet.</div>
       </div>
     </div>
-    ${!myNick ? `<div class="pf-onboard-footer">Have a duels.ink nickname? <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link it</a> to unlock personal stats.</div>` : ''}
+    ${!myNick ? `<div class="pf-onboard-footer">Have a duels.ink nickname? <a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link it</a> to unlock lookup stats.</div>` : ''}
   </div>` : '';
 
   // A.3 Home insight teaser — single-line hook into Play tab (worst matchup CTA).
@@ -1004,9 +1004,9 @@ function pfImproveNickHero(saved, isDemo, scope) {
   return `<div class="card" style="padding:18px 20px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.32);background:linear-gradient(135deg,rgba(255,215,0,0.06),rgba(124,63,160,0.05))">
     <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Step 1 &mdash; unlock your data</div>
     <div style="font-size:1.05rem;font-weight:700;margin-bottom:6px">Link your duels.ink nickname</div>
-    <div style="font-size:0.85em;color:var(--text2);margin-bottom:12px">${playersLine ? playersLine + ' ' : ''}Improve runs on your real matches &mdash; without a nickname every panel below is empty.</div>
+    <div style="font-size:0.85em;color:var(--text2);margin-bottom:12px">${playersLine ? playersLine + ' ' : ''}Improve runs on the public match logs for the linked nickname &mdash; without one every panel below is empty.</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-bottom:14px;font-size:0.82em">
-      <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>Personal WR per deck</strong> &middot; what actually wins for you</span></div>
+      <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>WR per deck</strong> &middot; what wins on that nickname's logs</span></div>
       <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>Worst matchup</strong> &middot; where to focus practice</span></div>
       <div style="display:flex;gap:8px;align-items:flex-start"><span style="color:var(--gold);font-weight:700">&#10003;</span><span><strong>MMR &amp; history</strong> &middot; trend across last sessions</span></div>
     </div>
@@ -1034,7 +1034,7 @@ function pfImprovementPath(saved, scope) {
   const totalGames = userDecks.reduce((s, [_, v]) => s + v.w + v.l, 0);
   if (totalGames < 20) {
     return `<div class="card" style="padding:14px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.18);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.04))">
-      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Your improvement path</div>
+      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Improvement path</div>
       <div style="font-size:0.86em;color:var(--text2)">Only ${totalGames} match${totalGames === 1 ? '' : 'es'} tracked so far for <strong>${nick}</strong> in ${fmtKey.toUpperCase()}. Keep playing &mdash; personalized steps unlock at 20 matches.</div>
     </div>`;
   }
@@ -1105,7 +1105,7 @@ function pfImprovementPath(saved, scope) {
 
   if (!steps.length) {
     return `<div class="card" style="padding:14px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.18);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.04))">
-      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Your improvement path</div>
+      <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Improvement path</div>
       <div style="font-size:0.86em;color:var(--text2)">${totalGames} matches tracked for <strong>${nick}</strong>. Nothing flagged yet &mdash; you're playing balanced. Keep going.</div>
     </div>`;
   }
@@ -1125,7 +1125,7 @@ function pfImprovementPath(saved, scope) {
   return `<div class="card" style="padding:16px 18px;margin-bottom:18px;border:1px solid rgba(255,215,0,0.22);background:linear-gradient(135deg,rgba(255,215,0,0.04),rgba(124,63,160,0.03))">
     <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;flex-wrap:wrap;gap:6px">
       <div>
-        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700">Your improvement path</div>
+        <div style="font-size:0.72rem;color:var(--gold);letter-spacing:0.14em;text-transform:uppercase;font-weight:700">Improvement path</div>
         <div style="font-size:0.78em;color:var(--text2);margin-top:2px">Ranked by gap-to-close from your <strong>${totalGames}</strong> matches in ${fmtKey.toUpperCase()}.</div>
       </div>
     </div>
@@ -1160,9 +1160,9 @@ function renderImproveTab(main) {
   const hasNudge = !saved.duelsNick || isDemo;
   let nudgeHtml = '';
   if (!saved.duelsNick) {
-    nudgeHtml = `<div class="pf-info-tip" style="margin:0 0 8px"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to unlock personal improve signals.</div>`;
+    nudgeHtml = `<div class="pf-info-tip" style="margin:0 0 8px"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to unlock improve signals.</div>`;
   } else if (isDemo) {
-    nudgeHtml = `<div class="pf-info-tip" style="margin:0 0 8px">Demo mode — viewing <strong>${saved.duelsNick}</strong>.</div>`;
+    nudgeHtml = `<div class="pf-info-tip" style="margin:0 0 8px">Demo mode &mdash; viewing <strong>${saved.duelsNick}</strong>. Stats below are not yours.</div>`;
   }
   const headerHtml = `<div class="pf-header">
     <div class="pf-avatar">${initials}</div>
@@ -1225,7 +1225,7 @@ function renderImproveTab(main) {
       });
       myStatsHtml = `<div class="pf-my-stats-section">
         <div class="pf-my-stats-toggle" onclick="var b=document.getElementById('pf-my-stats-body-improve');b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.pf-my-stats-chev').classList.toggle('open')">
-          <span class="pf-my-stats-label">My Stats</span>
+          <span class="pf-my-stats-label">Player lookup</span>
           <span style="font-size:0.72em;color:var(--text2)">${totalGames}g · ${totalWr}% · MMR ${bestMmr}</span>
           <svg class="pf-my-stats-chev" width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
@@ -1237,14 +1237,14 @@ function renderImproveTab(main) {
       </div>`;
     } else {
       myStatsHtml = `<div class="pf-my-stats-section">
-        <div class="pf-my-stats-label" style="padding:0">My Stats</div>
+        <div class="pf-my-stats-label" style="padding:0">Player lookup</div>
         <div style="font-size:0.75em;color:var(--text2);padding:4px 0">No games found for <strong>${myNick}</strong> in the last 3 days</div>
       </div>`;
     }
   } else {
     myStatsHtml = `<div class="pf-my-stats-section">
-      <div class="pf-my-stats-label" style="padding:0">My Stats</div>
-      <div style="font-size:0.75em;color:var(--text2);padding:4px 0"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see your personal stats</div>
+      <div class="pf-my-stats-label" style="padding:0">Player lookup</div>
+      <div style="font-size:0.75em;color:var(--text2);padding:4px 0"><a onclick="pfOpenDrawer()" style="color:var(--gold);cursor:pointer;text-decoration:underline">Link your duels.ink nickname</a> to see lookup stats</div>
     </div>`;
   }
 
@@ -1263,7 +1263,7 @@ function renderImproveTab(main) {
 
     <div class="tab-section-hdr">
       <span class="tab-section-hdr__eyebrow">Profile</span>
-      <span class="tab-section-hdr__title">Your account &middot; deck &middot; performance</span>
+      <span class="tab-section-hdr__title">Setup &middot; pinned deck &middot; player lookup</span>
     </div>
 
     ${nickHeroHtml}
@@ -1275,12 +1275,12 @@ function renderImproveTab(main) {
     ${improveDeckWorkspaceHtml}
 
     <div class="tab-section-hdr" style="margin-top:var(--sp-4)">
-      <span class="tab-section-hdr__eyebrow">My Stats</span>
+      <span class="tab-section-hdr__eyebrow">Player lookup</span>
       <span class="tab-section-hdr__title">Win rates &middot; matchup gaps &middot; deck history</span>
     </div>
 
     <div class="pf-kpi-card">
-      <div style="font-size:0.82em;color:var(--text2);margin-bottom:12px">Personal performance signals. Link your duels.ink nickname to unlock all data.</div>
+      <div style="font-size:0.82em;color:var(--text2);margin-bottom:12px">Performance signals based on the linked nickname's public match logs.</div>
       ${myStatsHtml}
     </div>
 

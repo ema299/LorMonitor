@@ -197,7 +197,7 @@ const TOUR_TAB_STEPS = {
     { target: '.pf-hero-deck', title: 'Select Your Deck', body: 'The command center. Pick your deck by tapping 2 ink colors — deck and format propagate to the main tabs (Monitor, Coach, Lab). You can save up to 3 decks for quick access.' },
     { target: '.pf-ink-grid,.pf-hero-ink-row', title: 'Ink Picker', body: 'Tap 2 colors to select a deck. You can also import a custom decklist with the "My Deck" toggle.' },
     { target: '.pf-saved-decks-section', title: 'Saved Decks', body: 'Your saved decks. Click to switch quickly. You can pin a deck after selecting it with the inks.' },
-    { target: '.pf-my-stats-section', title: 'My Stats', body: 'Your personal stats for the last 3 days: all decks played with WR and worst matchup. Requires your duels.ink nickname (Settings).' },
+    { target: '.pf-my-stats-section', title: 'Player lookup', body: 'Public player stats for the linked nickname over the last 3 days: all decks played with WR and worst matchup. Add a nickname in Settings to populate.' },
     { target: '.pf-hero-radar', title: 'Meta Radar', body: 'Overall deck stats in the meta: WR, share, games. Below: best/worst matchups and threats to watch.' },
     { target: '.pf-tech-flow', title: 'Non-Standard Picks', body: 'Cards outside the consensus list used by winning players (WR 52%+). Merged from PRO, TOP and Community with adoption % and confidence.' },
   ],
@@ -220,8 +220,8 @@ const TOUR_TAB_STEPS = {
     { target: '.lab-right', title: 'Optimized Decklist', body: 'Deck calibrated for this matchup with mana curve, add/cut badges and copy button to import in-game.' },
   ],
   improve: [
-    { target: '.pf-header', title: 'Personal Profile', body: 'Your user context lives here: identity, setup and access to personal data.' },
-    { target: '.pf-my-stats-section', title: 'My Stats', body: 'The detail of your personal performance lives here, outside the Home tab.' },
+    { target: '.pf-header', title: 'Profile', body: 'Local preferences plus the public player lookup driven by the linked nickname.' },
+    { target: '.pf-my-stats-section', title: 'Player lookup', body: 'Detailed lookup of the linked nickname\'s recent matches and decks.' },
     { target: '#pf-blind-playbook-host-improve,.bp-row', title: 'Study Review', body: 'Blind playbook and personal reviews are the core of the Improve tab.' },
   ],
   team: [
