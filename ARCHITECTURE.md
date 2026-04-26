@@ -1,6 +1,6 @@
 # Lorcana Monitor — Architettura Produzione
 
-**Versione:** 5.1 | **Data:** 20 Aprile 2026
+**Versione:** 5.2 | **Data:** 25 Aprile 2026
 
 ---
 
@@ -100,15 +100,24 @@ Dati sorgente:
 - **Killer Curves Core legality**: il batch nativo `scripts/generate_killer_curves.py` e il prompt `pipelines/kc/build_prompt.py` applicano ora anche un guard di legalita' Core basato su `meta_epochs.legal_sets`, non solo un vincolo di colori. Questo evita curve Core con carte Infinity-only come `Be Prepared`.
 - **Post-filter difensivo**: anche se l'LLM propone una carta fuori rotazione, il generator rimuove da `sequence.plays` e `response.cards` ogni carta non legale per il Core corrente prima dell'upsert in `killer_curves`.
 
+**Killer Curves LLM optimization (25 Apr 2026):**
+- **Batch nativo App_tool**: `scripts/generate_killer_curves.py` e' la pipeline operativa per le KC OpenAI. Legge digest nativi da `output/digests`, costruisce prompt via `pipelines/kc/build_prompt.py`, chiama OpenAI, applica post-filter, e upserta in PG `killer_curves`.
+- **JSON mode in produzione**: la chiamata OpenAI usa `response_format={"type": "json_object"}` anche nel batch, allineata al canary.
+- **Cache key LLM**: ogni nuova riga KC persiste in `meta` `digest_hash`, `prompt_contract_hash`, `schema_version`, `prompt_hash`, costo/tokens e `run_id`. Nei run non-forzati, se `digest_hash + prompt_contract_hash + schema_version` coincidono con la riga current, la matchup viene saltata prima della call LLM. `--force` rigenera comunque.
+- **Payload V3 nella stessa call**: il prompt e `schemas/killer_curves.schema.json` supportano `killer_curves[].v3_payload` e `killer_curves[].self_check`. Obiettivo: estrarre dalla stessa spesa LLM micro-copy riusabile in Play/Deck/Profile senza seconda call.
+- **Metriche di completezza**: `scripts/generate_killer_curves.py` salva in `killer_curves.meta` `response_v2_complete`, `v3_payload_complete`, `self_check_complete` e percentuali. Questi campi misurano se la call ha prodotto valore V3 consumabile.
+- **Trasporto V3**: la V3 consuma KC dal blob `/api/v1/dashboard-data`, via `matchup_reports(report_type='killer_curves')`. Dopo rigenerazione KC resta necessario sync rapido `scripts/refresh_kc_matchup_reports.py --format all` e refresh cache dashboard.
+- **Doc operativo**: analisi critica e backlog di blindatura in `docs/KILLER_CURVES_BLINDATURA_V3.md`.
+
 **Profile tab (aggiornato 10 Apr 2026):**
 - **Select Your Deck** (box gold): ink picker 6 colonne con label, toggle Standard/My Deck, sezione "Saved Decks" con card per deck pinnato, sezione "My Stats" collapsibile con tutti i deck giocati (icona, WR bar, peggior matchup), click per selezionare
 - **Meta Radar** (box rosso): deck identity banner, KPI strip (WR, Share, Games, Players del meta), Best/Worst matchups in box separati, sezione "Threats to watch"
 - My Stats usa `DATA.player_lookup[formato][nick]` — coerente col formato Core/Infinity selezionato
 
-**Dipendenze residue da analisidef (bridge temporaneo, stato 15 Apr 2026 sera — Liberation Day):**
+**Dipendenze residue da analisidef (bridge temporaneo, stato 25 Apr 2026):**
 - `lorcana_monitor.py` → `/matches/*.json` (collection dati live) — **non spostabile** (collection infra)
 - `daily_routine.py` → `dashboard_data.json` → `import_matchup_reports.py` (12 tipi, analyzer 12K LOC) — **D3, target P3**
-- `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **D2, target P2**
+- `run_kc_production.sh` → killer curves via OpenAI → `import_killer_curves.py` — **legacy bridge residuale**. La pipeline operativa App_tool e' `scripts/generate_killer_curves.py`; `import_killer_curves.py` resta solo per import da output legacy se necessario.
 - `pipelines/playbook/generator.py` → `analisidef/output/digest_*.json` — **D1, target 16/04 (cutover a digest nativo)**
 - `kc_spy.py` → `kc_spy_report.json` → `import_kc_spy.py` (cron 04:05 daily) — **producer legacy, consumer runtime gia' su PG**
 
@@ -122,7 +131,7 @@ Dati sorgente:
 
 **Frontend:** il file di produzione vive in `App_tool/frontend/dashboard.html`. Rimane ancora monolitico, ma non e' piu' un symlink e non deve dipendere da sync manuali da analisidef.
 
-**Cron App_tool (UTC, verificato 15 Apr 2026 via `crontab -l`):**
+**Cron App_tool (UTC, stato documentato 25 Apr 2026):**
 ```
 */2h        import_matches.py           → match JSON → PG (~1s)
 */5min      healthcheck.sh              → monitoring, auto-restart
@@ -131,9 +140,9 @@ Dom 02:00   maintenance.sh              → drop turns >90gg, VACUUM
 Dom 04:45   static_importer.py          → cards DB refresh (duels.ink cache merge)
 04:05       import_kc_spy.py            → KC Spy JSON legacy → PG `kc_spy_reports` (aggiunto 15/04)
 05:30       import_matchup_reports.py   → 12 tipi report da dashboard_data.json → PG
-Mar 00:00   (analisidef) run_kc_production.sh   → OpenAI batch KC
+Mar 01:30   generate_killer_curves.py → OpenAI batch KC nativo App_tool
 Mar 01:00   generate_playbooks.py       → playbook nativo App_tool
-Mar 05:30   import_killer_curves.py     → KC da analisidef/output → PG
+Mar 05:30   refresh_kc_matchup_reports.py → KC PG → matchup_reports
 07:00       monitor_kc_freshness.py     → canary freshness, mail STALE/ERROR
 ```
 **Nota:** l'API assembla il blob on-demand con cache 2h + stale-while-revalidate + warm-up allo startup. `assemble_snapshot.py` non e' parte del serving runtime corrente.
