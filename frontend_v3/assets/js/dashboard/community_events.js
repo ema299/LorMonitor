@@ -131,6 +131,11 @@ function renderCommunityTab(main) {
       <span class="tab-section-hdr__eyebrow">Live Now</span>
       <span class="tab-section-hdr__title">Stream &middot; Schedule &middot; Events</span>
     </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>What's happening today.</strong> The stream when it's live, the next
+      scheduled shows, and the closest tournaments. The whole row is gone-quiet when
+      there is no live content — no stale "stream offline" placeholder.
+    </div>
 
     <div class="card card-hero">
       <div class="section-title">
@@ -154,6 +159,11 @@ function renderCommunityTab(main) {
     <div class="tab-section-hdr" style="margin-top:var(--sp-5)">
       <span class="tab-section-hdr__eyebrow">Learn</span>
       <span class="tab-section-hdr__title">Teaching clips &middot; VOD archive</span>
+    </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>School of Lorcana.</strong> Curated short clips by judges and pro players
+      grouped by skill level and archetype. The Archive below collects full-length VODs
+      filtered by deck so you can study a specific matchup end-to-end.
     </div>
 
     <div class="card">
@@ -278,6 +288,16 @@ function renderEventsTab(main) {
   const cardsHtml = buildEventCardsHtml(EVENTS_CONFIG);
 
   main.innerHTML = `
+    <div class="tab-section-hdr">
+      <span class="tab-section-hdr__eyebrow">Events</span>
+      <span class="tab-section-hdr__title">Tournaments &middot; map &middot; submission</span>
+    </div>
+    <div class="deck-intro deck-intro--above">
+      <strong>Lorcana events near you.</strong> Filter by region and format, browse on
+      the map or as a list. Submit a missing tournament with the button on the right —
+      we publish it after a quick check.
+    </div>
+
     <div class="events-filter-bar">
       <div class="events-filter-group">
         <select class="deck-select" id="ev-filter-region" onchange="evApplyFilters()" style="min-width:100px">
