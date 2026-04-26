@@ -208,6 +208,9 @@
   // completion, this just adds a second render with fresh user state.
   loadProfile().then(function (user) {
     if (user) window.LM_USER = user;
+    if (typeof window.lmRenderAuthSlot === 'function') {
+      try { window.lmRenderAuthSlot(); } catch (_) { /* slot may not yet be in DOM */ }
+    }
     if (typeof window.render === 'function') {
       try { window.render(); } catch (e) { /* render not ready yet, ok */ }
     }

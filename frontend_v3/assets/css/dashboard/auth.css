@@ -1,0 +1,210 @@
+/* ============================================================
+ * V3 auth UI — sign-in / sign-up modal + header slot
+ * Loaded after monolith.css. Tokens from monolith are reused.
+ * Mobile-first; modal goes full-screen on viewports <= 640px.
+ * ============================================================ */
+
+/* Header slot — anonymous CTA button + logged badge */
+.lm-auth-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 10px;
+}
+.lm-auth-cta {
+  background: var(--gold);
+  color: var(--bg);
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 700;
+  font-size: 0.85em;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+}
+.lm-auth-cta:hover { opacity: 0.9; }
+.lm-auth-cta--ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255,215,0,0.35);
+}
+.lm-auth-cta--ghost:hover { background: rgba(255,215,0,0.08); }
+
+.lm-auth-logged {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85em;
+  color: var(--text2);
+}
+.lm-auth-logged-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.lm-auth-tier-badge {
+  background: rgba(212,160,58,0.18);
+  color: var(--gold);
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 0.78em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* Modal shell */
+.lm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  animation: lmFadeIn 160ms ease-out;
+}
+@keyframes lmFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.lm-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px 26px 22px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: lmScaleIn 200ms cubic-bezier(0.2,0.8,0.2,1);
+}
+@keyframes lmScaleIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.lm-modal-title {
+  margin: 0 0 6px;
+  font-size: 1.3em;
+  color: var(--gold);
+  font-weight: 700;
+}
+.lm-modal-sub {
+  margin: 0 0 18px;
+  color: var(--text2);
+  font-size: 0.86em;
+  line-height: 1.4;
+}
+.lm-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: transparent;
+  border: 0;
+  color: var(--text2);
+  font-size: 1.5em;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+}
+.lm-modal-close:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.lm-modal-body { position: relative; }
+
+/* Form fields */
+.lm-form-group {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.lm-form-label {
+  font-size: 0.78em;
+  color: var(--text2);
+  margin-bottom: 5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+.lm-form-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 0.95em;
+  outline: none;
+  transition: border-color 140ms;
+}
+.lm-form-input:focus { border-color: var(--gold); }
+.lm-form-input::placeholder { color: var(--text2); opacity: 0.5; }
+
+.lm-form-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+.lm-form-error {
+  color: #F85149;
+  font-size: 0.83em;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: rgba(248,81,73,0.08);
+  border-left: 3px solid #F85149;
+  border-radius: 0 4px 4px 0;
+  display: none;
+}
+.lm-form-error.lm-show { display: block; }
+.lm-form-info {
+  color: var(--green);
+  font-size: 0.83em;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  background: rgba(63,185,80,0.08);
+  border-left: 3px solid var(--green);
+  border-radius: 0 4px 4px 0;
+  display: none;
+}
+.lm-form-info.lm-show { display: block; }
+
+.lm-form-submit {
+  background: var(--gold);
+  color: var(--bg);
+  border: 0;
+  border-radius: 6px;
+  padding: 11px 14px;
+  font-weight: 700;
+  font-size: 0.95em;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
+}
+.lm-form-submit:hover { opacity: 0.92; }
+.lm-form-submit:disabled { opacity: 0.5; cursor: wait; }
+
+.lm-form-link {
+  background: transparent;
+  border: 0;
+  color: var(--gold);
+  cursor: pointer;
+  font-size: 0.85em;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+.lm-form-link:hover { color: var(--text); }
+
+.lm-form-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--text2);
+}
+
+/* Mobile: full-screen modal */
+@media (max-width: 640px) {
+  .lm-modal-overlay { padding: 0; align-items: stretch; }
+  .lm-modal {
+    max-width: 100%;
+    border-radius: 0;
+    padding: 28px 22px 22px;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .lm-modal-close { top: 12px; right: 12px; }
+}
