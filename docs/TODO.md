@@ -1,6 +1,6 @@
 # App_tool — TODO Master
 
-**Ultimo aggiornamento:** 26 Aprile 2026 — B.1 nickname bridge stats chiuso; aggiunti privacy boundary V3, KC quality sprint, ops digest e visual parity.
+**Ultimo aggiornamento:** 26 Aprile 2026 — B.1 nickname bridge stats + privacy boundary V3 chiusi; B.7 Coach Workspace foundation in corso (B.7.0 + B.7.0.5 + B.7.1 + B.7.2 backend DONE; resta UI roster editor + B.7.3-7.9). Stripe webhook centralizzato in B.8 (post-fiscal SRL).
 **Scope:** master TODO operativo di `metamonitor.app`. Tre sezioni ordinate per impatto business.
 
 ## Regola operativa per Claude
@@ -243,6 +243,24 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 - **Mai estendere `team_coaching.js`**: ogni nuovo componente in file V3-native nuovi.
 - **Audit privacy**: prima di ogni endpoint nuovo, verificare che `replay_anonymizer` sia stato considerato e che le 3 dependency `require_replay_owner` / `require_replay_reviewer` (NEW) / `require_replay_access` siano applicate correttamente.
 
+### B.7 Progress snapshot (aggiornato 26/04)
+
+| Sub | Stato | Cosa manca |
+|-----|-------|------------|
+| B.7.0 prereq | **DONE 3/4** | Stripe webhook (in B.8, post-fiscal) |
+| B.7.0.5 V3 auth bootstrap | **DONE** | — |
+| B.7.1 Layered rendering tab Team | **DONE 3/3** | — |
+| B.7.2 Roster gestionale | **DONE 2/3** (backend) | UI `team_roster_editor.js` |
+| B.7.3 Nickname binding | PENDING | gz_internal_nick parser + `replay_nick_bindings` table + UI student-picker + cron validation |
+| B.7.4 Replay queue + review states | PENDING | migration `team_replays` + 3 endpoint + UI queue panel `team_queue.js` |
+| B.7.5 Session notes visibility | PENDING | migration `replay_session_notes.visibility` + endpoint extension + UI toggle |
+| B.7.6 Coach feedback hook | PENDING | extension B.6 `user_feedback.kind=coach_issue` |
+| B.7.7 GDPR cascade + audit log | PENDING | revoke flow + cascade + `replay_access_log` table |
+| B.7.8 Notifications & realtime | PENDING | polling + mail "Coach reviewed" + extension B.6 daily digest |
+| B.7.9 Discord integration | PENDING (Fase 2 opzionale) | bot OAuth + sync membri |
+
+**Effort residuo onesto:** ~18-20 dev day in scope (B.7.2 UI + B.7.3-B.7.8). B.7.9 Discord +5-7 day se attivata. Sequencing: B.7.2 UI → B.7.3 → B.7.4 (cuore Coach view) → B.7.5 → B.7.7 → B.7.8 → B.7.6.
+
 ### B.7.0 Tier gating + beta access (prerequisito)
 
 | Task | Effort | Impatto |
@@ -251,6 +269,7 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 | Beta redemption code: riuso `promo_service.granted_tier='coach'` + endpoint `POST /api/v1/promo/redeem-beta`, distribuibile a 5-10 power-coach prima di Stripe live. Codici scadono dopo N giorni o never (param). Audit log redemption. | **DONE 26/04** — endpoint `backend/api/promo.py:91 redeem_beta_code` con doppia validazione (`type='tier_upgrade'` + `granted_tier='coach'`), opaque error per non leakare codici non-beta, audit log via logger (`code, user, tier, expires, ip, ua`). Riusa `promo_service.redeem_promo` esistente. Codici creati via `POST /api/v1/promo/create` con `granted_tier=coach` + `expires_at` opzionale. | Alto (dogfooding) |
 | `User.preferences.team_view_mode` (`player`/`coach`, default `coach` se `tier=coach`, sennò non applicabile). Endpoint `PUT /api/v1/user/preferences` già accetta whitelist (`user_service.py::ALLOWED_PREFS`) — aggiungere `team_view_mode` lì. | **DONE 26/04** — `team_view_mode` aggiunto a `ALLOWED_PREFS` in `user_service.py`. Endpoint PUT esistente lo accetta. Default UI fallback gestito in frontend (B.7.1). | Medio |
 | **Tier `team` legacy compatibility**: `users.tier` ENUM oggi accetta `free|pro|coach|team` (`team` è valore storico pre-`coach`). Default policy B.7: `tier='team'` mappato a Coach Workspace capability (alias temporaneo) per non rompere user paganti esistenti. Decisione finale di prodotto sul tier `team` (deprecate / alias permanente / tier intermedio €19) tracciata in B.7.Y. Nessun nuovo signup deve poter scegliere `team` — restringere `interest_to_pay` pattern a `(pro\|coach)` in `backend/api/user.py`. | **DONE 26/04** — `users.tier` è VARCHAR(20), no ENUM Postgres. `TIER_LEVEL` (`backend/deps.py:20`) e `TIER_LIMITS` + `UPLOAD_REPLAY_LIMITS` (`backend/middleware/rate_limit.py`) estesi con `coach=2` allo stesso livello di `team=2`. `InterestRequest` pattern (`backend/api/user.py:53`) ristretto da `(pro\|coach\|team)` a `(pro\|coach)`. Nessun nuovo signup può scegliere `team`; legacy paganti `team` mantengono Coach capability via alias. Frontend non posta `tier='team'`, breaking change safe. | Alto (no silent default-deny per pagante) |
+| **B.7.0.5 V3 auth bootstrap** (prereq trovato durante implementazione B.7.1 — non era listato originariamente nello spec) | **DONE 26/04** — nuovo `frontend_v3/assets/js/dashboard/auth_bootstrap.js` (~95 LOC) carica `/api/v1/user/profile` da JWT su localStorage, espone `window.LM_USER = {id, email, tier, is_admin, team_view_mode, ...}` + `lmTierLevel()` + `lmEffectiveTeamView()`. Wired in `frontend_v3/dashboard.html` prima di `monolith.js`. Re-render automatico quando profilo carica (non blocca initial render). | Alto (prerequisito infra) |
 
 ### B.7.1 Layered rendering tab Team (player / coach view)
 
@@ -259,7 +278,6 @@ Oggi Board Lab vive nel legacy `team_coaching.js`. Per giustificare il Coach tie
 | `renderTeamTab()` in `team.js` switch su `(tier, team_view_mode)`: free+team→KPI+roster cards read-only (oggi), pro→+analytics avanzate (read-only), coach+coach-mode→full workspace, coach+player-mode→stessa vista pro. | **DONE 26/04** — `team.js` helpers `ttResolveView()` + `lmEffectiveTeamView()` (in `auth_bootstrap.js`) + `lmTierLevel()` mappano `(tier, team_view_mode)` → `'free'|'pro'|'coach'|'coach_player'`. `renderTeamTab` early-return + final `main.innerHTML` usano lo stato. Legacy roster path resta intatto, wrapping additive. | Alto |
 | Toggle Player/Coach view nell'header del tab Team (visibile solo se `tier=coach`). Persistenza in `preferences.team_view_mode`. | **DONE 26/04** — `buildLayeredTeamStrip()` rende la strip toggle, visibile solo per `isCoachTier=true` (include alias `team`). `lmSetTeamViewMode(mode)` aggiorna `window.LM_USER` + `localStorage` + chiama `PUT /api/v1/user/preferences` (best-effort) + re-render. | Medio |
 | Empty states differenziati: (no team / free with team / coach without students / coach onboarding). Soft-gating upsell card per pro→coach: "Upgrade to manage students". | **DONE 26/04** — 3 helper builder: `buildFreeEmptyTeam`, `buildProEmptyTeam`, `buildCoachOnboardingEmpty`. Pro→Coach upsell card via `buildProUpsellToCoachCard()` injected sopra il roster path quando `tier='pro'`. | Medio (conversion) |
-| **B.7.0.5 V3 auth bootstrap** (prereq trovato durante implementazione B.7.1) | **DONE 26/04** — nuovo `frontend_v3/assets/js/dashboard/auth_bootstrap.js` (~95 LOC) carica `/api/v1/user/profile` da JWT su localStorage, espone `window.LM_USER = {id, email, tier, is_admin, team_view_mode, ...}` + `lmTierLevel()` + `lmEffectiveTeamView()`. Wired in `frontend_v3/dashboard.html` prima di `monolith.js`. Re-render automatico quando profilo carica (non blocca initial render). | Alto (prerequisito infra) |
 
 ### B.7.2 Roster gestionale + CSV import
 
@@ -588,3 +606,7 @@ Dettaglio: [`PRIVACY_LAYER_V3.md`](PRIVACY_LAYER_V3.md). Componenti già live:
 *TODO consolidato il 24 Aprile 2026 (sera) reality-aligned. Sostituisce struttura precedente (§A App_tool legacy / §B V3 target-based / §C Migration). Nuova tassonomia: A = pre-launch, B = post-launch 30gg, C = tech debt. Sibling: [`BP.md`](BP.md) v4.1, [`V3_ARCHITECT_POINT.md`](V3_ARCHITECT_POINT.md) v1.1.*
 
 *Update 24/04 sera: A.1 + A.2 + A.3 partial chiusi. A.3 Opzione B (Play-only soft gate via `play_gate.js`) implementato; Mulligan reveal deferred. Set 12 Hub URLs spostati in B.5 come BLOCKED non-blocker. Focus ora: A.4 Board Lab wiring minimo.*
+
+*Update 25-26/04: Sezione A pre-launch chiusa code-side. B.2 Session notes MVP A (`replay_session_notes`, owner-only, dual-write JSONB+table). B.3 Privacy hardening completo (rate limit upload, DELETE replay round-trip, `user_consents` append-only). B.5 Improve nickname onboarding hero. B.1 nickname bridge stats card. A.5 privacy boundary copy fixes.*
+
+*Update 26/04 sera: B.7 Coach Workspace foundation in corso. **DONE oggi**: B.7.0 (3 di 4: tier `coach`+alias+InterestRequest pattern restricted, `team_view_mode` pref whitelisted, beta redemption code endpoint con audit log) + B.7.0.5 V3 auth bootstrap (prereq trovato) + B.7.1 Layered rendering tab Team (3 di 3) + B.7.2 backend (migration `d5a8f3e1c2b9` `team_roster` Coach Workspace columns + 4 endpoint students). **Stripe webhook centralizzato in B.8** (post-fiscal SRL, blocker decisione struttura). **Migrations live:** alembic head `d5a8f3e1c2b9`. **Resta in B.7:** UI roster editor (B.7.2), B.7.3 nick binding gz_internal, B.7.4 replay queue, B.7.5 visibility, B.7.6 feedback hook, B.7.7 GDPR cascade, B.7.8 notifications, B.7.9 Discord (opzionale Fase 2). **Pendenze ops:** `systemctl restart lorcana-api` per attivare nuovi endpoint, `git push origin dev` (38 commit ahead).*
