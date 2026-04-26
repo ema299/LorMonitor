@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile, news
+from backend.api import auth, promo, monitor, coach, lab, admin, dashboard, team, user, community, subscription, profile, news, feedback
 from backend.config import CORS_ALLOW_CREDENTIALS, CORS_ALLOW_ORIGINS
 from backend.api.dashboard import warmup_cache
 from backend.deps import get_db
@@ -65,6 +65,7 @@ app.include_router(news.router, prefix="/api/v1/news", tags=["News"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["Profile"])
 app.include_router(subscription.router, prefix="/api/v1", tags=["Subscription"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["Dashboard"])
+app.include_router(feedback.router, prefix="/api/v1", tags=["Feedback"])
 
 
 @app.on_event("startup")
